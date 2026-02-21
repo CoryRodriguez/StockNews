@@ -1,14 +1,17 @@
 import GridLayout, { Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
+import { useEffect } from "react";
 import { useDashboardStore } from "../store/dashboardStore";
 import { useSocket } from "../hooks/useSocket";
+import { useAuthStore } from "../store/authStore";
+import { useWatchlistStore } from "../store/watchlistStore";
 import { TopNav } from "../components/layout/TopNav";
 import { ScannerPanel } from "../components/panels/ScannerPanel";
 import { ChartPanel } from "../components/panels/ChartPanel";
 import { NewsPanel } from "../components/panels/NewsPanel";
 import { WatchlistPanel } from "../components/panels/WatchlistPanel";
-import { GridPanel } from "../types";
+import { GridPanel, Watchlist } from "../types";
 
 function PanelWrapper({ panel, children }: { panel: GridPanel; children: React.ReactNode }) {
   return (
@@ -46,6 +49,16 @@ function renderPanel(panel: GridPanel) {
 export function Dashboard() {
   useSocket();
   const { panels, setPanels } = useDashboardStore();
+  const token = useAuthStore((s) => s.token);
+  const setLists = useWatchlistStore((s) => s.setLists);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/watchlists", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((lists: Watchlist[]) => setLists(lists))
+      .catch(() => {});
+  }, [token, setLists]);
 
   const layout: Layout[] = panels.map((p) => ({
     i: p.id,

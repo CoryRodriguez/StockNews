@@ -3,6 +3,7 @@ import { useAuthStore } from "../store/authStore";
 import { useNewsStore } from "../store/newsStore";
 import { useScannerStore } from "../store/scannerStore";
 import { useWatchlistStore } from "../store/watchlistStore";
+import { useTradesStore } from "../store/tradesStore";
 import { WsMessage, ScannerAlert } from "../types";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.host}/ws`;
@@ -34,6 +35,7 @@ export function useSocket() {
   const addArticle = useNewsStore((s) => s.addArticle);
   const { addAlert, clearAlert, activeScanners } = useScannerStore();
   const updatePrice = useWatchlistStore((s) => s.updatePrice);
+  const upsertTrade = useTradesStore((s) => s.upsertTrade);
   const subscribedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export function useSocket() {
     const subscribeChannels = (ws: WebSocket) => {
       const channels = [
         "news",
+        "trades",
         "scanner:news_flow",
         ...Array.from(activeScanners).map((id) => `scanner:${id}`),
       ];
@@ -69,6 +72,8 @@ export function useSocket() {
           clearAlert(msg.scannerId, msg.ticker);
         } else if (msg.type === "quote_update") {
           updatePrice(msg.ticker, msg.price);
+        } else if (msg.type === "trade_update") {
+          upsertTrade(msg.trade);
         }
       } catch {
         // ignore
@@ -77,5 +82,5 @@ export function useSocket() {
 
     ws.addEventListener("message", handleMessage);
     return () => ws.removeEventListener("message", handleMessage);
-  }, [token, activeScanners, addArticle, addAlert, clearAlert, updatePrice]);
+  }, [token, activeScanners, addArticle, addAlert, clearAlert, updatePrice, upsertTrade]);
 }

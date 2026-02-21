@@ -6,7 +6,8 @@ const DEFAULT_PANELS: GridPanel[] = [
   { id: "scanner-1", type: "scanner", scannerId: "news_flow", title: "News Flow", x: 0, y: 0, w: 3, h: 14 },
   { id: "scanner-2", type: "scanner", scannerId: "gap_up", title: "Gap Up", x: 0, y: 14, w: 3, h: 14 },
   { id: "chart-1",   type: "chart",   symbol: "NASDAQ:AAPL",                        x: 3, y: 0,  w: 6, h: 16 },
-  { id: "watchlist-1", type: "watchlist", title: "Watchlist",                        x: 3, y: 16, w: 6, h: 12 },
+  { id: "watchlist-1", type: "watchlist", title: "Watchlist",                        x: 3, y: 16, w: 6, h: 8 },
+  { id: "trades-1",  type: "trades",  title: "Paper Trades",                         x: 3, y: 24, w: 6, h: 4 },
   { id: "news-1",   type: "news",    newsMode: "firehose", title: "News Feed",      x: 9, y: 0,  w: 3, h: 28 },
 ];
 

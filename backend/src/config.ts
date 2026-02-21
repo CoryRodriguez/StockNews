@@ -11,4 +11,10 @@ export const config = {
   alpacaDataUrl: "https://data.alpaca.markets",
   alpacaWsUrl: "wss://stream.data.alpaca.markets/v2/iex",
   rtprWsUrl: "wss://ws.rtpr.io",
+  // Paper trading
+  paperTradingEnabled: process.env.PAPER_TRADING_ENABLED === "true",
+  alpacaPaperUrl: "https://paper-api.alpaca.markets",
+  paperTradeQty: parseInt(process.env.PAPER_TRADE_QTY ?? "10"),
+  paperTradeSellDelaySec: parseInt(process.env.PAPER_TRADE_SELL_DELAY_SEC ?? "60"),
+  paperTradeCooldownMin: parseInt(process.env.PAPER_TRADE_COOLDOWN_MIN ?? "5"),
 } as const;

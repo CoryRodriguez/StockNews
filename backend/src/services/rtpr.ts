@@ -6,6 +6,8 @@
 import WebSocket from "ws";
 import { config } from "../config";
 import { broadcast } from "../ws/clientHub";
+import { getActiveScannersForTicker } from "./scanner";
+import { executePaperTrade } from "./paperTrader";
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -112,6 +114,14 @@ function handleMessage(msg: RtprMessage) {
       title: article.title,
       receivedAt: article.receivedAt,
     });
+
+    // Paper trade: buy if this ticker is currently on any scanner alert
+    const activeScanners = getActiveScannersForTicker(article.ticker);
+    if (activeScanners.length > 0) {
+      executePaperTrade(article, activeScanners).catch((err) =>
+        console.error("[PaperTrader] Uncaught error:", err)
+      );
+    }
   }
 }
 

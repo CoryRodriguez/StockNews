@@ -11,6 +11,7 @@ import { ScannerPanel } from "../components/panels/ScannerPanel";
 import { ChartPanel } from "../components/panels/ChartPanel";
 import { NewsPanel } from "../components/panels/NewsPanel";
 import { WatchlistPanel } from "../components/panels/WatchlistPanel";
+import { TradesPanel } from "../components/panels/TradesPanel";
 import { GridPanel, Watchlist } from "../types";
 
 function PanelWrapper({ panel, children }: { panel: GridPanel; children: React.ReactNode }) {
@@ -41,6 +42,8 @@ function renderPanel(panel: GridPanel) {
       );
     case "watchlist":
       return <WatchlistPanel />;
+    case "trades":
+      return <TradesPanel />;
     default:
       return null;
   }

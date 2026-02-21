@@ -49,6 +49,15 @@ export function getScannerDefinitions() {
   return SCANNERS.map(({ id, name }) => ({ id, name }));
 }
 
+/** Returns the IDs of scanners that currently have this ticker on alert */
+export function getActiveScannersForTicker(ticker: string): string[] {
+  const result: string[] = [];
+  for (const [scannerId, tickers] of alertState) {
+    if (tickers.has(ticker)) result.push(scannerId);
+  }
+  return result;
+}
+
 // Track current alert state per scanner to avoid duplicate emissions
 const alertState = new Map<string, Set<string>>(); // scannerId → Set<ticker>
 for (const s of SCANNERS) alertState.set(s.id, new Set());

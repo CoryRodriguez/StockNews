@@ -12,6 +12,7 @@ import { recentArticles } from "./services/rtpr";
 import authRouter from "./routes/auth";
 import watchlistsRouter from "./routes/watchlists";
 import layoutsRouter from "./routes/layouts";
+import tradesRouter from "./routes/trades";
 import { requireAuth } from "./middleware/auth";
 
 const app = express();
@@ -22,6 +23,7 @@ app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/watchlists", watchlistsRouter);
 app.use("/api/layouts", layoutsRouter);
+app.use("/api/trades", tradesRouter);
 
 // Scanner definitions (no auth needed — public metadata)
 app.get("/api/scanners", (_req, res) => {

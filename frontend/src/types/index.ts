@@ -49,9 +49,29 @@ export interface Watchlist {
   tickers: string[];
 }
 
+// ── Paper Trading ──────────────────────────────────────────────────────────
+
+export interface PaperTrade {
+  id: string;
+  ticker: string;
+  qty: number;
+  buyOrderId: string | null;
+  buyPrice: number | null;
+  buyStatus: "pending" | "filled" | "error";
+  sellOrderId: string | null;
+  sellPrice: number | null;
+  sellStatus: "awaiting" | "pending" | "filled" | "error";
+  catalyst: string;
+  catalystType: "high" | "medium" | "low";
+  scannerId: string | null;
+  pnl: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Layout ─────────────────────────────────────────────────────────────────
 
-export type PanelType = "scanner" | "chart" | "news" | "watchlist";
+export type PanelType = "scanner" | "chart" | "news" | "watchlist" | "trades";
 
 export interface PanelConfig {
   id: string;
@@ -84,4 +104,5 @@ export type WsMessage =
   | { type: "news_article"; article: NewsArticle; channel: string }
   | { type: "scanner_alert"; channel: string; scannerId: string } & ScannerAlert
   | { type: "scanner_clear"; channel: string; scannerId: string; ticker: string }
-  | { type: "quote_update"; channel: string; ticker: string; price: number; volume?: number };
+  | { type: "quote_update"; channel: string; ticker: string; price: number; volume?: number }
+  | { type: "trade_update"; channel: string; trade: PaperTrade };

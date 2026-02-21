@@ -28,3 +28,21 @@ model Layout {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model PaperTrade {
+  id           String    @id @default(cuid())
+  ticker       String
+  qty          Int
+  buyOrderId   String?
+  buyPrice     Float?
+  buyStatus    String    // "pending" | "filled" | "error"
+  sellOrderId  String?
+  sellPrice    Float?
+  sellStatus   String    // "awaiting" | "pending" | "filled" | "error"
+  catalyst     String    // News headline that triggered the trade
+  catalystType String    // "high" | "medium" | "low"
+  scannerId    String?   // Which scanner the ticker was on
+  pnl          Float?    // Realized P&L after sell fills
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}

@@ -1,8 +1,8 @@
 # Day Trade Dashboard — Product Requirements Document (PRD) & Tech Spec
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2026-02-21
-**Status:** Draft
+**Status:** Draft — updated after requirements clarification
 
 ---
 
@@ -11,9 +11,10 @@
 This document defines the product requirements and technical architecture for a self-hosted **Day Trade Dashboard** — a browser-based, all-in-one trading command center inspired by Warrior Trading's *Day Trade Dash* platform.
 
 The core differentiators of this build:
-- **Real-time news** via [RTPR.io](https://www.rtpr.io/docs) WebSocket API (sub-500ms latency from Business Wire, PR Newswire, GlobeNewswire)
-- **Professional charts** via the user's existing **TradingView Premium** subscription (Charting Library or Advanced Chart widget)
-- **Custom scanner engine** built on Polygon.io real-time market data
+- **Real-time news + catalyst scanner** via [RTPR.io](https://www.rtpr.io/docs) WebSocket API (sub-500ms latency; also drives the "News Flow" scanner panel)
+- **Professional charts** via **TradingView Advanced Chart Widget** (free iframe embed; no partner agreement required; TradingView provides all chart data)
+- **Momentum scanner engine** built on **Alpaca Markets** free real-time data WebSocket (no cost beyond a free paper-trading account)
+- **Publicly accessible web app** hosted on Namecheap VPS
 - **Zero subscription lock-in** — self-hosted, fully owned
 
 ---
@@ -110,16 +111,17 @@ The core differentiators of this build:
 | Frontend framework | **React 18 + TypeScript** | Component model fits panel-based UI |
 | Build tool | **Vite** | Fast HMR, small bundles |
 | Styling | **Tailwind CSS** | Utility-first, dark-theme-friendly |
-| Panel layout | **react-grid-layout** | Drag, resize, persist panel configs — same library used by many trading dashboards |
-| Charts | **TradingView Advanced Charts Widget** (or Charting Library with Premium) | User already has TradingView Premium; supports sub-minute timeframes |
-| News delivery | **RTPR.io WebSocket API** | Sub-500ms press release delivery |
-| Market data | **Polygon.io WebSocket + REST** | Real-time trades, aggregates, reference data for scanners |
+| Panel layout | **react-grid-layout** | Drag, resize, persist panel configs |
+| Charts | **TradingView Advanced Chart Widget** | Free iframe embed; no agreement; TradingView provides all data including sub-minute |
+| News delivery | **RTPR.io WebSocket API** | Sub-500ms press release delivery; also drives News Flow scanner |
+| Market data | **Alpaca Markets WebSocket** (free tier) | Real-time trades/quotes via paper-trading account; no cost |
 | Backend | **Node.js + Express + ws** | WebSocket proxy, scanner engine, REST API |
 | State management | **Zustand** | Lightweight, no boilerplate |
 | Database | **PostgreSQL** (via Prisma) | Watchlists, layouts, user settings |
 | Cache / pub-sub | **Redis** | Scanner state, hot ticker metadata |
 | Notifications | **Web Audio API** | In-browser audio alerts (no external dep) |
-| Deployment | **Docker Compose** | Single-machine self-host |
+| Auth | **JWT + bcrypt** (single-user) | Password-protected; accessible from any browser |
+| Deployment | **Docker Compose on Namecheap VPS** | nginx + SSL (Let's Encrypt); publicly accessible via your domain |
 
 ---
 
@@ -129,18 +131,21 @@ The core differentiators of this build:
 
 The scanner engine runs server-side, continuously processing Polygon.io real-time data and emitting alerts to connected clients via WebSocket.
 
-#### Scanners (Phase 1 — 8 core scanners)
+#### Scanners (Phase 1 — 9 core scanners)
 
-| Scanner Name | Trigger Criteria |
-|---|---|
-| **Gap Up Pre-Market** | Gap % ≥ 5%, Price $1–$30, Volume > 50k pre-market |
-| **Gap Down Pre-Market** | Gap % ≤ -5%, Price $1–$30, Volume > 50k pre-market |
-| **High Relative Volume** | Relative Volume ≥ 5x 30-day avg, in last 5 min |
-| **Momentum Mover** | Price change ≥ 3% in last 5 min, Volume spike |
-| **New 52-Week High** | Price crosses 52-week high on elevated volume |
-| **Halted Stocks** | SEC/Exchange halt notification (via Polygon halt feed) |
-| **Small Float Movers** | Float < 10M shares, Price up ≥ 5% on day |
-| **Big % Gainer (Day)** | Up ≥ 10% on the day, any float, any price |
+| Scanner Name | Data Source | Trigger Criteria |
+|---|---|---|
+| **News Flow** | **RTPR.io** | Any stock receiving a press release right now — powered entirely by RTPR.io, no market data needed |
+| **Gap Up Pre-Market** | Alpaca | Gap % ≥ 5%, Price $1–$30, Volume > 50k pre-market |
+| **Gap Down Pre-Market** | Alpaca | Gap % ≤ -5%, Price $1–$30, Volume > 50k pre-market |
+| **High Relative Volume** | Alpaca | Relative Volume ≥ 5x 30-day avg, in last 5 min |
+| **Momentum Mover** | Alpaca | Price change ≥ 3% in last 5 min, Volume spike |
+| **New 52-Week High** | Alpaca | Price crosses 52-week high on elevated volume |
+| **Halted Stocks** | Alpaca | Exchange halt event from Alpaca trading halt stream |
+| **Small Float Movers** | Alpaca + Alpaca REST | Float < 10M shares, Price up ≥ 5% on day |
+| **Big % Gainer (Day)** | Alpaca | Up ≥ 10% on the day, any float, any price |
+
+> **The News Flow scanner is a key differentiator** — it is powered 100% by RTPR.io and shows every stock receiving a press release in real time. Traders use it to get ahead of price moves driven by catalysts.
 
 #### Scanner Data Columns (per alert row)
 - Ticker symbol
@@ -269,15 +274,18 @@ Users can save and load indicator presets. Default preset includes:
 | Subscription | `{"action":"subscribe","tickers":["*"]}` for firehose |
 | Heartbeat | Server sends `ping` every 30s; backend responds with `pong` |
 
-### 7.2 Polygon.io
+### 7.2 Alpaca Markets (Market Data)
 
 | | Details |
 |---|---|
-| Purpose | Real-time trades, quotes, aggregates — feeds scanner engine |
-| Transport | WebSocket (`wss://socket.polygon.io/stocks`) |
-| Feeds used | `T.*` (trades), `A.*` (per-second aggregates), `AM.*` (per-minute aggregates) |
-| REST | `/v2/aggs`, `/v3/reference/tickers` for fundamentals (float, shares outstanding) |
+| Purpose | Real-time trades, quotes, minute bars — feeds momentum/gap scanner engine |
+| Cost | **Free** — requires a free Alpaca paper-trading account |
+| Transport | WebSocket (`wss://stream.data.alpaca.markets/v2/iex`) |
+| Feeds used | Trades (`T`), Quotes (`Q`), Minute Bars (`B`) |
+| REST | `/v2/stocks/snapshots` — bulk snapshot (price, gap %, prev close, volume) |
+| Auth | `APCA-API-Key-ID` + `APCA-API-Secret-Key` headers |
 | Scanner compute | Server-side Node.js, stateful ticker map in Redis |
+| Limitation | IEX feed (free tier) has ~15-min delay for some quote data. For true real-time across all feeds, Alpaca's paid SIP feed (~$9/mo) can be added later. |
 
 ### 7.3 TradingView
 
@@ -466,20 +474,72 @@ VITE_TRADINGVIEW_LIBRARY_PATH=/charting_library/  # if using full library
 
 | Service | Purpose | Cost Estimate |
 |---------|---------|--------------|
-| **RTPR.io** | Real-time news wire WebSocket | See rtpr.io/dashboard |
-| **Polygon.io** | Real-time market data for scanners | Stocks Starter ~$29/mo; Stocks Developer ~$79/mo for WS |
-| **TradingView Premium** | Chart embeds — user already has | Already owned |
-| PostgreSQL | Persistence | Free (self-hosted) |
-| Redis | Cache | Free (self-hosted) |
-
-> **Note on TradingView integration:** The free **Advanced Charts widget** (public JS embed) works without any agreement and supports most features. The full **Charting Library** requires a TradingView partner agreement but enables deeper customization. For v1, the Advanced Charts widget is recommended.
+| **RTPR.io** | Real-time press releases (news panel + News Flow scanner) | See rtpr.io/dashboard |
+| **Alpaca Markets** | Real-time market data for momentum/gap scanners | **Free** (paper-trading account) |
+| **TradingView Widget** | Embedded charts — no account or agreement required | **Free** |
+| **Namecheap VPS** | Hosting (Node.js, Docker, nginx, SSL) | ~$6–12/month (upgrade from shared if needed) |
+| PostgreSQL | Persistence | Free (self-hosted via Docker) |
+| Redis | Cache | Free (self-hosted via Docker) |
 
 ---
 
-## 14. Open Questions
+## 14. Answered Questions & Decisions
 
-1. **Authentication** — Single-user (local only) or multi-user with login?
-2. **Polygon.io tier** — Do you have an existing Polygon.io subscription, or should we architect around a free-tier fallback (e.g., yfinance for non-real-time data)?
-3. **TradingView integration depth** — Advanced Charts widget (simpler, no agreement needed) vs. full Charting Library (requires TradingView partner agreement)?
-4. **Hosting** — Local machine only, or deploy to a VPS/cloud?
-5. **Scanner data freshness** — Should scanners run 24/7 (pre-market starts 4 AM ET) or only during market hours?
+### Q1: Can the scanner also use RTPR.io?
+**Answer:** RTPR.io is a **news wire only** — it provides press releases, not price/volume/market data. It cannot compute gap %, relative volume, float, or halt status. However, RTPR.io *does* power two scanner-related features:
+
+1. **News Flow Scanner** — a dedicated scanner panel showing every stock that just received a press release in real time. This is a killer feature: you see the catalyst *before* the price moves.
+2. **News Dot Indicator** — a green dot on every other scanner row when that ticker has an RTPR.io article within the last 60 minutes.
+
+For true momentum/gap scanning (price, volume, gap %), we use **Alpaca Markets free WebSocket** (see §7.2).
+
+---
+
+### Q2: Does TradingView Premium help with embedding?
+**Answer:** No — a TradingView.com Premium subscription and embeddable chart libraries are separate products.
+
+| Option | Cost | Agreement | What you bring | Sub-minute charts |
+|--------|------|-----------|----------------|-------------------|
+| **Advanced Chart Widget** (chosen) | Free | None (ToS only) | Nothing — TradingView serves data | Yes (10s, 15s, 30s supported in widget) |
+| Advanced Charts Library | Free | TradingView partner agreement required | Your own data feed | Yes |
+| Lightweight Charts | Free, open source | None | Your own data feed | Requires custom implementation |
+
+**Decision: use the Advanced Chart Widget** (iframe embed). TradingView hosts it, provides the data, handles sub-minute timeframes. No agreement, no data feed to build. This is the fastest path and what most independent trading platforms use.
+
+Your Premium subscription does not apply to the widget (it uses TradingView's pooled servers), but the widget itself already includes the features we need.
+
+---
+
+### Q3: Multi-computer access?
+**Answer:** Solved by hosting online. Any browser on any computer loads the full dashboard — no installs, no local setup. Authentication will be a simple password login (single-user, since it's a personal tool).
+
+---
+
+### Q4: Namecheap hosting plan?
+**Answer:** Depends on plan type:
+
+| Namecheap Plan | Node.js | WebSockets | Verdict |
+|----------------|---------|-----------|---------|
+| Shared Hosting | Limited (Passenger/Apache proxy) | Unreliable — proxy breaks persistent connections | **Not suitable** |
+| **VPS Hosting** | Full | Full | **Recommended** |
+| EasyWP / WordPress | No | No | Not suitable |
+
+**Decision: Namecheap VPS** (KVM, AlmaLinux 8). Their entry VPS plans (~$6–12/month) give root SSH access, full WebSocket support, and can run Node.js, PostgreSQL, Redis, and Nginx in Docker containers. If your current plan is shared hosting, upgrading to their VPS tier is required for this app to function correctly (WebSockets are fundamental to the real-time news and scanner feeds).
+
+**Deployment architecture on Namecheap VPS:**
+```
+Namecheap VPS (AlmaLinux 8)
+  └── Docker Compose
+        ├── nginx          → reverse proxy, SSL termination (Let's Encrypt)
+        ├── frontend       → React static build served by nginx
+        ├── backend        → Node.js (Express + WebSocket server)
+        ├── postgres       → watchlists, layouts, settings
+        └── redis          → scanner state cache
+```
+
+---
+
+### Remaining Open Questions
+1. **Namecheap plan type** — Is your current plan shared hosting or VPS? (Determines if an upgrade is needed)
+2. **Domain** — Is your domain already pointed at your Namecheap server? (For SSL setup)
+3. **Scanner hours** — Run scanners 24/7 (covers 4 AM pre-market) or market hours only (9:30–4 PM ET)?

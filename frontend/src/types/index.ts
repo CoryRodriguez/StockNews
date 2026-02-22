@@ -62,7 +62,8 @@ export interface PaperTrade {
   sellPrice: number | null;
   sellStatus: "awaiting" | "pending" | "filled" | "error";
   catalyst: string;
-  catalystType: "high" | "medium" | "low";
+  // tier1=M&A, tier2=FDA/Clinical, tier3=Earnings, tier4=Contract, other=unclassified
+  catalystType: "tier1" | "tier2" | "tier3" | "tier4" | "other";
   scannerId: string | null;
   pnl: number | null;
   createdAt: string;

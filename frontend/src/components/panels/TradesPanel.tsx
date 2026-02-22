@@ -3,10 +3,12 @@ import { useTradesStore } from "../../store/tradesStore";
 import { useAuthStore } from "../../store/authStore";
 import { PaperTrade } from "../../types";
 
-const CATALYST_COLORS: Record<string, string> = {
-  high: "text-yellow-400",
-  medium: "text-blue-400",
-  low: "text-muted",
+const CATALYST_META: Record<string, { color: string; label: string }> = {
+  tier1: { color: "text-yellow-400", label: "M&A"      },
+  tier2: { color: "text-orange-400", label: "FDA"      },
+  tier3: { color: "text-blue-400",   label: "EARN"     },
+  tier4: { color: "text-cyan-400",   label: "GOVT"     },
+  other: { color: "text-muted",      label: "NEWS"     },
 };
 
 function fmt(n: number | null, decimals = 2): string {
@@ -33,8 +35,8 @@ function TradeRow({ trade }: { trade: PaperTrade }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="text-white font-semibold">{trade.ticker}</span>
-          <span className={`text-[10px] ${CATALYST_COLORS[trade.catalystType]}`}>
-            [{trade.catalystType}]
+          <span className={`text-[10px] font-semibold ${(CATALYST_META[trade.catalystType] ?? CATALYST_META.other).color}`}>
+            {(CATALYST_META[trade.catalystType] ?? CATALYST_META.other).label}
           </span>
           {trade.scannerId && (
             <span className="text-[10px] text-muted">{trade.scannerId}</span>

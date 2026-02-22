@@ -8,29 +8,97 @@ import { prisma } from "../db/client";
 import { broadcast } from "../ws/clientHub";
 import type { RtprArticle } from "./rtpr";
 
-export type CatalystType = "high" | "medium" | "low";
+// Tier 1 = M&A (highest confidence, deal premium = price floor)
+// Tier 2 = FDA/Clinical (binary, high magnitude)
+// Tier 3 = Earnings (context-dependent)
+// Tier 4 = Contract/Government awards (scale-dependent)
+// danger = skip trade entirely
+export type CatalystType = "tier1" | "tier2" | "tier3" | "tier4" | "other";
 
 // ── Catalyst classification ──────────────────────────────────────────────────
 
-const HIGH_KEYWORDS = [
-  "fda", "approved", "approval", "breakthrough", "merger", "acquisition",
-  "acquired", "buyout", "takeover", "chapter 11", "bankruptcy", "fraud",
-  "investigation", "subpoena", "phase 3", "phase iii", "going concern",
-  "delisted", "earnings", "beats estimates", "missed estimates",
-  "guidance raised", "guidance cut", "restatement",
+// A pattern is either a single keyword OR an array where ALL must be present.
+type Pattern = string | string[];
+
+function matches(lower: string, p: Pattern): boolean {
+  return Array.isArray(p) ? p.every((kw) => lower.includes(kw)) : lower.includes(p);
+}
+
+// If ANY danger pattern matches, skip the trade entirely.
+const DANGER: Pattern[] = [
+  "complete response letter",
+  ["guidance", "cut"],
+  ["guidance", "lower"],
+  ["guidance", "reduce"],
+  ["offering", "shares"],          // secondary offering = dilution
+  "dilution",
+  ["medicare", "rate", "below"],
+  "going concern",
+  ["fda", "reject"],
+  ["fda", "refuse"],
+  ["fda", "not approv"],
 ];
 
-const MEDIUM_KEYWORDS = [
-  "upgrade", "downgrade", "price target", "analyst", "guidance", "outlook",
-  "license", "licensing", "partnership", "contract", "deal", "agreement",
-  "phase 2", "phase ii", "clinical trial", "initiation", "coverage",
+// Tier 1 — M&A: premiums create hard price floors; most reliable
+const TIER1: Pattern[] = [
+  ["agree", "acqui"],              // "agrees to acquire", "acquisition agreement"
+  "take-private",
+  ["buyout", "per share"],
+  ["acquisition", "billion"],
+  ["acquisition", "million"],
+  "definitive agreement",
+  "going private",
+  "tender offer",
+  "merger agreement",
+  "all-cash",
 ];
 
-export function classifyCatalyst(headline: string): CatalystType {
+// Tier 2 — FDA/Clinical: binary but very high magnitude
+const TIER2: Pattern[] = [
+  ["fda", "approv"],               // "FDA approves", "FDA approved", "FDA approval"
+  ["phase 3", "met"],
+  ["phase iii", "met"],
+  ["phase 3", "positive"],
+  ["phase iii", "positive"],
+  ["phase 3", "success"],
+  ["phase iii", "success"],
+  "breakthrough therapy designation",
+  ["pdufa", "approv"],
+  ["nda", "approv"],
+  ["bla", "approv"],
+];
+
+// Tier 3 — Earnings: moderate moves, works best on beaten-down names
+const TIER3: Pattern[] = [
+  ["beats", "guidance raised"],
+  ["beat", "guidance raised"],
+  "earnings beat",
+  ["record", "quarter"],
+  ["record", "revenue"],
+  ["beats", "estimates"],
+  ["eps", "beat"],
+  ["revenue", "exceeds"],
+];
+
+// Tier 4 — Government/Contract awards: small-cap moves most
+const TIER4: Pattern[] = [
+  ["contract", "dod"],
+  ["contract", "defense"],
+  ["contract", "department of defense"],
+  ["awarded", "million"],
+  ["awarded", "billion"],
+  "government contract",
+];
+
+/** Returns null if the trade should be skipped (danger pattern matched). */
+export function classifyCatalyst(headline: string): CatalystType | null {
   const lower = headline.toLowerCase();
-  if (HIGH_KEYWORDS.some((kw) => lower.includes(kw))) return "high";
-  if (MEDIUM_KEYWORDS.some((kw) => lower.includes(kw))) return "medium";
-  return "low";
+  if (DANGER.some((p) => matches(lower, p))) return null;  // skip
+  if (TIER1.some((p) => matches(lower, p))) return "tier1";
+  if (TIER2.some((p) => matches(lower, p))) return "tier2";
+  if (TIER3.some((p) => matches(lower, p))) return "tier3";
+  if (TIER4.some((p) => matches(lower, p))) return "tier4";
+  return "other";
 }
 
 // ── Cooldown guard — prevent double-buying the same ticker ───────────────────
@@ -135,6 +203,11 @@ export async function executePaperTrade(
   }
 
   const catalystType = classifyCatalyst(article.title);
+  if (catalystType === null) {
+    console.log(`[PaperTrader] SKIPPED ${ticker} — danger pattern matched: "${article.title}"`);
+    return;
+  }
+
   const qty = config.paperTradeQty;
   const scannerId = scannerIds[0] ?? null;
 

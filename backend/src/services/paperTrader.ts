@@ -4,7 +4,7 @@
  * Schedules a market sell after the configured delay (default 60 s).
  */
 import { config } from "../config";
-import { prisma } from "../db/client";
+import prisma from "../db/client";
 import { broadcast } from "../ws/clientHub";
 import type { RtprArticle } from "./rtpr";
 

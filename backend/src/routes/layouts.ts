@@ -21,7 +21,7 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
   const { name, panels } = req.body as { name?: string; panels?: unknown };
   const layout = await prisma.layout.update({
     where: { id: req.params.id },
-    data: { ...(name && { name }), ...(panels !== undefined && { panels }) },
+    data: { ...(name && { name }), ...(panels != null && { panels }) },
   });
   res.json(layout);
 });

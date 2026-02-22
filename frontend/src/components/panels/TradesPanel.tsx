@@ -3,13 +3,22 @@ import { useTradesStore } from "../../store/tradesStore";
 import { useAuthStore } from "../../store/authStore";
 import { PaperTrade } from "../../types";
 
-const CATALYST_META: Record<string, { color: string; label: string }> = {
-  tier1: { color: "text-yellow-400", label: "M&A"      },
-  tier2: { color: "text-orange-400", label: "FDA"      },
-  tier3: { color: "text-blue-400",   label: "EARN"     },
-  tier4: { color: "text-cyan-400",   label: "GOVT"     },
-  other: { color: "text-muted",      label: "NEWS"     },
+const CATALYST_STARS: Record<string, number> = {
+  tier1: 5,
+  tier2: 4,
+  tier3: 3,
+  tier4: 2,
+  other: 1,
 };
+
+function Stars({ catalystType }: { catalystType: string }) {
+  const count = CATALYST_STARS[catalystType] ?? 1;
+  return (
+    <span className="text-yellow-400 text-[10px] tracking-tight">
+      {"★".repeat(count)}{"☆".repeat(5 - count)}
+    </span>
+  );
+}
 
 function fmt(n: number | null, decimals = 2): string {
   if (n == null) return "—";
@@ -35,9 +44,7 @@ function TradeRow({ trade }: { trade: PaperTrade }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="text-white font-semibold">{trade.ticker}</span>
-          <span className={`text-[10px] font-semibold ${(CATALYST_META[trade.catalystType] ?? CATALYST_META.other).color}`}>
-            {(CATALYST_META[trade.catalystType] ?? CATALYST_META.other).label}
-          </span>
+          <Stars catalystType={trade.catalystType} />
           {trade.scannerId && (
             <span className="text-[10px] text-muted">{trade.scannerId}</span>
           )}

@@ -8,6 +8,7 @@ export interface ScannerAlert {
   gapPct: number;
   volume: number;
   relativeVolume: number;
+  float?: number;
   high: number;
   low: number;
   hasNews: boolean;
@@ -41,6 +42,8 @@ export interface WatchlistItem {
   volume: number;
   high: number;
   low: number;
+  relativeVolume?: number;
+  float?: number;
 }
 
 export interface Watchlist {

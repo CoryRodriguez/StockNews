@@ -9,7 +9,8 @@ function fmt(n: number, decimals = 2) {
   return n.toFixed(decimals);
 }
 
-function vol(n: number) {
+function shares(n: number | undefined) {
+  if (n == null) return "—";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
   return String(n);
@@ -25,17 +26,20 @@ function AlertRow({ alert, onClick }: { alert: ScannerAlert; onClick: () => void
   return (
     <div
       onClick={onClick}
-      className="grid grid-cols-[60px_1fr_1fr_1fr] gap-x-2 px-2 py-1 hover:bg-surface cursor-pointer border-b border-border text-xs font-mono"
+      className="grid grid-cols-[56px_1fr_1fr_1fr_1fr] gap-x-1 px-2 py-1 hover:bg-surface cursor-pointer border-b border-border text-xs font-mono"
     >
-      <div className="flex items-center gap-1">
-        <span className="text-white font-semibold">{alert.ticker}</span>
-        {alert.hasNews && <span className="w-1.5 h-1.5 rounded-full bg-up inline-block" title="Recent news" />}
+      <div className="flex items-center gap-1 min-w-0">
+        <span className="text-white font-semibold truncate">{alert.ticker}</span>
+        {alert.hasNews && <span className="w-1.5 h-1.5 rounded-full bg-up inline-block shrink-0" title="Recent news" />}
       </div>
       <span className="text-right text-white">${fmt(alert.price)}</span>
       <span className={`text-right ${isUp ? "text-up" : "text-down"}`}>
         {isUp ? "+" : ""}{fmt(alert.changePct)}%
       </span>
-      <span className="text-right text-muted">{vol(alert.volume)}</span>
+      <span className="text-right text-muted">{shares(alert.float)}</span>
+      <span className="text-right text-muted">
+        {alert.relativeVolume != null ? `${fmt(alert.relativeVolume, 1)}x` : "—"}
+      </span>
     </div>
   );
 }
@@ -47,7 +51,6 @@ export function ScannerPanel({ scannerId, title }: Props) {
   const setActiveTicker = useDashboardStore((s) => s.setActiveTicker);
   const setFilterTicker = useNewsStore((s) => s.setFilterTicker);
 
-  // Play alert sound when new rows arrive
   useEffect(() => {
     if (alerts.length > prevCountRef.current && prevCountRef.current > 0) {
       alertScanner();
@@ -69,11 +72,12 @@ export function ScannerPanel({ scannerId, title }: Props) {
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[60px_1fr_1fr_1fr] gap-x-2 px-2 py-0.5 text-[10px] text-muted border-b border-border shrink-0">
+      <div className="grid grid-cols-[56px_1fr_1fr_1fr_1fr] gap-x-1 px-2 py-0.5 text-[10px] text-muted border-b border-border shrink-0">
         <span>Ticker</span>
         <span className="text-right">Price</span>
         <span className="text-right">Chg%</span>
-        <span className="text-right">Volume</span>
+        <span className="text-right">Float</span>
+        <span className="text-right">RVol</span>
       </div>
 
       {/* Rows */}

@@ -1,24 +1,48 @@
 import { useWatchlistStore } from "../../store/watchlistStore";
 import { useDashboardStore } from "../../store/dashboardStore";
 import { useNewsStore } from "../../store/newsStore";
-import { useState } from "react";
+import { useAuthStore } from "../../store/authStore";
+import { useState, useEffect } from "react";
+import { WatchlistItem } from "../../types";
 
 function fmt(n: number) { return n?.toFixed(2) ?? "—"; }
-function vol(n: number) {
-  if (!n) return "—";
+
+function shares(n: number | undefined) {
+  if (n == null) return "—";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
   return String(n);
 }
 
 export function WatchlistPanel() {
-  const { lists, activeListId, prices, removeTicker } = useWatchlistStore();
+  const { lists, activeListId, prices, removeTicker, setSnapshot } = useWatchlistStore();
   const setActiveTicker = useDashboardStore((s) => s.setActiveTicker);
   const setFilterTicker = useNewsStore((s) => s.setFilterTicker);
+  const token = useAuthStore((s) => s.token);
   const [addInput, setAddInput] = useState("");
 
   const activeList = lists.find((l) => l.id === activeListId);
   const tickers = activeList?.tickers ?? [];
+
+  // Poll full snapshot data every 30s for relativeVolume & float
+  useEffect(() => {
+    if (!tickers.length || !token) return;
+
+    const fetchSnapshots = () => {
+      fetch(`/api/snapshots?symbols=${tickers.join(",")}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .then((snaps: WatchlistItem[]) => {
+          for (const snap of snaps) setSnapshot(snap);
+        })
+        .catch(() => {});
+    };
+
+    fetchSnapshots();
+    const id = setInterval(fetchSnapshots, 30_000);
+    return () => clearInterval(id);
+  }, [tickers.join(","), token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddTicker = () => {
     const t = addInput.trim().toUpperCase();
@@ -54,12 +78,12 @@ export function WatchlistPanel() {
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_20px] gap-x-1 px-2 py-0.5 text-[10px] text-muted border-b border-border shrink-0 font-mono">
+      <div className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_20px] gap-x-1 px-2 py-0.5 text-[10px] text-muted border-b border-border shrink-0 font-mono">
         <span>Ticker</span>
         <span className="text-right">Price</span>
         <span className="text-right">Chg%</span>
-        <span className="text-right">Chg$</span>
-        <span className="text-right">Volume</span>
+        <span className="text-right">Float</span>
+        <span className="text-right">RVol</span>
         <span />
       </div>
 
@@ -76,17 +100,17 @@ export function WatchlistPanel() {
             <div
               key={ticker}
               onClick={() => handleRowClick(ticker)}
-              className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_20px] gap-x-1 px-2 py-1 hover:bg-surface cursor-pointer border-b border-border text-xs font-mono group"
+              className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_20px] gap-x-1 px-2 py-1 hover:bg-surface cursor-pointer border-b border-border text-xs font-mono group"
             >
-              <span className="text-white font-semibold">{ticker}</span>
+              <span className="text-white font-semibold truncate">{ticker}</span>
               <span className="text-right text-white">{p ? `$${fmt(p.price)}` : "—"}</span>
               <span className={`text-right ${isUp ? "text-up" : "text-down"}`}>
                 {p ? `${isUp ? "+" : ""}${fmt(p.changePct)}%` : "—"}
               </span>
-              <span className={`text-right ${isUp ? "text-up" : "text-down"}`}>
-                {p ? `${isUp ? "+" : ""}${fmt(p.changeDollar)}` : "—"}
+              <span className="text-right text-muted">{shares(p?.float)}</span>
+              <span className="text-right text-muted">
+                {p?.relativeVolume != null ? `${p.relativeVolume.toFixed(1)}x` : "—"}
               </span>
-              <span className="text-right text-muted">{p ? vol(p.volume ?? 0) : "—"}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); removeTicker(ticker); }}
                 className="text-muted hover:text-down text-[10px] opacity-0 group-hover:opacity-100"

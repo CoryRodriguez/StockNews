@@ -9,6 +9,7 @@ import { startRtpr } from "./services/rtpr";
 import { startAlpacaWs } from "./services/alpaca";
 import { startScanner, getScannerDefinitions } from "./services/scanner";
 import { recentArticles } from "./services/rtpr";
+import { getSnapshots } from "./services/alpaca";
 import authRouter from "./routes/auth";
 import watchlistsRouter from "./routes/watchlists";
 import layoutsRouter from "./routes/layouts";
@@ -38,6 +39,18 @@ app.get("/api/news/recent", requireAuth, (_req, res) => {
 app.get("/api/news/ticker/:symbol", requireAuth, (req, res) => {
   const sym = req.params.symbol.toUpperCase();
   res.json(recentArticles.filter((a) => a.ticker === sym).slice(0, 20));
+});
+
+// Snapshot data for watchlist tickers
+app.get("/api/snapshots", requireAuth, async (req, res) => {
+  const symbols = String(req.query.symbols ?? "")
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean)
+    .slice(0, 50);
+  if (!symbols.length) { res.json([]); return; }
+  const data = await getSnapshots(symbols);
+  res.json(data);
 });
 
 // Health check

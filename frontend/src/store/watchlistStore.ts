@@ -8,6 +8,7 @@ interface WatchlistState {
   setLists: (lists: Watchlist[]) => void;
   setActiveList: (id: string) => void;
   updatePrice: (ticker: string, price: number) => void;
+  setSnapshot: (snapshot: Partial<WatchlistItem> & { ticker: string }) => void;
   addTicker: (ticker: string) => void;
   removeTicker: (ticker: string) => void;
 }
@@ -32,6 +33,28 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
         prices: {
           ...s.prices,
           [ticker]: { ...prev, ticker, price, changePct, changeDollar, prevClose },
+        },
+      };
+    }),
+
+  setSnapshot: (snapshot) =>
+    set((s) => {
+      const prev = s.prices[snapshot.ticker];
+      const price = snapshot.price ?? prev?.price ?? 0;
+      const prevClose = snapshot.prevClose ?? prev?.prevClose ?? price;
+      const changeDollar = price - prevClose;
+      const changePct = prevClose > 0 ? (changeDollar / prevClose) * 100 : 0;
+      return {
+        prices: {
+          ...s.prices,
+          [snapshot.ticker]: {
+            ...prev,
+            ...snapshot,
+            price,
+            prevClose,
+            changeDollar,
+            changePct,
+          },
         },
       };
     }),

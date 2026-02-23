@@ -86,7 +86,7 @@ export function TradesPanel() {
     if (!token) return;
     fetch("/api/trades", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then(setTrades)
+      .then((data: PaperTrade[]) => { if (data.length) setTrades(data); })
       .catch(() => {});
   }, [token, setTrades]);
 

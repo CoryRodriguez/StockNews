@@ -39,6 +39,59 @@ interface AlpacaSnapshotResponse {
   };
 }
 
+interface AlpacaBarsResponse {
+  bars: Record<string, Array<{ v: number }>>;
+  next_page_token?: string | null;
+}
+
+// ── 30-day average volume cache (refreshed hourly) ───────────────────────────
+
+const avgVolCache: { data: Record<string, number>; ts: number; symbols: string } = {
+  data: {},
+  ts: 0,
+  symbols: "",
+};
+const AVG_VOL_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+async function get30dAvgVolumes(symbols: string[]): Promise<Record<string, number>> {
+  const now = Date.now();
+  const symbolKey = [...symbols].sort().join(",");
+  if (
+    now - avgVolCache.ts < AVG_VOL_CACHE_TTL &&
+    avgVolCache.symbols === symbolKey &&
+    Object.keys(avgVolCache.data).length > 0
+  ) {
+    return avgVolCache.data;
+  }
+
+  // ~45 calendar days covers 30 trading days accounting for weekends/holidays
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 45);
+  const startStr = start.toISOString().split("T")[0];
+  const endStr = end.toISOString().split("T")[0];
+
+  const data = await fetchJson<AlpacaBarsResponse>(
+    `/v2/stocks/bars?symbols=${encodeURIComponent(symbols.join(","))}&timeframe=1Day&start=${startStr}&end=${endStr}&limit=10000&feed=iex`
+  );
+
+  const result: Record<string, number> = {};
+  if (data?.bars) {
+    for (const [sym, bars] of Object.entries(data.bars)) {
+      if (bars.length > 0) {
+        // Use up to last 30 bars
+        const slice = bars.slice(-30);
+        result[sym] = slice.reduce((sum, b) => sum + b.v, 0) / slice.length;
+      }
+    }
+  }
+
+  avgVolCache.data = result;
+  avgVolCache.ts = now;
+  avgVolCache.symbols = symbolKey;
+  return result;
+}
+
 // ── REST helpers ────────────────────────────────────────────────────────────
 
 async function fetchJson<T>(path: string): Promise<T | null> {
@@ -60,9 +113,13 @@ async function fetchJson<T>(path: string): Promise<T | null> {
 export async function getSnapshots(symbols: string[]): Promise<Snapshot[]> {
   if (!symbols.length) return [];
   const param = symbols.join(",");
-  const data = await fetchJson<AlpacaSnapshotResponse>(
-    `/v2/stocks/snapshots?symbols=${encodeURIComponent(param)}&feed=iex`
-  );
+
+  const [data, avgVolumes] = await Promise.all([
+    fetchJson<AlpacaSnapshotResponse>(
+      `/v2/stocks/snapshots?symbols=${encodeURIComponent(param)}&feed=iex`
+    ),
+    get30dAvgVolumes(symbols),
+  ]);
   if (!data) return [];
 
   return Object.entries(data).map(([symbol, snap]) => {
@@ -70,7 +127,8 @@ export async function getSnapshots(symbols: string[]): Promise<Snapshot[]> {
     const prevClose = snap.prevDailyBar?.c ?? 0;
     const open = snap.dailyBar?.o ?? 0;
     const volume = snap.dailyBar?.v ?? 0;
-    const avgVol = snap.prevDailyBar?.v ?? 1; // rough proxy; 30d avg needs separate call
+    // Prefer true 30-day average; fall back to previous day if bars unavailable
+    const avgVol = avgVolumes[symbol] ?? snap.prevDailyBar?.v ?? 1;
     const changePct = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
     const gapPct = prevClose > 0 ? ((open - prevClose) / prevClose) * 100 : 0;
     const relativeVolume = avgVol > 0 ? volume / avgVol : 0;

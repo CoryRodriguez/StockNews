@@ -29,6 +29,7 @@ export interface NewsArticle {
   author: string;
   createdAt: string;
   receivedAt: string;
+  stars?: number; // 1-5, derived from catalyst keywords
 }
 
 // ── Watchlist ──────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import "react-resizable/css/styles.css";
 import { useEffect } from "react";
 import { useDashboardStore } from "../store/dashboardStore";
 import { useSocket } from "../hooks/useSocket";
+import { useDummyData } from "../hooks/useDummyData";
 import { useAuthStore } from "../store/authStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { TopNav } from "../components/layout/TopNav";
@@ -51,6 +52,7 @@ function renderPanel(panel: GridPanel) {
 
 export function Dashboard() {
   useSocket();
+  useDummyData();
   const { panels, setPanels } = useDashboardStore();
   const token = useAuthStore((s) => s.token);
   const setLists = useWatchlistStore((s) => s.setLists);

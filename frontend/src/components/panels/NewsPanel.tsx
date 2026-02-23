@@ -1,60 +1,106 @@
 import { useNewsStore } from "../../store/newsStore";
 import { useDashboardStore } from "../../store/dashboardStore";
+import { useWatchlistStore } from "../../store/watchlistStore";
 import { useAudioAlert } from "../../hooks/useAudioAlert";
 import { useEffect, useRef, useState } from "react";
 import { NewsArticle } from "../../types";
+import { deriveStars, fmtTime, highlightKeywords } from "../../utils/newsUtils";
 
-function age(isoString: string) {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const secs = Math.floor(diff / 1000);
-  if (secs < 60) return `${secs}s`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m`;
-  return `${Math.floor(mins / 60)}h`;
+function Stars({ count }: { count: number }) {
+  return (
+    <span className="shrink-0 flex gap-px" title={`${count} star${count !== 1 ? "s" : ""}`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <span
+          key={i}
+          className={`text-[9px] leading-none ${i < count ? "text-yellow-400" : "text-muted opacity-30"}`}
+        >
+          ★
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function HighlightedText({ text, className }: { text: string; className?: string }) {
+  const parts = highlightKeywords(text);
+  return (
+    <span className={className}>
+      {parts.map((p, i) =>
+        p.highlight ? (
+          <mark key={i} className="bg-yellow-400/20 text-yellow-300 rounded-sm px-px">
+            {p.text}
+          </mark>
+        ) : (
+          <span key={i}>{p.text}</span>
+        )
+      )}
+    </span>
+  );
 }
 
 function NewsItem({
   article,
-  onClick,
+  onTickerClick,
 }: {
   article: NewsArticle;
-  onClick: () => void;
+  onTickerClick: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const stars = article.stars ?? deriveStars(article.title);
+  const timestamp = fmtTime(article.receivedAt);
   const ageMs = Date.now() - new Date(article.receivedAt).getTime();
-  const isNew = ageMs < 2 * 60 * 1000; // < 2 minutes
+  const isNew = ageMs < 2 * 60 * 1000;
+
+  const handleAddToWatchlist = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    useWatchlistStore.getState().addTicker(article.ticker);
+  };
 
   return (
     <div
       className="border-b border-border px-2 py-1.5 hover:bg-surface cursor-pointer"
       onClick={() => {
-        onClick();
+        onTickerClick();
         setExpanded((v) => !v);
       }}
     >
-      <div className="flex items-start gap-1.5">
+      {/* Row 1: timestamp | stars | ticker | NEW badge | + button */}
+      <div className="flex items-center gap-1.5 mb-0.5">
+        <span className="text-muted text-[10px] font-mono shrink-0">{timestamp}</span>
+        <Stars count={stars} />
+        <button
+          onClick={(e) => { e.stopPropagation(); onTickerClick(); }}
+          className="text-accent text-[11px] font-semibold font-mono hover:underline shrink-0"
+        >
+          {article.ticker}
+        </button>
         {isNew && (
-          <span className="shrink-0 mt-0.5 bg-down text-white text-[9px] font-bold px-1 rounded leading-tight">
+          <span className="shrink-0 bg-down text-white text-[9px] font-bold px-1 rounded leading-tight">
             NEW
           </span>
         )}
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <button
-              onClick={(e) => { e.stopPropagation(); onClick(); }}
-              className="text-accent text-xs font-semibold font-mono hover:underline"
-            >
-              {article.ticker}
-            </button>
-            <span className="text-muted text-[10px]">{age(article.receivedAt)}</span>
-          </div>
-          <p className="text-white text-xs leading-tight line-clamp-2">{article.title}</p>
-          {expanded && article.body && (
-            <p className="text-muted text-[11px] mt-1 leading-relaxed">{article.body}</p>
-          )}
-          <span className="text-muted text-[10px]">{article.author}</span>
-        </div>
+        <button
+          onClick={handleAddToWatchlist}
+          className="ml-auto shrink-0 text-accent text-sm font-bold leading-none hover:text-white transition-colors"
+          title={`Add ${article.ticker} to watchlist`}
+        >
+          +
+        </button>
       </div>
+
+      {/* Row 2: news snippet with keyword highlights */}
+      <HighlightedText
+        text={article.title}
+        className="text-white text-xs leading-tight line-clamp-2 block"
+      />
+
+      {/* Expanded body */}
+      {expanded && article.body && (
+        <HighlightedText
+          text={article.body}
+          className="text-muted text-[11px] mt-1 leading-relaxed block"
+        />
+      )}
     </div>
   );
 }
@@ -111,7 +157,7 @@ export function NewsPanel({ newsMode, title }: Props) {
           <NewsItem
             key={`${article.ticker}-${article.receivedAt}-${i}`}
             article={article}
-            onClick={() => handleTickerClick(article.ticker)}
+            onTickerClick={() => handleTickerClick(article.ticker)}
           />
         ))}
       </div>

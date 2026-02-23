@@ -2,30 +2,7 @@ import { useDashboardStore } from "../../store/dashboardStore";
 import { useAuthStore } from "../../store/authStore";
 import { SavedLayout } from "../../types";
 
-const PRESET_LAYOUTS: SavedLayout[] = [
-  {
-    id: "preset-premarket",
-    name: "Pre-Market",
-    panels: [
-      { id: "s1", type: "scanner", scannerId: "news_flow", title: "News Flow",   x: 0, y: 0,  w: 3, h: 14 },
-      { id: "s2", type: "scanner", scannerId: "gap_up",    title: "Gap Up",      x: 0, y: 14, w: 3, h: 14 },
-      { id: "c1", type: "chart",   symbol: "NASDAQ:AAPL",                         x: 3, y: 0,  w: 6, h: 18 },
-      { id: "w1", type: "watchlist", title: "Watchlist",                           x: 3, y: 18, w: 6, h: 10 },
-      { id: "n1", type: "news",    newsMode: "firehose",   title: "News Feed",   x: 9, y: 0,  w: 3, h: 28 },
-    ],
-  },
-  {
-    id: "preset-open",
-    name: "Market Open",
-    panels: [
-      { id: "s1", type: "scanner", scannerId: "momentum",  title: "Momentum",    x: 0, y: 0,  w: 3, h: 14 },
-      { id: "s2", type: "scanner", scannerId: "high_rvol", title: "High RVOL",   x: 0, y: 14, w: 3, h: 14 },
-      { id: "c1", type: "chart",   symbol: "NASDAQ:AAPL",                         x: 3, y: 0,  w: 5, h: 14 },
-      { id: "c2", type: "chart",   symbol: "NYSE:SPY",                            x: 8, y: 0,  w: 4, h: 14 },
-      { id: "w1", type: "watchlist", title: "Watchlist",                           x: 3, y: 14, w: 9, h: 14 },
-    ],
-  },
-];
+const PRESET_LAYOUTS: SavedLayout[] = [];
 
 export function TopNav() {
   const { savedLayouts, loadLayout } = useDashboardStore();

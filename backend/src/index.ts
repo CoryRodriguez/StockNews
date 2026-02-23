@@ -14,7 +14,9 @@ import authRouter from "./routes/auth";
 import watchlistsRouter from "./routes/watchlists";
 import layoutsRouter from "./routes/layouts";
 import tradesRouter from "./routes/trades";
+import analyticsRouter from "./routes/analytics";
 import { requireAuth } from "./middleware/auth";
+import { loadStrategiesFromDb, recomputeStrategies } from "./services/strategyEngine";
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -25,6 +27,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/watchlists", watchlistsRouter);
 app.use("/api/layouts", layoutsRouter);
 app.use("/api/trades", tradesRouter);
+app.use("/api/analytics", analyticsRouter);
 
 // Scanner definitions (no auth needed — public metadata)
 app.get("/api/scanners", (_req, res) => {
@@ -62,9 +65,16 @@ const wss = new WebSocketServer({ server, path: "/ws" });
 
 wss.on("connection", (ws) => addClient(ws));
 
-server.listen(config.port, () => {
+server.listen(config.port, async () => {
   console.log(`[Server] Listening on :${config.port}`);
   startRtpr();
   startAlpacaWs();
   startScanner();
+
+  // Load persisted strategy rules into memory, then do a fresh recompute
+  await loadStrategiesFromDb();
+  await recomputeStrategies();
+
+  // Recompute strategies every hour in case server has been up a long time
+  setInterval(() => recomputeStrategies(), 60 * 60 * 1000);
 });

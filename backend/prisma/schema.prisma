@@ -31,19 +31,104 @@ model Layout {
 }
 
 model PaperTrade {
-  id           String    @id @default(cuid())
+  id           String          @id @default(cuid())
   ticker       String
   qty          Int
   buyOrderId   String?
   buyPrice     Float?
-  buyStatus    String    // "pending" | "filled" | "error"
+  buyStatus    String          // "pending" | "filled" | "error"
   sellOrderId  String?
   sellPrice    Float?
-  sellStatus   String    // "awaiting" | "pending" | "filled" | "error"
-  catalyst     String    // News headline that triggered the trade
-  catalystType String    // "high" | "medium" | "low"
-  scannerId    String?   // Which scanner the ticker was on
-  pnl          Float?    // Realized P&L after sell fills
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  sellStatus   String          // "awaiting" | "pending" | "filled" | "error"
+  catalyst     String          // News headline that triggered the trade
+  catalystType String          // "tier1" | "tier2" | "tier3" | "tier4" | "other"
+  scannerId    String?         // Which scanner the ticker was on
+  pnl          Float?          // Realized P&L after sell fills
+  analytics    TradeAnalytics?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+// ── Trade Analytics: rich data layer for strategy optimization ─────────────
+
+model TradeAnalytics {
+  id                String   @id @default(cuid())
+  paperTradeId      String   @unique
+  paperTrade        PaperTrade @relation(fields: [paperTradeId], references: [id])
+
+  // News metadata
+  newsHeadline      String
+  newsBody          String   @db.Text
+  newsSource        String   @default("rtpr")
+  catalystCategory  String   // Granular: FDA_APPROVAL, MA_ACQUISITION, EARNINGS_BEAT, etc.
+  catalystTier      Int      // 1-4
+
+  // Timestamps
+  newsPublishedAt   DateTime
+  newsDetectedAt    DateTime
+  tradeEnteredAt    DateTime
+
+  // Entry conditions
+  entryPrice        Float
+  entryVolume       Int
+  avgVolume30d      Float
+  relativeVolume    Float
+
+  // Market context (nullable — filled by enrichment when available)
+  marketCap         Float?
+  floatShares       Float?
+  sector            String?
+  isPreMarket       Boolean  @default(false)
+
+  // Computed post-trade
+  peakPrice         Float?
+  peakTimeOffsetSec Int?     // seconds after entry when peak occurred
+  troughAfterPeak   Float?
+  maxDrawdownPct    Float?   // (peak - trough) / peak * 100
+
+  // Hold time outcome
+  actualHoldSec     Int?     // how long we actually held
+  exitPrice         Float?
+  returnPct         Float?   // (exitPrice - entryPrice) / entryPrice * 100
+
+  // Price snapshots at intervals
+  priceSnapshots    PriceSnapshot[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PriceSnapshot {
+  id                String         @id @default(cuid())
+  tradeAnalyticsId  String
+  tradeAnalytics    TradeAnalytics @relation(fields: [tradeAnalyticsId], references: [id])
+
+  offsetSeconds     Int            // 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, -1 (EOD)
+  price             Float
+  volume            Int            // cumulative volume at capture time
+  returnPct         Float          // (price - entryPrice) / entryPrice * 100
+  capturedAt        DateTime       @default(now())
+
+  @@unique([tradeAnalyticsId, offsetSeconds])
+}
+
+// ── Strategy cache: persisted strategy recommendations ─────────────────────
+
+model StrategyRule {
+  id                String   @id @default(cuid())
+  catalystCategory  String   // e.g. "FDA_APPROVAL"
+  capBucket         String   @default("ALL") // NANO, MICRO, SMALL, MID, LARGE, ALL
+  todBucket         String   @default("ALL") // PRE_MARKET, MARKET_OPEN, MID_DAY, POWER_HOUR, ALL
+
+  holdDurationSec   Int      // recommended hold time in seconds
+  trailingStopPct   Float    // recommended trailing stop %
+  confidence        Float    // 0-1, based on sample size
+  sampleSize        Int      // number of trades this is based on
+  avgReturnPct      Float    // average return at recommended hold time
+  medianReturnPct   Float    // median return at recommended hold time
+  winRate           Float    // % of trades that were profitable
+
+  computedAt        DateTime @default(now())
+
+  @@unique([catalystCategory, capBucket, todBucket])
 }

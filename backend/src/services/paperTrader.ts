@@ -1,105 +1,22 @@
 /**
  * Paper Trading Service
- * Automatically buys 10 shares (paper) when news hits a scanner-active ticker.
- * Schedules a market sell after the configured delay (default 60 s).
+ *
+ * Automatically buys shares (paper) when news hits a scanner-active ticker.
+ * Uses the strategy engine to determine optimal hold time and trailing stop
+ * instead of a fixed delay.
  */
 import { config } from "../config";
 import prisma from "../db/client";
 import { broadcast } from "../ws/clientHub";
+import { getSnapshots } from "./alpaca";
+import { classifyCatalystGranular } from "./catalystClassifier";
+import { recordTradeAnalytics, recordTradeExit } from "./tradeAnalytics";
+import { getStrategy, onTradeCompleted } from "./strategyEngine";
 import type { RtprArticle } from "./rtpr";
 
-// Tier 1 = M&A (highest confidence, deal premium = price floor)
-// Tier 2 = FDA/Clinical (binary, high magnitude)
-// Tier 3 = Earnings (context-dependent)
-// Tier 4 = Contract/Government awards (scale-dependent)
-// danger = skip trade entirely
-export type CatalystType = "tier1" | "tier2" | "tier3" | "tier4" | "other";
-
-// ── Catalyst classification ──────────────────────────────────────────────────
-
-// A pattern is either a single keyword OR an array where ALL must be present.
-type Pattern = string | string[];
-
-function matches(lower: string, p: Pattern): boolean {
-  return Array.isArray(p) ? p.every((kw) => lower.includes(kw)) : lower.includes(p);
-}
-
-// If ANY danger pattern matches, skip the trade entirely.
-const DANGER: Pattern[] = [
-  "complete response letter",
-  ["guidance", "cut"],
-  ["guidance", "lower"],
-  ["guidance", "reduce"],
-  ["offering", "shares"],          // secondary offering = dilution
-  "dilution",
-  ["medicare", "rate", "below"],
-  "going concern",
-  ["fda", "reject"],
-  ["fda", "refuse"],
-  ["fda", "not approv"],
-];
-
-// Tier 1 — M&A: premiums create hard price floors; most reliable
-const TIER1: Pattern[] = [
-  ["agree", "acqui"],              // "agrees to acquire", "acquisition agreement"
-  "take-private",
-  ["buyout", "per share"],
-  ["acquisition", "billion"],
-  ["acquisition", "million"],
-  "definitive agreement",
-  "going private",
-  "tender offer",
-  "merger agreement",
-  "all-cash",
-];
-
-// Tier 2 — FDA/Clinical: binary but very high magnitude
-const TIER2: Pattern[] = [
-  ["fda", "approv"],               // "FDA approves", "FDA approved", "FDA approval"
-  ["phase 3", "met"],
-  ["phase iii", "met"],
-  ["phase 3", "positive"],
-  ["phase iii", "positive"],
-  ["phase 3", "success"],
-  ["phase iii", "success"],
-  "breakthrough therapy designation",
-  ["pdufa", "approv"],
-  ["nda", "approv"],
-  ["bla", "approv"],
-];
-
-// Tier 3 — Earnings: moderate moves, works best on beaten-down names
-const TIER3: Pattern[] = [
-  ["beats", "guidance raised"],
-  ["beat", "guidance raised"],
-  "earnings beat",
-  ["record", "quarter"],
-  ["record", "revenue"],
-  ["beats", "estimates"],
-  ["eps", "beat"],
-  ["revenue", "exceeds"],
-];
-
-// Tier 4 — Government/Contract awards: small-cap moves most
-const TIER4: Pattern[] = [
-  ["contract", "dod"],
-  ["contract", "defense"],
-  ["contract", "department of defense"],
-  ["awarded", "million"],
-  ["awarded", "billion"],
-  "government contract",
-];
-
-/** Returns null if the trade should be skipped (danger pattern matched). */
-export function classifyCatalyst(headline: string): CatalystType | null {
-  const lower = headline.toLowerCase();
-  if (DANGER.some((p) => matches(lower, p))) return null;  // skip
-  if (TIER1.some((p) => matches(lower, p))) return "tier1";
-  if (TIER2.some((p) => matches(lower, p))) return "tier2";
-  if (TIER3.some((p) => matches(lower, p))) return "tier3";
-  if (TIER4.some((p) => matches(lower, p))) return "tier4";
-  return "other";
-}
+// Re-export for backward compat
+export { classifyCatalyst } from "./paperTraderCompat";
+export type { CatalystType } from "./paperTraderCompat";
 
 // ── Cooldown guard — prevent double-buying the same ticker ───────────────────
 
@@ -183,6 +100,143 @@ function delay(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
+// ── Trailing stop monitor ────────────────────────────────────────────────────
+
+interface ActivePosition {
+  tradeId: string;
+  analyticsId: string | null;
+  ticker: string;
+  qty: number;
+  entryPrice: number;
+  peakPrice: number;
+  trailingStopPct: number;
+  holdDeadlineSec: number;
+  enteredAt: number; // timestamp ms
+  timer: ReturnType<typeof setTimeout> | null;
+  pollInterval: ReturnType<typeof setInterval> | null;
+  sold: boolean;
+}
+
+const activePositions = new Map<string, ActivePosition>();
+
+/**
+ * Start monitoring a position with a trailing stop + max hold time.
+ * Polls every 5s to check the trailing stop, and has a hard deadline
+ * based on the strategy engine's recommended hold duration.
+ */
+function startTrailingStopMonitor(position: ActivePosition) {
+  activePositions.set(position.tradeId, position);
+
+  // Hard deadline: sell at max hold time regardless
+  position.timer = setTimeout(
+    () => executeSell(position, "hold_deadline"),
+    position.holdDeadlineSec * 1000
+  );
+
+  // Poll every 5 seconds to check trailing stop
+  position.pollInterval = setInterval(async () => {
+    if (position.sold) return;
+
+    try {
+      const snapshots = await getSnapshots([position.ticker]);
+      if (!snapshots.length) return;
+
+      const currentPrice = snapshots[0].price;
+
+      // Update peak
+      if (currentPrice > position.peakPrice) {
+        position.peakPrice = currentPrice;
+      }
+
+      // Check trailing stop: if price has dropped trailingStopPct from peak
+      const dropFromPeak =
+        position.peakPrice > 0
+          ? ((position.peakPrice - currentPrice) / position.peakPrice) * 100
+          : 0;
+
+      if (dropFromPeak >= position.trailingStopPct && position.peakPrice > position.entryPrice) {
+        console.log(
+          `[PaperTrader] Trailing stop hit for ${position.ticker}: peak=$${position.peakPrice.toFixed(2)}, now=$${currentPrice.toFixed(2)}, drop=${dropFromPeak.toFixed(1)}%`
+        );
+        await executeSell(position, "trailing_stop");
+      }
+    } catch {
+      // Snapshot fetch failed — skip this cycle
+    }
+  }, 5000);
+
+  const elapsed = Math.round(position.holdDeadlineSec);
+  console.log(
+    `[PaperTrader] Monitoring ${position.ticker}: trailing stop=${position.trailingStopPct.toFixed(1)}%, max hold=${elapsed}s`
+  );
+}
+
+async function executeSell(position: ActivePosition, reason: string) {
+  if (position.sold) return;
+  position.sold = true;
+
+  // Clean up timers
+  if (position.timer) clearTimeout(position.timer);
+  if (position.pollInterval) clearInterval(position.pollInterval);
+  activePositions.delete(position.tradeId);
+
+  try {
+    const order = await placeOrder(position.ticker, "sell", position.qty);
+    console.log(
+      `[PaperTrader] SELL placed (${reason}): ${position.qty} ${position.ticker} — order ${order.id}`
+    );
+
+    await prisma.paperTrade.update({
+      where: { id: position.tradeId },
+      data: { sellOrderId: order.id, sellStatus: "pending" },
+    });
+
+    const sellPrice = await waitForFill(order.id);
+    const current = await prisma.paperTrade.findUnique({
+      where: { id: position.tradeId },
+    });
+    const pnl =
+      sellPrice != null && current?.buyPrice != null
+        ? (sellPrice - current.buyPrice) * position.qty
+        : null;
+
+    const updated = await prisma.paperTrade.update({
+      where: { id: position.tradeId },
+      data: {
+        sellPrice: sellPrice ?? undefined,
+        sellStatus: "filled",
+        pnl: pnl ?? undefined,
+      },
+    });
+    broadcast("trades", { type: "trade_update", trade: updated });
+
+    // Record exit in analytics
+    if (position.analyticsId && sellPrice != null) {
+      await recordTradeExit(position.tradeId, sellPrice, new Date());
+    }
+
+    // Notify strategy engine that a trade completed
+    await onTradeCompleted();
+
+    const holdSec = Math.round((Date.now() - position.enteredAt) / 1000);
+    const returnPct =
+      sellPrice != null && position.entryPrice > 0
+        ? (((sellPrice - position.entryPrice) / position.entryPrice) * 100).toFixed(2)
+        : "N/A";
+    console.log(
+      `[PaperTrader] SOLD ${position.ticker} (${reason}): held=${holdSec}s, return=${returnPct}%, pnl=$${pnl?.toFixed(2) ?? "N/A"}`
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[PaperTrader] SELL error for ${position.ticker}:`, msg);
+    const updated = await prisma.paperTrade.update({
+      where: { id: position.tradeId },
+      data: { sellStatus: "error" },
+    });
+    broadcast("trades", { type: "trade_update", trade: updated });
+  }
+}
+
 // ── Main entry point ─────────────────────────────────────────────────────────
 
 /**
@@ -202,17 +256,27 @@ export async function executePaperTrade(
     return;
   }
 
-  const catalystType = classifyCatalyst(article.title);
-  if (catalystType === null) {
+  // Classify with the granular classifier
+  const classification = classifyCatalystGranular(article.title, article.body);
+  if (classification === null) {
     console.log(`[PaperTrader] SKIPPED ${ticker} — danger pattern matched: "${article.title}"`);
     return;
   }
 
+  // Map tier to the legacy catalystType string for the PaperTrade record
+  const tierMap: Record<number, string> = {
+    1: "tier1", 2: "tier2", 3: "tier3", 4: "tier4", 5: "other",
+  };
+  const catalystType = tierMap[classification.tier] ?? "other";
+
   const qty = config.paperTradeQty;
   const scannerId = scannerIds[0] ?? null;
 
+  // Get strategy recommendation BEFORE entering the trade
+  const strategy = getStrategy(classification.category, null, new Date());
+
   console.log(
-    `[PaperTrader] Triggered: ${ticker} | catalyst=${catalystType} | scanner=${scannerId}`
+    `[PaperTrader] Triggered: ${ticker} | ${classification.category} (tier ${classification.tier}) | scanner=${scannerId} | strategy: hold=${strategy.holdDurationSec}s, stop=${strategy.trailingStopPct.toFixed(1)}% (confidence=${strategy.confidence.toFixed(2)}, n=${strategy.sampleSize})`
   );
 
   // Create a pending record immediately so the UI can show it
@@ -232,17 +296,16 @@ export async function executePaperTrade(
   recentTrades.set(ticker, Date.now());
 
   // ── BUY ──────────────────────────────────────────────────────────────────
-  let buyOrderId: string;
+  let buyPrice: number | null = null;
   try {
     const order = await placeOrder(ticker, "buy", qty);
-    buyOrderId = order.id;
-    console.log(`[PaperTrader] BUY placed: ${qty} ${ticker} — order ${buyOrderId}`);
+    console.log(`[PaperTrader] BUY placed: ${qty} ${ticker} — order ${order.id}`);
 
-    const buyPrice = await waitForFill(buyOrderId);
+    buyPrice = await waitForFill(order.id);
     const updated = await prisma.paperTrade.update({
       where: { id: trade.id },
       data: {
-        buyOrderId,
+        buyOrderId: order.id,
         buyPrice: buyPrice ?? undefined,
         buyStatus: "filled",
       },
@@ -256,49 +319,68 @@ export async function executePaperTrade(
       data: { buyStatus: "error" },
     });
     broadcast("trades", { type: "trade_update", trade: updated });
-    return; // Don't schedule a sell if buy failed
+    return;
   }
 
-  // ── SELL (after delay) ───────────────────────────────────────────────────
-  setTimeout(async () => {
-    try {
-      const order = await placeOrder(ticker, "sell", qty);
-      console.log(
-        `[PaperTrader] SELL placed: ${qty} ${ticker} — order ${order.id}`
-      );
+  if (buyPrice == null) {
+    console.error(`[PaperTrader] BUY for ${ticker} — no fill price, skipping sell`);
+    return;
+  }
 
-      // Mark sell as pending while we wait for fill
-      await prisma.paperTrade.update({
-        where: { id: trade.id },
-        data: { sellOrderId: order.id, sellStatus: "pending" },
-      });
+  const entryTimestamp = new Date();
 
-      const sellPrice = await waitForFill(order.id);
-      const current = await prisma.paperTrade.findUnique({
-        where: { id: trade.id },
-      });
-      const pnl =
-        sellPrice != null && current?.buyPrice != null
-          ? (sellPrice - current.buyPrice) * qty
-          : null;
+  // ── Record analytics ─────────────────────────────────────────────────────
+  const analyticsId = await recordTradeAnalytics({
+    paperTradeId: trade.id,
+    article,
+    entryPrice: buyPrice,
+    entryTimestamp,
+  });
 
-      const updated = await prisma.paperTrade.update({
-        where: { id: trade.id },
-        data: {
-          sellPrice: sellPrice ?? undefined,
-          sellStatus: "filled",
-          pnl: pnl ?? undefined,
-        },
-      });
-      broadcast("trades", { type: "trade_update", trade: updated });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error(`[PaperTrader] SELL error for ${ticker}:`, msg);
-      const updated = await prisma.paperTrade.update({
-        where: { id: trade.id },
-        data: { sellStatus: "error" },
-      });
-      broadcast("trades", { type: "trade_update", trade: updated });
-    }
-  }, config.paperTradeSellDelaySec * 1000);
+  // ── SELL — dynamic strategy-driven exit ──────────────────────────────────
+  // Use the strategy engine's recommended hold time + trailing stop.
+  // Falls back to config.paperTradeSellDelaySec if no strategy data.
+  const holdDuration =
+    strategy.sampleSize > 0
+      ? strategy.holdDurationSec
+      : config.paperTradeSellDelaySec;
+  const trailingStopPct =
+    strategy.sampleSize > 0 ? strategy.trailingStopPct : 0; // 0 = disabled
+
+  if (trailingStopPct > 0) {
+    // Smart exit: trailing stop + max hold deadline
+    startTrailingStopMonitor({
+      tradeId: trade.id,
+      analyticsId,
+      ticker,
+      qty,
+      entryPrice: buyPrice,
+      peakPrice: buyPrice,
+      trailingStopPct,
+      holdDeadlineSec: holdDuration,
+      enteredAt: entryTimestamp.getTime(),
+      timer: null,
+      pollInterval: null,
+      sold: false,
+    });
+  } else {
+    // Fallback: fixed delay sell (original behavior, used when no strategy data)
+    setTimeout(async () => {
+      const position: ActivePosition = {
+        tradeId: trade.id,
+        analyticsId,
+        ticker,
+        qty,
+        entryPrice: buyPrice!,
+        peakPrice: buyPrice!,
+        trailingStopPct: 0,
+        holdDeadlineSec: holdDuration,
+        enteredAt: entryTimestamp.getTime(),
+        timer: null,
+        pollInterval: null,
+        sold: false,
+      };
+      await executeSell(position, "fixed_delay");
+    }, holdDuration * 1000);
+  }
 }

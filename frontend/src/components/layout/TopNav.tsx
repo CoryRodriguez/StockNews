@@ -1,5 +1,6 @@
 import { useDashboardStore } from "../../store/dashboardStore";
 import { useAuthStore } from "../../store/authStore";
+import { usePageStore } from "../../store/pageStore";
 import { SavedLayout } from "../../types";
 
 const PRESET_LAYOUTS: SavedLayout[] = [];
@@ -7,24 +8,52 @@ const PRESET_LAYOUTS: SavedLayout[] = [];
 export function TopNav() {
   const { savedLayouts, loadLayout } = useDashboardStore();
   const logout = useAuthStore((s) => s.logout);
+  const { page, setPage } = usePageStore();
 
   const allLayouts = [...PRESET_LAYOUTS, ...savedLayouts];
 
   return (
     <nav className="h-10 bg-panel border-b border-border flex items-center px-3 gap-3 shrink-0 font-mono">
-      <span className="text-white font-semibold text-sm mr-2">DTDash</span>
+      <span className="text-white font-semibold text-sm mr-1">DTDash</span>
 
-      <div className="flex items-center gap-1">
-        {allLayouts.map((layout) => (
-          <button
-            key={layout.id}
-            onClick={() => loadLayout(layout)}
-            className="text-muted hover:text-white text-xs px-2 py-1 rounded hover:bg-surface transition-colors"
-          >
-            {layout.name}
-          </button>
-        ))}
+      {/* Page navigation tabs */}
+      <div className="flex items-center gap-0.5 border-r border-border pr-3">
+        <button
+          onClick={() => setPage("dashboard")}
+          className={`text-xs px-2.5 py-1 rounded transition-colors ${
+            page === "dashboard"
+              ? "text-white bg-surface"
+              : "text-muted hover:text-white hover:bg-surface"
+          }`}
+        >
+          Dashboard
+        </button>
+        <button
+          onClick={() => setPage("trades")}
+          className={`text-xs px-2.5 py-1 rounded transition-colors ${
+            page === "trades"
+              ? "text-white bg-surface"
+              : "text-muted hover:text-white hover:bg-surface"
+          }`}
+        >
+          Trades
+        </button>
       </div>
+
+      {/* Saved layouts (dashboard only) */}
+      {page === "dashboard" && allLayouts.length > 0 && (
+        <div className="flex items-center gap-1">
+          {allLayouts.map((layout) => (
+            <button
+              key={layout.id}
+              onClick={() => loadLayout(layout)}
+              className="text-muted hover:text-white text-xs px-2 py-1 rounded hover:bg-surface transition-colors"
+            >
+              {layout.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="ml-auto flex items-center gap-3">
         <span className="text-xs text-muted">

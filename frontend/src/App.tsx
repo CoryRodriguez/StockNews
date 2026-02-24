@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "./store/authStore";
+import { usePageStore } from "./store/pageStore";
 import { LoginPage } from "./components/auth/LoginPage";
 import { Dashboard } from "./pages/Dashboard";
+import { TradesPage } from "./pages/TradesPage";
 
 export default function App() {
   const { token, needsSetup, setNeedsSetup } = useAuthStore();
+  const page = usePageStore((s) => s.page);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -27,6 +30,10 @@ export default function App() {
 
   if (!token || needsSetup) {
     return <LoginPage isSetup={needsSetup} />;
+  }
+
+  if (page === "trades") {
+    return <TradesPage />;
   }
 
   return <Dashboard />;

@@ -30,6 +30,7 @@ interface CategoryStat {
   avgDrawdown: number;
   avgTimeToPeakSec: number;
   avgRelativeVolume: number;
+  avgEntryVwapDev: number | null;
 }
 
 interface StrategyRule {
@@ -223,7 +224,7 @@ function OverviewTab({
 
 // ── Tab: By Catalyst ───────────────────────────────────────────────────────
 
-type SortKey = "category" | "tradeCount" | "winRate" | "avgReturn" | "avgHoldSec";
+type SortKey = "category" | "tradeCount" | "winRate" | "avgReturn" | "avgHoldSec" | "avgEntryVwapDev";
 
 function ByCatalystTab({ categories }: { categories: CategoryStat[] }) {
   const [sortBy, setSortBy] = useState<SortKey>("avgReturn");
@@ -244,6 +245,8 @@ function ByCatalystTab({ categories }: { categories: CategoryStat[] }) {
     else if (sortBy === "winRate") diff = a.winRate - b.winRate;
     else if (sortBy === "avgReturn") diff = a.avgReturn - b.avgReturn;
     else if (sortBy === "avgHoldSec") diff = a.avgHoldSec - b.avgHoldSec;
+    else if (sortBy === "avgEntryVwapDev")
+      diff = (a.avgEntryVwapDev ?? -999) - (b.avgEntryVwapDev ?? -999);
     return asc ? diff : -diff;
   });
 
@@ -270,6 +273,7 @@ function ByCatalystTab({ categories }: { categories: CategoryStat[] }) {
             {col("winRate", "Win%", "w-20")}
             {col("avgReturn", "Avg Ret", "w-16 text-right")}
             {col("avgHoldSec", "Avg Hold", "w-14 text-right")}
+            {col("avgEntryVwapDev", "VWAP Δ", "w-14 text-right")}
           </tr>
         </thead>
         <tbody>
@@ -290,6 +294,20 @@ function ByCatalystTab({ categories }: { categories: CategoryStat[] }) {
                 {pct(c.avgReturn)}
               </td>
               <td className="text-right text-muted">{fmtSec(c.avgHoldSec)}</td>
+              <td
+                className={`text-right text-[10px] ${
+                  c.avgEntryVwapDev == null
+                    ? "text-muted"
+                    : c.avgEntryVwapDev > 10
+                    ? "text-down"
+                    : c.avgEntryVwapDev > 0
+                    ? "text-yellow-400"
+                    : "text-up"
+                }`}
+                title="Avg VWAP deviation at entry. High positive = extended above VWAP (reversion risk)."
+              >
+                {c.avgEntryVwapDev != null ? pct(c.avgEntryVwapDev) : "—"}
+              </td>
             </tr>
           ))}
         </tbody>

@@ -150,6 +150,81 @@ export async function getSnapshots(symbols: string[]): Promise<Snapshot[]> {
   });
 }
 
+// ── Intraday VWAP ────────────────────────────────────────────────────────────
+
+interface MinuteBar {
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
+interface SingleSymbolBarsResponse {
+  bars: MinuteBar[];
+  symbol: string;
+  next_page_token?: string | null;
+}
+
+// Per-ticker cache: stores the computed session VWAP (not the deviation,
+// so multiple callers can use the same fetch even if their current prices differ)
+const vwapCache = new Map<string, { vwap: number; cachedAt: number }>();
+const VWAP_CACHE_TTL = 60_000; // 60 seconds — VWAP changes ~every minute
+
+async function computeSessionVwap(symbol: string): Promise<number | null> {
+  // Use 4:00 AM ET as session start (≈ 09:00 UTC in winter / 08:00 UTC in summer).
+  // We use a fixed -5h offset (EST) as a practical approximation — close enough for
+  // VWAP purposes and avoids a DST library dependency.
+  const nowET = new Date(Date.now() - 5 * 60 * 60 * 1000);
+  const dateStr = nowET.toISOString().slice(0, 10); // YYYY-MM-DD in ET
+  const start = `${dateStr}T09:00:00Z`; // 4 AM ET ≈ 09:00 UTC
+
+  const data = await fetchJson<SingleSymbolBarsResponse>(
+    `/v2/stocks/${encodeURIComponent(symbol)}/bars?timeframe=1Min&start=${encodeURIComponent(start)}&limit=1000&feed=iex`
+  );
+
+  if (!data?.bars?.length) return null;
+
+  let totalTPV = 0; // sum of (typical_price × volume)
+  let totalVol = 0;
+
+  for (const bar of data.bars) {
+    const tp = (bar.h + bar.l + bar.c) / 3; // typical price
+    totalTPV += tp * bar.v;
+    totalVol += bar.v;
+  }
+
+  return totalVol > 0 ? totalTPV / totalVol : null;
+}
+
+/**
+ * Returns the VWAP deviation for a symbol at the given current price.
+ *   deviation % = (currentPrice - vwap) / vwap × 100
+ * Positive = price is extended above VWAP (reversion risk).
+ * Negative = price is below VWAP (support zone).
+ * Returns null if Alpaca data is unavailable.
+ */
+export async function getVwapDev(
+  symbol: string,
+  currentPrice: number
+): Promise<number | null> {
+  const now = Date.now();
+  const cached = vwapCache.get(symbol);
+
+  let vwap: number | null = null;
+
+  if (cached && now - cached.cachedAt < VWAP_CACHE_TTL) {
+    vwap = cached.vwap;
+  } else {
+    vwap = await computeSessionVwap(symbol);
+    if (vwap != null) {
+      vwapCache.set(symbol, { vwap, cachedAt: now });
+    }
+  }
+
+  if (vwap == null || vwap === 0) return null;
+  return ((currentPrice - vwap) / vwap) * 100;
+}
+
 /** Fetch the most active stocks right now (top 100 by volume) */
 export async function getMostActives(): Promise<string[]> {
   const data = await fetchJson<{ most_actives: Array<{ symbol: string }> }>(

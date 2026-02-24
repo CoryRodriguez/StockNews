@@ -75,6 +75,7 @@ router.get("/performance/by-category", requireAuth, async (_req, res) => {
       maxDrawdownPct: true,
       peakTimeOffsetSec: true,
       relativeVolume: true,
+      entryVwapDev: true,
     },
   });
 
@@ -90,6 +91,9 @@ router.get("/performance/by-category", requireAuth, async (_req, res) => {
     const returns = items.map((t) => t.returnPct!);
     const sorted = [...returns].sort((a, b) => a - b);
     const wins = returns.filter((r) => r > 0).length;
+    const vwapDevSamples = items
+      .filter((t) => t.entryVwapDev != null)
+      .map((t) => t.entryVwapDev!);
 
     return {
       category,
@@ -104,6 +108,7 @@ router.get("/performance/by-category", requireAuth, async (_req, res) => {
         items.filter((t) => t.peakTimeOffsetSec != null).map((t) => t.peakTimeOffsetSec!)
       ),
       avgRelativeVolume: mean(items.map((t) => t.relativeVolume)),
+      avgEntryVwapDev: vwapDevSamples.length > 0 ? mean(vwapDevSamples) : null,
     };
   });
 
@@ -163,15 +168,22 @@ router.get("/performance/curves", requireAuth, async (_req, res) => {
  */
 router.get("/export.csv", requireAuth, async (_req, res) => {
   const SNAPSHOT_OFFSETS = [15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
-  const SNAPSHOT_LABELS = [
+  const SNAPSHOT_RET_LABELS = [
     "ret_15s", "ret_30s", "ret_1m", "ret_2m", "ret_5m",
     "ret_10m", "ret_15m", "ret_30m", "ret_1h", "ret_2h",
+  ];
+  const SNAPSHOT_VWAP_LABELS = [
+    "vwap_dev_15s", "vwap_dev_30s", "vwap_dev_1m", "vwap_dev_2m", "vwap_dev_5m",
+    "vwap_dev_10m", "vwap_dev_15m", "vwap_dev_30m", "vwap_dev_1h", "vwap_dev_2h",
   ];
 
   const trades = await prisma.tradeAnalytics.findMany({
     where: { returnPct: { not: null } },
     include: {
-      priceSnapshots: { orderBy: { offsetSeconds: "asc" } },
+      priceSnapshots: {
+        orderBy: { offsetSeconds: "asc" },
+        select: { offsetSeconds: true, returnPct: true, vwapDev: true },
+      },
       paperTrade: { select: { ticker: true, pnl: true, qty: true } },
     },
     orderBy: { tradeEnteredAt: "asc" },
@@ -194,18 +206,22 @@ router.get("/export.csv", requireAuth, async (_req, res) => {
     "entry_volume",
     "avg_volume_30d",
     "relative_volume",
+    "vwap_dev_entry",
     "peak_price",
     "peak_time_sec",
     "max_drawdown_pct",
-    ...SNAPSHOT_LABELS,
+    ...SNAPSHOT_RET_LABELS,
+    ...SNAPSHOT_VWAP_LABELS,
     "pnl",
   ];
 
   const rows = trades.map((t) => {
-    // Build a map of offset → returnPct for quick lookup
-    const snapMap = new Map<number, number>();
+    // Build maps of offset → returnPct and offset → vwapDev for quick lookup
+    const retMap = new Map<number, number>();
+    const vwapMap = new Map<number, number>();
     for (const s of t.priceSnapshots) {
-      snapMap.set(s.offsetSeconds, s.returnPct);
+      retMap.set(s.offsetSeconds, s.returnPct);
+      if (s.vwapDev != null) vwapMap.set(s.offsetSeconds, s.vwapDev);
     }
 
     const newsLatencyMs =
@@ -231,13 +247,20 @@ router.get("/export.csv", requireAuth, async (_req, res) => {
       t.entryVolume,
       t.avgVolume30d,
       t.relativeVolume.toFixed(2),
+      // VWAP deviation at entry
+      t.entryVwapDev != null ? t.entryVwapDev.toFixed(2) : "",
       t.peakPrice ?? "",
       t.peakTimeOffsetSec ?? "",
       t.maxDrawdownPct != null ? t.maxDrawdownPct.toFixed(4) : "",
       // Snapshot return columns
       ...SNAPSHOT_OFFSETS.map((off) => {
-        const r = snapMap.get(off);
+        const r = retMap.get(off);
         return r != null ? r.toFixed(4) : "";
+      }),
+      // Snapshot VWAP deviation columns
+      ...SNAPSHOT_OFFSETS.map((off) => {
+        const v = vwapMap.get(off);
+        return v != null ? v.toFixed(2) : "";
       }),
       t.paperTrade?.pnl != null ? t.paperTrade.pnl.toFixed(2) : "",
     ];

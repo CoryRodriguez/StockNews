@@ -6,7 +6,7 @@
  * catalyst at a granular level for the strategy engine.
  */
 import prisma from "../db/client";
-import { getSnapshots } from "./alpaca";
+import { getSnapshots, getVwapDev } from "./alpaca";
 import {
   classifyCatalystGranular,
   isPreMarket,
@@ -32,8 +32,11 @@ export async function recordTradeAnalytics(ctx: TradeContext): Promise<string | 
     const classification = classifyCatalystGranular(ctx.article.title, ctx.article.body);
     if (!classification) return null; // shouldn't happen — danger patterns already filtered
 
-    // Fetch current snapshot for volume/context data
-    const snapshots = await getSnapshots([ctx.article.ticker]);
+    // Fetch current snapshot for volume/context data and VWAP deviation
+    const [snapshots, entryVwapDev] = await Promise.all([
+      getSnapshots([ctx.article.ticker]),
+      getVwapDev(ctx.article.ticker, ctx.entryPrice),
+    ]);
     const snap = snapshots[0];
 
     const entryVolume = snap?.volume ?? 0;
@@ -56,6 +59,7 @@ export async function recordTradeAnalytics(ctx: TradeContext): Promise<string | 
         avgVolume30d,
         relativeVolume,
         isPreMarket: isPreMarket(ctx.entryTimestamp),
+        entryVwapDev: entryVwapDev ?? undefined,
       },
     });
 

@@ -8,7 +8,7 @@
  * finalizes the TradeAnalytics record.
  */
 import prisma from "../db/client";
-import { getSnapshots } from "./alpaca";
+import { getSnapshots, getVwapDev } from "./alpaca";
 
 // Intervals in seconds to capture price snapshots
 const SNAPSHOT_INTERVALS = [15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
@@ -86,6 +86,9 @@ async function captureSnapshot(
     const returnPct =
       entryPrice > 0 ? ((snap.price - entryPrice) / entryPrice) * 100 : 0;
 
+    // Compute VWAP deviation at this snapshot — cached, so minimal extra cost
+    const vwapDev = await getVwapDev(ticker, snap.price);
+
     await prisma.priceSnapshot.upsert({
       where: {
         tradeAnalyticsId_offsetSeconds: {
@@ -99,11 +102,13 @@ async function captureSnapshot(
         price: snap.price,
         volume: snap.volume,
         returnPct,
+        vwapDev: vwapDev ?? undefined,
       },
       update: {
         price: snap.price,
         volume: snap.volume,
         returnPct,
+        vwapDev: vwapDev ?? undefined,
       },
     });
   } catch (err) {

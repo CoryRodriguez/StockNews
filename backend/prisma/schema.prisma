@@ -80,6 +80,10 @@ model TradeAnalytics {
   sector            String?
   isPreMarket       Boolean  @default(false)
 
+  // VWAP context at entry: (entryPrice - sessionVwap) / sessionVwap * 100
+  // Positive = extended above VWAP (reversion risk); negative = below VWAP
+  entryVwapDev      Float?
+
   // Computed post-trade
   peakPrice         Float?
   peakTimeOffsetSec Int?     // seconds after entry when peak occurred
@@ -107,6 +111,7 @@ model PriceSnapshot {
   price             Float
   volume            Int            // cumulative volume at capture time
   returnPct         Float          // (price - entryPrice) / entryPrice * 100
+  vwapDev           Float?         // (price - sessionVwap) / sessionVwap * 100 at capture time
   capturedAt        DateTime       @default(now())
 
   @@unique([tradeAnalyticsId, offsetSeconds])

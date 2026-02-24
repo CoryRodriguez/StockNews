@@ -21,10 +21,17 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    env_file: .env
     environment:
       DATABASE_URL: postgresql://dtdash:dtdash@postgres:5432/dtdash
       NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET}
+      RTPR_API_KEY: ${RTPR_API_KEY}
+      ALPACA_API_KEY: ${ALPACA_API_KEY}
+      ALPACA_API_SECRET: ${ALPACA_API_SECRET}
+      PAPER_TRADING_ENABLED: ${PAPER_TRADING_ENABLED:-false}
+      PAPER_TRADE_QTY: ${PAPER_TRADE_QTY:-10}
+      PAPER_TRADE_SELL_DELAY_SEC: ${PAPER_TRADE_SELL_DELAY_SEC:-60}
+      PAPER_TRADE_COOLDOWN_MIN: ${PAPER_TRADE_COOLDOWN_MIN:-5}
     depends_on:
       postgres:
         condition: service_healthy

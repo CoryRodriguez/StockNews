@@ -411,6 +411,36 @@ function StrategiesTab({
   );
 }
 
+// ── CSV Export hook ────────────────────────────────────────────────────────
+
+function useExportCsv(token: string | null) {
+  const [exporting, setExporting] = useState(false);
+
+  const exportCsv = async () => {
+    if (!token || exporting) return;
+    setExporting(true);
+    try {
+      const res = await fetch("/api/analytics/export.csv", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `trade_analytics_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently ignore
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return { exportCsv, exporting };
+}
+
 // ── Main Panel ─────────────────────────────────────────────────────────────
 
 type Tab = "overview" | "catalyst" | "strategies";
@@ -418,6 +448,7 @@ type Tab = "overview" | "catalyst" | "strategies";
 export function AnalyticsPanel() {
   const token = useAuthStore((s) => s.token);
   const [tab, setTab] = useState<Tab>("overview");
+  const { exportCsv, exporting } = useExportCsv(token);
 
   const [status, setStatus] = useState<AnalyticsStatus | null>(null);
   const [categories, setCategories] = useState<CategoryStat[]>([]);
@@ -484,10 +515,20 @@ export function AnalyticsPanel() {
       {/* Header */}
       <div className="flex items-center justify-between px-2 py-1 border-b border-border bg-panel shrink-0">
         <span className="text-white text-xs font-semibold">Analytics</span>
-        <div className="flex items-center gap-1">
-          {tabBtn("overview", "Overview")}
-          {tabBtn("catalyst", "By Catalyst")}
-          {tabBtn("strategies", "Strategies")}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {tabBtn("overview", "Overview")}
+            {tabBtn("catalyst", "By Catalyst")}
+            {tabBtn("strategies", "Strategies")}
+          </div>
+          <button
+            onClick={exportCsv}
+            disabled={exporting}
+            title="Export all completed trades as CSV for analysis"
+            className="px-2 py-0.5 text-[11px] rounded border border-border text-muted hover:text-white hover:border-accent transition-colors disabled:opacity-40"
+          >
+            {exporting ? "…" : "↓ CSV"}
+          </button>
         </div>
       </div>
 

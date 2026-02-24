@@ -154,6 +154,107 @@ router.get("/performance/curves", requireAuth, async (_req, res) => {
   res.json(result);
 });
 
+// ── CSV Export ───────────────────────────────────────────────────────────
+
+/**
+ * Export all completed trade analytics as a flat CSV.
+ * Each row = one trade; price snapshots are flattened to ret_15s…ret_2h columns.
+ * Designed for pasting into a Claude conversation for analysis.
+ */
+router.get("/export.csv", requireAuth, async (_req, res) => {
+  const SNAPSHOT_OFFSETS = [15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200];
+  const SNAPSHOT_LABELS = [
+    "ret_15s", "ret_30s", "ret_1m", "ret_2m", "ret_5m",
+    "ret_10m", "ret_15m", "ret_30m", "ret_1h", "ret_2h",
+  ];
+
+  const trades = await prisma.tradeAnalytics.findMany({
+    where: { returnPct: { not: null } },
+    include: {
+      priceSnapshots: { orderBy: { offsetSeconds: "asc" } },
+      paperTrade: { select: { ticker: true, pnl: true, qty: true } },
+    },
+    orderBy: { tradeEnteredAt: "asc" },
+  });
+
+  const headers = [
+    "id",
+    "date",
+    "ticker",
+    "catalyst_category",
+    "catalyst_tier",
+    "is_pre_market",
+    "news_headline",
+    "news_source",
+    "news_latency_ms",
+    "entry_price",
+    "exit_price",
+    "return_pct",
+    "hold_sec",
+    "entry_volume",
+    "avg_volume_30d",
+    "relative_volume",
+    "peak_price",
+    "peak_time_sec",
+    "max_drawdown_pct",
+    ...SNAPSHOT_LABELS,
+    "pnl",
+  ];
+
+  const rows = trades.map((t) => {
+    // Build a map of offset → returnPct for quick lookup
+    const snapMap = new Map<number, number>();
+    for (const s of t.priceSnapshots) {
+      snapMap.set(s.offsetSeconds, s.returnPct);
+    }
+
+    const newsLatencyMs =
+      t.newsPublishedAt && t.newsDetectedAt
+        ? t.newsDetectedAt.getTime() - t.newsPublishedAt.getTime()
+        : "";
+
+    const cols: (string | number | boolean | null | undefined)[] = [
+      t.id,
+      t.tradeEnteredAt.toISOString(),
+      t.paperTrade?.ticker ?? "",
+      t.catalystCategory,
+      t.catalystTier,
+      t.isPreMarket,
+      // Quote news headline to handle commas
+      `"${(t.newsHeadline ?? "").replace(/"/g, '""')}"`,
+      t.newsSource,
+      newsLatencyMs,
+      t.entryPrice,
+      t.exitPrice ?? "",
+      t.returnPct != null ? t.returnPct.toFixed(4) : "",
+      t.actualHoldSec ?? "",
+      t.entryVolume,
+      t.avgVolume30d,
+      t.relativeVolume.toFixed(2),
+      t.peakPrice ?? "",
+      t.peakTimeOffsetSec ?? "",
+      t.maxDrawdownPct != null ? t.maxDrawdownPct.toFixed(4) : "",
+      // Snapshot return columns
+      ...SNAPSHOT_OFFSETS.map((off) => {
+        const r = snapMap.get(off);
+        return r != null ? r.toFixed(4) : "";
+      }),
+      t.paperTrade?.pnl != null ? t.paperTrade.pnl.toFixed(2) : "",
+    ];
+
+    return cols.join(",");
+  });
+
+  const csv = [headers.join(","), ...rows].join("\n");
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="trade_analytics_${new Date().toISOString().slice(0, 10)}.csv"`
+  );
+  res.send(csv);
+});
+
 // ── System status ────────────────────────────────────────────────────────
 
 router.get("/status", requireAuth, async (_req, res) => {

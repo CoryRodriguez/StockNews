@@ -76,7 +76,7 @@ export interface PaperTrade {
 
 // ── Layout ─────────────────────────────────────────────────────────────────
 
-export type PanelType = "scanner" | "chart" | "news" | "watchlist" | "trades";
+export type PanelType = "scanner" | "chart" | "news" | "watchlist" | "trades" | "analytics";
 
 export interface PanelConfig {
   id: string;

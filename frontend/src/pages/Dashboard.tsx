@@ -13,6 +13,7 @@ import { ChartPanel } from "../components/panels/ChartPanel";
 import { NewsPanel } from "../components/panels/NewsPanel";
 import { WatchlistPanel } from "../components/panels/WatchlistPanel";
 import { TradesPanel } from "../components/panels/TradesPanel";
+import { AnalyticsPanel } from "../components/panels/AnalyticsPanel";
 import { GridPanel, Watchlist } from "../types";
 
 function PanelWrapper({ panel, children }: { panel: GridPanel; children: React.ReactNode }) {
@@ -45,6 +46,8 @@ function renderPanel(panel: GridPanel) {
       return <WatchlistPanel />;
     case "trades":
       return <TradesPanel />;
+    case "analytics":
+      return <AnalyticsPanel />;
     default:
       return null;
   }

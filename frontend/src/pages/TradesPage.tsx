@@ -92,6 +92,76 @@ const DUMMY_PNL_TRADES: { date: string; pnl: number }[] = [
   { date: "2026-02-24", pnl: 92.40 },
 ];
 
+// ── Dummy full journal trades (all sections use these when no real trades) ─
+
+const _DUMMY_TEMPLATES = [
+  { ticker: "NVDA",  cat: "EARNINGS_BEAT",        entry: 485.20, catalyst: "NVIDIA Q4 Rev $22.1B Beats $20.5B Est; Data Center +206%",            type: "tier3", scanner: "news_flow", pre: false },
+  { ticker: "TSLA",  cat: "REGULATORY_APPROVAL",  entry: 252.40, catalyst: "Tesla FSD receives NHTSA approval for 12-state expansion",             type: "tier2", scanner: "news_flow", pre: false },
+  { ticker: "AAPL",  cat: "MA_ACQUISITION",        entry: 188.50, catalyst: "Apple in talks to acquire AI startup Cohere for $1.2B — WSJ",          type: "tier1", scanner: "gap_up",    pre: true  },
+  { ticker: "BIIB",  cat: "FDA_APPROVAL",          entry: 285.30, catalyst: "FDA grants accelerated approval for Biogen ALZ-303 treatment",         type: "tier2", scanner: "news_flow", pre: false },
+  { ticker: "MRNA",  cat: "CLINICAL_TRIAL",        entry:  88.60, catalyst: "Moderna Phase 3 mRNA-4157 cancer vaccine 44% recurrence reduction",    type: "tier2", scanner: "gap_up",    pre: false },
+  { ticker: "AMZN",  cat: "CONTRACT_WIN",          entry: 182.40, catalyst: "Amazon wins $3.9B DoD JEDI Phase II cloud services contract",          type: "tier4", scanner: "news_flow", pre: true  },
+  { ticker: "META",  cat: "EARNINGS_BEAT",         entry: 498.80, catalyst: "Meta Q4 EPS $8.02 vs $6.77 Est; ad revenue up 21% YoY",               type: "tier3", scanner: "news_flow", pre: false },
+  { ticker: "GME",   cat: "TREASURY_STRATEGY",     entry:  22.50, catalyst: "GameStop announces $1B Bitcoin treasury reserve strategy",             type: "tier1", scanner: "gap_up",    pre: false },
+  { ticker: "SMCI",  cat: "GUIDANCE_RAISE",        entry:  48.20, catalyst: "Super Micro raises FY2026 revenue guidance to $26-30B",               type: "tier3", scanner: "news_flow", pre: false },
+  { ticker: "GOOGL", cat: "MA_ACQUISITION",        entry: 172.30, catalyst: "Alphabet acquires cloud security firm Wiz for $23B — Bloomberg",      type: "tier1", scanner: "news_flow", pre: true  },
+  { ticker: "ABBV",  cat: "FDA_APPROVAL",          entry: 164.80, catalyst: "AbbVie receives FDA approval for Skyrizi extended-release formulation",type: "tier2", scanner: "news_flow", pre: false },
+  { ticker: "PLTR",  cat: "CONTRACT_WIN",          entry:  28.40, catalyst: "Palantir secures $480M DoD AI analytics contract extension",           type: "tier4", scanner: "gap_up",    pre: true  },
+  { ticker: "IONQ",  cat: "PARTNERSHIP",           entry:  18.70, catalyst: "IonQ partners with AWS to offer commercial quantum computing services", type: "tier3", scanner: "news_flow", pre: false },
+  { ticker: "CRWD",  cat: "EARNINGS_BEAT",         entry: 312.50, catalyst: "CrowdStrike Q3 ARR $3.44B vs $3.28B Est; raised FY2025 guidance",     type: "tier3", scanner: "news_flow", pre: false },
+  { ticker: "RKLB",  cat: "CONTRACT_WIN",          entry:  22.80, catalyst: "Rocket Lab awarded $515M DoD satellite launch contract",               type: "tier4", scanner: "gap_up",    pre: false },
+];
+
+const _HOLD_TIMES = [
+  38, 52, 65, 82, 95, 124, 147, 165, 198, 245, 285, 55,
+  48, 71, 115, 88, 143, 185, 225, 270, 98, 62, 175, 235,
+  155, 210, 75, 130, 190, 250, 40, 85, 160, 220, 300,
+];
+
+const DUMMY_JOURNAL_TRADES: JournalTrade[] = DUMMY_PNL_TRADES.map((d, i) => {
+  const tmpl = _DUMMY_TEMPLATES[i % _DUMMY_TEMPLATES.length];
+  const qty = 10;
+  const entryPrice = tmpl.entry;
+  const exitPrice = +(entryPrice + d.pnl / qty).toFixed(2);
+  const returnPct = +((exitPrice - entryPrice) / entryPrice * 100).toFixed(2);
+  const holdSec = _HOLD_TIMES[i % _HOLD_TIMES.length];
+  const [yr, mo, dy] = d.date.split("-").map(Number);
+  // Spread trades across the trading day; pre-market gets 8-9 AM slot
+  const hour = tmpl.pre ? 8 : 9 + (i % 4);
+  const minute = (i * 17 + 5) % 60;
+  const createdAt = new Date(yr, mo - 1, dy, hour, minute, 0).toISOString();
+  return {
+    id: `demo-${i}`,
+    ticker: tmpl.ticker,
+    qty,
+    buyPrice: entryPrice,
+    buyStatus: "filled",
+    sellPrice: exitPrice,
+    sellStatus: "filled",
+    catalyst: tmpl.catalyst,
+    catalystType: tmpl.type as JournalTrade["catalystType"],
+    scannerId: tmpl.scanner,
+    pnl: d.pnl,
+    createdAt,
+    updatedAt: new Date(new Date(createdAt).getTime() + holdSec * 1000).toISOString(),
+    analytics: {
+      catalystCategory: tmpl.cat,
+      catalystTier: tmpl.type === "tier1" ? 1 : tmpl.type === "tier2" ? 2 : tmpl.type === "tier3" ? 3 : 4,
+      newsHeadline: tmpl.catalyst,
+      tradeEnteredAt: createdAt,
+      entryPrice,
+      exitPrice,
+      returnPct,
+      actualHoldSec: holdSec,
+      isPreMarket: tmpl.pre,
+      relativeVolume: +(2.5 + (i % 8) * 0.8).toFixed(1),
+      entryVwapDev: +((i % 2 === 0 ? 1 : -1) * (0.3 + (i % 5) * 0.45)).toFixed(2),
+      peakPrice: d.pnl > 0 ? +(exitPrice * 1.003).toFixed(2) : exitPrice,
+      maxDrawdownPct: +(1.1 + (i % 5) * 0.35).toFixed(2),
+    },
+  };
+});
+
 // ── Stat Card ──────────────────────────────────────────────────────────────
 
 function StatCard({
@@ -354,7 +424,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
 
 // ── P&L Equity Curve ─────────────────────────────────────────────────────
 
-function PnlChart({ trades }: { trades: JournalTrade[] }) {
+function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?: boolean }) {
   const completed = useMemo(
     () =>
       trades
@@ -363,7 +433,7 @@ function PnlChart({ trades }: { trades: JournalTrade[] }) {
     [trades]
   );
 
-  const isDummy = completed.length === 0;
+  const isDummy = completed.length === 0 || !!isDemoMode;
 
   const points = useMemo(() => {
     if (isDummy) {
@@ -514,7 +584,7 @@ function statusBadge(t: JournalTrade) {
   return <span className="text-[10px] text-muted">CLOSED</span>;
 }
 
-function TradeLog({ trades }: { trades: JournalTrade[] }) {
+function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?: boolean }) {
   const [sortBy, setSortBy] = useState<SortKey>("createdAt");
   const [asc, setAsc] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -618,13 +688,21 @@ function TradeLog({ trades }: { trades: JournalTrade[] }) {
           {filterBtn("losses", `Losses (${trades.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) <= 0).length})`)}
           {filterBtn("open", `Open (${trades.filter((t) => t.buyStatus === "filled" && (t.sellStatus === "awaiting" || t.sellStatus === "pending")).length})`)}
         </div>
-        <button
-          onClick={exportCsv}
-          disabled={exporting}
-          className="text-[11px] px-2 py-0.5 rounded border border-border text-muted hover:text-white hover:border-accent transition-colors disabled:opacity-40"
-        >
-          {exporting ? "…" : "↓ CSV"}
-        </button>
+        <div className="flex items-center gap-2">
+          {isDemoMode && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 rounded">
+              DEMO
+            </span>
+          )}
+          <button
+            onClick={exportCsv}
+            disabled={exporting || !!isDemoMode}
+            className="text-[11px] px-2 py-0.5 rounded border border-border text-muted hover:text-white hover:border-accent transition-colors disabled:opacity-40"
+            title={isDemoMode ? "Export disabled in demo mode" : undefined}
+          >
+            {exporting ? "…" : "↓ CSV"}
+          </button>
+        </div>
       </div>
 
       {/* Scrollable table */}
@@ -771,7 +849,7 @@ function TradeLog({ trades }: { trades: JournalTrade[] }) {
 
 export function TradesPage() {
   const token = useAuthStore((s) => s.token);
-  const [trades, setTrades] = useState<JournalTrade[]>([]);
+  const [apiTrades, setApiTrades] = useState<JournalTrade[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadTrades = () => {
@@ -781,7 +859,7 @@ export function TradesPage() {
     })
       .then((r) => r.json())
       .then((data: JournalTrade[]) => {
-        if (Array.isArray(data)) setTrades(data);
+        if (Array.isArray(data)) setApiTrades(data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -792,6 +870,9 @@ export function TradesPage() {
     const interval = setInterval(loadTrades, 30_000);
     return () => clearInterval(interval);
   }, [token]);
+
+  const isDemoMode = !loading && apiTrades.length === 0;
+  const displayTrades = apiTrades.length > 0 ? apiTrades : DUMMY_JOURNAL_TRADES;
 
   return (
     <div className="h-screen w-screen flex flex-col bg-surface overflow-hidden font-mono">
@@ -804,18 +885,27 @@ export function TradesPage() {
       ) : (
         <div className="flex-1 overflow-auto">
           {/* Stats row */}
-          <StatsRow trades={trades} />
+          <StatsRow trades={displayTrades} />
+
+          {/* Demo data banner */}
+          {isDemoMode && (
+            <div className="px-4 py-1.5 bg-yellow-400/8 border-b border-yellow-400/20 shrink-0">
+              <span className="text-yellow-400/90 text-[11px]">
+                ⚠ Demo data — no real trades recorded yet. All figures below are simulated.
+              </span>
+            </div>
+          )}
 
           {/* Chart + calendar + log */}
           <div className="p-3 flex flex-col gap-3">
             {/* Equity curve */}
-            <PnlChart trades={trades} />
+            <PnlChart trades={displayTrades} isDemoMode={isDemoMode} />
 
             {/* Calendar heatmap */}
-            <CalendarHeatmap trades={trades} />
+            <CalendarHeatmap trades={displayTrades} />
 
             {/* Trade log */}
-            <TradeLog trades={trades} />
+            <TradeLog trades={displayTrades} isDemoMode={isDemoMode} />
           </div>
         </div>
       )}

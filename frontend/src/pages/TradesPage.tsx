@@ -295,26 +295,46 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   const nextMonth = () =>
     setMonthDate((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
-  // Build month summary for this displayed month
+  // Build month summary
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`;
   const monthPnl = [...dayMap.entries()]
-    .filter(([k]) => k.startsWith(`${year}-${String(month + 1).padStart(2, "0")}-`))
+    .filter(([k]) => k.startsWith(monthPrefix))
     .reduce((s, [, v]) => s + v.pnl, 0);
   const monthTrades = [...dayMap.entries()]
-    .filter(([k]) => k.startsWith(`${year}-${String(month + 1).padStart(2, "0")}-`))
+    .filter(([k]) => k.startsWith(monthPrefix))
     .reduce((s, [, v]) => s + v.count, 0);
 
-  const cells: React.ReactNode[] = [];
-
-  // Empty offset cells
-  for (let i = 0; i < firstDayOfWeek; i++) {
-    cells.push(<div key={`e${i}`} />);
+  // Build weeks: array of arrays of day-number | null
+  const weeks: (number | null)[][] = [];
+  let week: (number | null)[] = Array(firstDayOfWeek).fill(null);
+  for (let day = 1; day <= daysInMonth; day++) {
+    week.push(day);
+    if (week.length === 7) {
+      weeks.push(week);
+      week = [];
+    }
+  }
+  if (week.length > 0) {
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
   }
 
-  for (let day = 1; day <= daysInMonth; day++) {
+  const weekSummary = (days: (number | null)[]) => {
+    let pnl = 0, count = 0;
+    for (const d of days) {
+      if (d == null) continue;
+      const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const data = dayMap.get(key);
+      if (data) { pnl += data.pnl; count += data.count; }
+    }
+    return { pnl, count };
+  };
+
+  const renderDay = (day: number | null, wi: number, di: number) => {
+    if (day == null) return <div key={`e-${wi}-${di}`} />;
     const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const dayData = dayMap.get(dateKey);
     const isToday = dateKey === todayKey;
-
     let bgStyle: React.CSSProperties | undefined;
     if (dayData) {
       const intensity = Math.min(0.85, 0.18 + 0.67 * (Math.abs(dayData.pnl) / maxAbsPnl));
@@ -325,8 +345,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
             : `rgba(239, 68, 68, ${intensity})`,
       };
     }
-
-    cells.push(
+    return (
       <div
         key={day}
         className={`relative rounded p-1.5 border flex flex-col min-h-[56px] ${
@@ -334,11 +353,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
         } ${!dayData ? "bg-surface" : ""}`}
         style={dayData ? bgStyle : undefined}
       >
-        <span
-          className={`text-[10px] font-mono ${
-            isToday ? "text-accent font-bold" : "text-white/60"
-          }`}
-        >
+        <span className={`text-[10px] font-mono ${isToday ? "text-accent font-bold" : "text-white/60"}`}>
           {day}
         </span>
         {dayData && (
@@ -351,69 +366,80 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
         )}
       </div>
     );
-  }
+  };
 
   return (
     <div className="bg-panel border border-border rounded p-3">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
+      {/* Header: ‹ Month Year › + month summary */}
+      <div className="flex items-center gap-1.5 mb-2">
         <button
           onClick={prevMonth}
           className="text-muted hover:text-white text-sm w-6 h-6 flex items-center justify-center rounded hover:bg-surface"
         >
           ‹
         </button>
-        <div className="flex items-center gap-3">
-          <span className="text-white text-xs font-semibold">{monthLabel}</span>
-          {monthTrades > 0 && (
-            <span
-              className={`text-xs font-mono font-semibold ${
-                monthPnl >= 0 ? "text-up" : "text-down"
-              }`}
-            >
-              {monthPnl >= 0 ? "+" : ""}${monthPnl.toFixed(2)}
-              <span className="text-muted font-normal ml-1">({monthTrades}t)</span>
-            </span>
-          )}
-        </div>
+        <span className="text-white text-xs font-semibold">{monthLabel}</span>
         <button
           onClick={nextMonth}
           className="text-muted hover:text-white text-sm w-6 h-6 flex items-center justify-center rounded hover:bg-surface"
         >
           ›
         </button>
+        {monthTrades > 0 && (
+          <span className={`text-xs font-mono font-semibold ml-1 ${monthPnl >= 0 ? "text-up" : "text-down"}`}>
+            {monthPnl >= 0 ? "+" : ""}${monthPnl.toFixed(2)}
+            <span className="text-muted font-normal ml-1">({monthTrades}t)</span>
+          </span>
+        )}
       </div>
 
-      {/* Day-of-week headers */}
-      <div className="grid grid-cols-7 gap-1 mb-1">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-          <div key={d} className="text-center text-[10px] text-muted py-0.5">
-            {d}
-          </div>
-        ))}
+      {/* Day-of-week headers + "Week" recap header */}
+      <div className="flex gap-1 mb-1">
+        <div className="grid grid-cols-7 gap-1 flex-1">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div key={d} className="text-center text-[10px] text-muted py-0.5">{d}</div>
+          ))}
+        </div>
+        <div className="w-[76px] shrink-0 text-right text-[10px] text-muted py-0.5 pr-1">Week</div>
       </div>
 
-      {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-1">{cells}</div>
+      {/* Week rows with weekly recap */}
+      <div className="flex flex-col gap-1">
+        {weeks.map((wk, wi) => {
+          const { pnl, count } = weekSummary(wk);
+          return (
+            <div key={wi} className="flex gap-1 items-stretch">
+              <div className="grid grid-cols-7 gap-1 flex-1">
+                {wk.map((day, di) => renderDay(day, wi, di))}
+              </div>
+              {/* Weekly recap cell */}
+              <div className="w-[76px] shrink-0 flex flex-col items-end justify-center bg-surface border border-border rounded px-2 py-1 min-h-[56px]">
+                {count > 0 ? (
+                  <>
+                    <span className={`text-[11px] font-mono font-semibold leading-none ${pnl >= 0 ? "text-up" : "text-down"}`}>
+                      {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
+                    </span>
+                    <span className="text-[9px] text-muted mt-0.5">{count} Trade{count !== 1 ? "s" : ""}</span>
+                  </>
+                ) : (
+                  <span className="text-[9px] text-muted">—</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Legend */}
       <div className="flex items-center gap-2 mt-2 justify-end">
         <span className="text-[9px] text-muted">Loss</span>
         <div className="flex gap-0.5">
           {[0.85, 0.55, 0.3].map((o) => (
-            <div
-              key={o}
-              className="w-3 h-3 rounded-sm"
-              style={{ backgroundColor: `rgba(239,68,68,${o})` }}
-            />
+            <div key={o} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(239,68,68,${o})` }} />
           ))}
           <div className="w-3 h-3 rounded-sm bg-surface border border-border" />
           {[0.3, 0.55, 0.85].map((o) => (
-            <div
-              key={o}
-              className="w-3 h-3 rounded-sm"
-              style={{ backgroundColor: `rgba(34,197,94,${o})` }}
-            />
+            <div key={o} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(34,197,94,${o})` }} />
           ))}
         </div>
         <span className="text-[9px] text-muted">Gain</span>

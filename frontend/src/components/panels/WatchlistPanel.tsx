@@ -47,7 +47,7 @@ export function WatchlistPanel() {
   const handleAddTicker = () => {
     const t = addInput.trim().toUpperCase();
     if (!t) return;
-    useWatchlistStore.getState().addTicker(t);
+    useWatchlistStore.getState().addTicker(t, token ?? undefined);
     setAddInput("");
   };
 
@@ -112,7 +112,7 @@ export function WatchlistPanel() {
                 {p?.relativeVolume != null ? `${p.relativeVolume.toFixed(1)}x` : "—"}
               </span>
               <button
-                onClick={(e) => { e.stopPropagation(); removeTicker(ticker); }}
+                onClick={(e) => { e.stopPropagation(); removeTicker(ticker, token ?? undefined); }}
                 className="text-muted hover:text-down text-[10px] opacity-0 group-hover:opacity-100"
               >
                 ✕

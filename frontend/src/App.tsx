@@ -4,6 +4,7 @@ import { usePageStore } from "./store/pageStore";
 import { LoginPage } from "./components/auth/LoginPage";
 import { Dashboard } from "./pages/Dashboard";
 import { TradesPage } from "./pages/TradesPage";
+import { NewsFeedsPage } from "./pages/NewsFeedsPage";
 
 export default function App() {
   const { token, needsSetup, setNeedsSetup } = useAuthStore();
@@ -32,9 +33,7 @@ export default function App() {
     return <LoginPage isSetup={needsSetup} />;
   }
 
-  if (page === "trades") {
-    return <TradesPage />;
-  }
-
+  if (page === "trades") return <TradesPage />;
+  if (page === "newsfeeds") return <NewsFeedsPage />;
   return <Dashboard />;
 }

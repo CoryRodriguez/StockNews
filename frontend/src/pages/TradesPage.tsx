@@ -69,6 +69,29 @@ function toDateKey(iso: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// ── Dummy P&L data (shown when no real trades exist) ──────────────────────
+
+const DUMMY_PNL_TRADES: { date: string; pnl: number }[] = [
+  { date: "2026-01-05", pnl: 42.80 }, { date: "2026-01-06", pnl: -28.50 },
+  { date: "2026-01-07", pnl: 95.20 }, { date: "2026-01-08", pnl: 18.75 },
+  { date: "2026-01-09", pnl: -55.30 }, { date: "2026-01-12", pnl: 112.40 },
+  { date: "2026-01-13", pnl: -32.10 }, { date: "2026-01-14", pnl: 78.60 },
+  { date: "2026-01-15", pnl: 145.20 }, { date: "2026-01-16", pnl: -88.75 },
+  { date: "2026-01-20", pnl: 62.30 }, { date: "2026-01-21", pnl: 38.90 },
+  { date: "2026-01-22", pnl: -24.60 }, { date: "2026-01-23", pnl: 198.40 },
+  { date: "2026-01-26", pnl: -42.30 }, { date: "2026-01-27", pnl: 88.50 },
+  { date: "2026-01-28", pnl: 125.80 }, { date: "2026-01-29", pnl: -65.40 },
+  { date: "2026-01-30", pnl: 92.70 }, { date: "2026-02-02", pnl: 75.30 },
+  { date: "2026-02-03", pnl: -38.90 }, { date: "2026-02-04", pnl: 148.60 },
+  { date: "2026-02-05", pnl: 55.20 }, { date: "2026-02-06", pnl: -72.40 },
+  { date: "2026-02-09", pnl: 118.50 }, { date: "2026-02-10", pnl: 42.80 },
+  { date: "2026-02-11", pnl: -28.60 }, { date: "2026-02-12", pnl: 165.30 },
+  { date: "2026-02-13", pnl: 88.70 }, { date: "2026-02-17", pnl: -95.40 },
+  { date: "2026-02-18", pnl: 112.20 }, { date: "2026-02-19", pnl: 78.50 },
+  { date: "2026-02-20", pnl: -45.30 }, { date: "2026-02-23", pnl: 155.80 },
+  { date: "2026-02-24", pnl: 92.40 },
+];
+
 // ── Stat Card ──────────────────────────────────────────────────────────────
 
 function StatCard({
@@ -325,6 +348,143 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
         </div>
         <span className="text-[9px] text-muted">Gain</span>
       </div>
+    </div>
+  );
+}
+
+// ── P&L Equity Curve ─────────────────────────────────────────────────────
+
+function PnlChart({ trades }: { trades: JournalTrade[] }) {
+  const completed = useMemo(
+    () =>
+      trades
+        .filter((t) => t.sellStatus === "filled" && t.pnl != null)
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    [trades]
+  );
+
+  const isDummy = completed.length === 0;
+
+  const points = useMemo(() => {
+    if (isDummy) {
+      let cum = 0;
+      return DUMMY_PNL_TRADES.map((d) => {
+        cum += d.pnl;
+        return { label: d.date.slice(5), cumPnl: cum, pnl: d.pnl };
+      });
+    }
+    let cum = 0;
+    return completed.map((t) => {
+      cum += t.pnl ?? 0;
+      const d = new Date(t.createdAt);
+      return { label: `${d.getMonth() + 1}/${d.getDate()}`, cumPnl: cum, pnl: t.pnl ?? 0 };
+    });
+  }, [completed, isDummy]);
+
+  if (points.length === 0) return null;
+
+  // SVG coordinate system
+  const W = 800, H = 160;
+  const PL = 52, PR = 10, PT = 14, PB = 24;
+  const chartW = W - PL - PR;
+  const chartH = H - PT - PB;
+
+  const minY = Math.min(0, ...points.map((p) => p.cumPnl));
+  const maxY = Math.max(0, ...points.map((p) => p.cumPnl));
+  const rangeY = maxY - minY || 100;
+
+  const toX = (i: number) =>
+    PL + (points.length === 1 ? chartW / 2 : (i / (points.length - 1)) * chartW);
+  const toY = (v: number) => PT + chartH - ((v - minY) / rangeY) * chartH;
+  const zeroY = toY(0);
+
+  const finalPnl = points[points.length - 1].cumPnl;
+  const isPositive = finalPnl >= 0;
+  const lineColor = isPositive ? "rgb(34,197,94)" : "rgb(239,68,68)";
+  const fillColor = isPositive ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)";
+
+  const linePath = points
+    .map((p, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(p.cumPnl).toFixed(1)}`)
+    .join(" ");
+  const areaPath = `${linePath} L${toX(points.length - 1).toFixed(1)},${zeroY.toFixed(1)} L${toX(0).toFixed(1)},${zeroY.toFixed(1)} Z`;
+
+  const yLabels = [
+    { v: maxY, y: toY(maxY) },
+    { v: 0, y: zeroY },
+    ...(minY < 0 ? [{ v: minY, y: toY(minY) }] : []),
+  ];
+
+  const xCount = Math.min(7, points.length);
+  const xIndices =
+    points.length <= xCount
+      ? points.map((_, i) => i)
+      : Array.from({ length: xCount }, (_, i) =>
+          Math.round((i / (xCount - 1)) * (points.length - 1))
+        );
+
+  const peakIdx = points.reduce((b, p, i) => (p.cumPnl > points[b].cumPnl ? i : b), 0);
+  const troughIdx = points.reduce((b, p, i) => (p.cumPnl < points[b].cumPnl ? i : b), 0);
+
+  const fmtY = (v: number) =>
+    v === 0 ? "0" : `${v > 0 ? "+" : ""}${Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`;
+
+  return (
+    <div className="bg-panel border border-border rounded p-3">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-white text-xs font-semibold">Cumulative P&amp;L</span>
+        <div className="flex items-center gap-2">
+          {isDummy && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 rounded">
+              DEMO DATA
+            </span>
+          )}
+          <span className={`text-xs font-mono font-semibold ${isPositive ? "text-up" : "text-down"}`}>
+            {isPositive ? "+" : ""}${finalPnl.toFixed(2)}
+          </span>
+          <span className="text-[10px] text-muted">{points.length} trades</span>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" className="overflow-visible">
+        {/* Zero line */}
+        <line x1={PL} y1={zeroY} x2={W - PR} y2={zeroY} stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="4,3" />
+
+        {/* Area fill */}
+        <path d={areaPath} fill={fillColor} />
+
+        {/* Line */}
+        <path d={linePath} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" />
+
+        {/* Peak annotation */}
+        <circle cx={toX(peakIdx)} cy={toY(points[peakIdx].cumPnl)} r="3" fill="rgb(34,197,94)" />
+        <text x={toX(peakIdx)} y={toY(points[peakIdx].cumPnl) - 6} textAnchor="middle" fill="rgba(34,197,94,0.8)" fontSize="8" fontFamily="monospace">
+          +${points[peakIdx].cumPnl.toFixed(0)}
+        </text>
+
+        {/* Trough annotation (only if negative) */}
+        {points[troughIdx].cumPnl < 0 && (
+          <>
+            <circle cx={toX(troughIdx)} cy={toY(points[troughIdx].cumPnl)} r="3" fill="rgb(239,68,68)" />
+            <text x={toX(troughIdx)} y={toY(points[troughIdx].cumPnl) + 12} textAnchor="middle" fill="rgba(239,68,68,0.8)" fontSize="8" fontFamily="monospace">
+              ${points[troughIdx].cumPnl.toFixed(0)}
+            </text>
+          </>
+        )}
+
+        {/* Y-axis labels */}
+        {yLabels.map(({ v, y }) => (
+          <text key={v} x={PL - 4} y={y} textAnchor="end" dominantBaseline="middle" fill="rgba(255,255,255,0.35)" fontSize="9" fontFamily="monospace">
+            {fmtY(v)}
+          </text>
+        ))}
+
+        {/* X-axis labels */}
+        {xIndices.map((idx) => (
+          <text key={idx} x={toX(idx)} y={H - 4} textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="8" fontFamily="monospace">
+            {points[idx].label}
+          </text>
+        ))}
+      </svg>
     </div>
   );
 }
@@ -646,8 +806,11 @@ export function TradesPage() {
           {/* Stats row */}
           <StatsRow trades={trades} />
 
-          {/* Calendar + log */}
+          {/* Chart + calendar + log */}
           <div className="p-3 flex flex-col gap-3">
+            {/* Equity curve */}
+            <PnlChart trades={trades} />
+
             {/* Calendar heatmap */}
             <CalendarHeatmap trades={trades} />
 

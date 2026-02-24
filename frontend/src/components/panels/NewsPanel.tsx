@@ -1,8 +1,10 @@
 import { useNewsStore } from "../../store/newsStore";
 import { useDashboardStore } from "../../store/dashboardStore";
 import { useWatchlistStore } from "../../store/watchlistStore";
+import { useTradesStore } from "../../store/tradesStore";
+import { useAuthStore } from "../../store/authStore";
 import { useAudioAlert } from "../../hooks/useAudioAlert";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NewsArticle } from "../../types";
 import { deriveStars, fmtTime, highlightKeywords } from "../../utils/newsUtils";
 
@@ -41,11 +43,14 @@ function HighlightedText({ text, className }: { text: string; className?: string
 function NewsItem({
   article,
   onTickerClick,
+  tradeStatus,
 }: {
   article: NewsArticle;
   onTickerClick: () => void;
+  tradeStatus: "open" | "closed" | null;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const token = useAuthStore((s) => s.token);
   const stars = article.stars ?? deriveStars(article.title);
   const timestamp = fmtTime(article.receivedAt);
   const ageMs = Date.now() - new Date(article.receivedAt).getTime();
@@ -53,18 +58,20 @@ function NewsItem({
 
   const handleAddToWatchlist = (e: React.MouseEvent) => {
     e.stopPropagation();
-    useWatchlistStore.getState().addTicker(article.ticker);
+    useWatchlistStore.getState().addTicker(article.ticker, token ?? undefined);
   };
 
   return (
     <div
-      className="border-b border-border px-2 py-1.5 hover:bg-surface cursor-pointer"
+      className={`border-b border-border px-2 py-1.5 hover:bg-surface cursor-pointer ${
+        tradeStatus ? "border-l-2 border-l-accent" : ""
+      }`}
       onClick={() => {
         onTickerClick();
         setExpanded((v) => !v);
       }}
     >
-      {/* Row 1: timestamp | stars | ticker | NEW badge | + button */}
+      {/* Row 1: timestamp | stars | ticker | badges | + button */}
       <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-muted text-[10px] font-mono shrink-0">{timestamp}</span>
         <Stars count={stars} />
@@ -77,6 +84,16 @@ function NewsItem({
         {isNew && (
           <span className="shrink-0 bg-down text-white text-[9px] font-bold px-1 rounded leading-tight">
             NEW
+          </span>
+        )}
+        {tradeStatus === "open" && (
+          <span className="shrink-0 bg-blue-500/20 text-blue-400 text-[9px] font-bold px-1 rounded leading-tight border border-blue-500/40">
+            HOLDING
+          </span>
+        )}
+        {tradeStatus === "closed" && (
+          <span className="shrink-0 bg-accent/20 text-accent text-[9px] font-bold px-1 rounded leading-tight border border-accent/40">
+            TRADED
           </span>
         )}
         <button
@@ -114,9 +131,28 @@ export function NewsPanel({ newsMode, title }: Props) {
   const { filteredArticles, setFilterTicker, filterTicker } = useNewsStore();
   const setActiveTicker = useDashboardStore((s) => s.setActiveTicker);
   const { alertNews } = useAudioAlert();
+  const trades = useTradesStore((s) => s.trades);
   const prevCountRef = useRef(0);
 
   const articles = newsMode === "linked" ? filteredArticles() : useNewsStore.getState().articles;
+
+  // Build a map of ticker -> trade status for badge display
+  const tradedTickers = useMemo(() => {
+    const map = new Map<string, "open" | "closed">();
+    for (const t of trades) {
+      const isOpen =
+        t.buyStatus === "filled" &&
+        (t.sellStatus === "awaiting" || t.sellStatus === "pending");
+      const isClosed = t.sellStatus === "filled";
+      // "open" takes priority if a position is currently held
+      if (isOpen) {
+        map.set(t.ticker, "open");
+      } else if (isClosed && map.get(t.ticker) !== "open") {
+        map.set(t.ticker, "closed");
+      }
+    }
+    return map;
+  }, [trades]);
 
   // Audio alert on new articles
   useEffect(() => {
@@ -158,6 +194,7 @@ export function NewsPanel({ newsMode, title }: Props) {
             key={`${article.ticker}-${article.receivedAt}-${i}`}
             article={article}
             onTickerClick={() => handleTickerClick(article.ticker)}
+            tradeStatus={tradedTickers.get(article.ticker) ?? null}
           />
         ))}
       </div>

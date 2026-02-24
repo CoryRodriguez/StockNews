@@ -39,7 +39,7 @@ function renderPanel(panel: GridPanel) {
       return (
         <NewsPanel
           newsMode={panel.newsMode ?? "firehose"}
-          title={panel.title ?? "News"}
+          title={panel.title ?? "News Feed"}
         />
       );
     case "watchlist":
@@ -64,7 +64,23 @@ export function Dashboard() {
     if (!token) return;
     fetch("/api/watchlists", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((lists: Watchlist[]) => setLists(lists))
+      .then(async (lists: Watchlist[]) => {
+        if (lists.length === 0) {
+          // Auto-create a default watchlist on first load
+          const res = await fetch("/api/watchlists", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ name: "Watchlist", tickers: [] }),
+          });
+          const newList: Watchlist = await res.json();
+          setLists([newList]);
+        } else {
+          setLists(lists);
+        }
+      })
       .catch(() => {});
   }, [token, setLists]);
 

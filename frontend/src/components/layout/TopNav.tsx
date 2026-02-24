@@ -12,32 +12,28 @@ export function TopNav() {
 
   const allLayouts = [...PRESET_LAYOUTS, ...savedLayouts];
 
+  const navBtn = (target: typeof page, label: string) => (
+    <button
+      onClick={() => setPage(target)}
+      className={`text-xs px-2.5 py-1 rounded transition-colors ${
+        page === target
+          ? "text-white bg-surface"
+          : "text-muted hover:text-white hover:bg-surface"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <nav className="h-10 bg-panel border-b border-border flex items-center px-3 gap-3 shrink-0 font-mono">
       <span className="text-white font-semibold text-sm mr-1">DTDash</span>
 
       {/* Page navigation tabs */}
       <div className="flex items-center gap-0.5 border-r border-border pr-3">
-        <button
-          onClick={() => setPage("dashboard")}
-          className={`text-xs px-2.5 py-1 rounded transition-colors ${
-            page === "dashboard"
-              ? "text-white bg-surface"
-              : "text-muted hover:text-white hover:bg-surface"
-          }`}
-        >
-          Dashboard
-        </button>
-        <button
-          onClick={() => setPage("trades")}
-          className={`text-xs px-2.5 py-1 rounded transition-colors ${
-            page === "trades"
-              ? "text-white bg-surface"
-              : "text-muted hover:text-white hover:bg-surface"
-          }`}
-        >
-          Trades
-        </button>
+        {navBtn("dashboard", "Dashboard")}
+        {navBtn("trades", "Trades")}
+        {navBtn("newsfeeds", "News Feeds")}
       </div>
 
       {/* Saved layouts (dashboard only) */}

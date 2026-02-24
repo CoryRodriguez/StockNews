@@ -9,8 +9,20 @@ interface WatchlistState {
   setActiveList: (id: string) => void;
   updatePrice: (ticker: string, price: number) => void;
   setSnapshot: (snapshot: Partial<WatchlistItem> & { ticker: string }) => void;
-  addTicker: (ticker: string) => void;
-  removeTicker: (ticker: string) => void;
+  addTicker: (ticker: string, token?: string) => void;
+  removeTicker: (ticker: string, token?: string) => void;
+}
+
+async function persistTickers(listId: string, tickers: string[], token: string) {
+  try {
+    await fetch(`/api/watchlists/${listId}`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ tickers }),
+    });
+  } catch {
+    // silent — local state already updated
+  }
 }
 
 export const useWatchlistStore = create<WatchlistState>((set, get) => ({
@@ -59,27 +71,29 @@ export const useWatchlistStore = create<WatchlistState>((set, get) => ({
       };
     }),
 
-  addTicker: (ticker) => {
+  addTicker: (ticker, token) => {
     const { lists, activeListId } = get();
     if (!activeListId) return;
-    set({
-      lists: lists.map((l) =>
-        l.id === activeListId && !l.tickers.includes(ticker)
-          ? { ...l, tickers: [...l.tickers, ticker] }
-          : l
-      ),
-    });
+    const already = lists.find((l) => l.id === activeListId)?.tickers.includes(ticker);
+    if (already) return;
+    const updated = lists.map((l) =>
+      l.id === activeListId ? { ...l, tickers: [...l.tickers, ticker] } : l
+    );
+    set({ lists: updated });
+    const newTickers = updated.find((l) => l.id === activeListId)!.tickers;
+    if (token) persistTickers(activeListId, newTickers, token);
   },
 
-  removeTicker: (ticker) => {
+  removeTicker: (ticker, token) => {
     const { lists, activeListId } = get();
     if (!activeListId) return;
-    set({
-      lists: lists.map((l) =>
-        l.id === activeListId
-          ? { ...l, tickers: l.tickers.filter((t) => t !== ticker) }
-          : l
-      ),
-    });
+    const updated = lists.map((l) =>
+      l.id === activeListId
+        ? { ...l, tickers: l.tickers.filter((t) => t !== ticker) }
+        : l
+    );
+    set({ lists: updated });
+    const newTickers = updated.find((l) => l.id === activeListId)!.tickers;
+    if (token) persistTickers(activeListId, newTickers, token);
   },
 }));

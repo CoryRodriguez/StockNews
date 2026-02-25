@@ -2,39 +2,49 @@
 
 ## Environments
 - **This sandbox** (Claude Code): `/home/user/StockNews` — git repo, make code changes here
-- **VPS (server1)**: `/opt/stocknews/` — live deployment, pull changes here after pushing
+- **VPS (server1)**: `/opt/stocknews/` — live deployment, pull from git then restart services
 
-## VPS
+## VPS Architecture
 - **Domain**: isitabuy.com
-- **Host**: Namecheap VPS (`server1`)
-- **Project root on VPS**: `/opt/stocknews/`
-- **Other projects on VPS**: `/opt/doihold/`, `/opt/proxy/`
+- **Host**: Namecheap VPS (server1)
+- **Central reverse proxy**: `/opt/proxy/` — handles ports 80/443 for ALL domains
+- **StockNews app**: `/opt/stocknews/` — backend, frontend, postgres (no host port exposure)
+- **Other project**: `/opt/doihold/` — separate app proxied through same proxy
 
-## Stack
-- Docker Compose: postgres, backend (Node/port 3001), frontend, nginx
-- Nginx config: `/opt/stocknews/nginx/nginx.conf`
-- SSL certs: `/opt/stocknews/nginx/certs/`
+## Traffic flow
+```
+Internet → proxy-nginx (80/443) → stocknews-frontend-1:80  (frontend)
+                                → stocknews-backend-1:3001  (API /api/)
+                                → stocknews-backend-1:3001  (WebSocket /ws)
+```
 
-## Key Docker commands (run on VPS)
-- Start: `docker compose -f /opt/stocknews/docker-compose.yml up -d`
-- Stop: `docker compose -f /opt/stocknews/docker-compose.yml down`
-- Restart service: `docker compose -f /opt/stocknews/docker-compose.yml restart <service>`
-- Logs: `docker logs <container> --tail 50`
-- List containers: `docker ps`
+## Key paths on VPS
+- Proxy nginx config: `/opt/proxy/nginx/nginx.conf`
+- Proxy SSL certs:    `/opt/proxy/certs/live/isitabuy.com/`
+- Certbot webroot:    `/opt/proxy/certbot-www/`
+- App config:         `/opt/stocknews/docker-compose.yml`
+- App nginx config:   `/opt/stocknews/nginx/nginx.conf` (internal only, not used for routing)
 
-## Nginx (run on VPS)
-- Test config: `docker exec $(docker ps -qf name=nginx) nginx -t`
-- Reload: `docker exec $(docker ps -qf name=nginx) nginx -s reload`
+## Docker commands (run on VPS)
+- Proxy logs:    `docker logs proxy-nginx --tail 50`
+- App logs:      `docker compose -f /opt/stocknews/docker-compose.yml logs -f`
+- Restart proxy: `docker compose -f /opt/proxy/docker-compose.yml restart nginx`
+- Restart app:   `docker compose -f /opt/stocknews/docker-compose.yml restart`
+- List all:      `docker ps`
 
-## SSL
-- Certs not yet configured — need certbot for isitabuy.com
-- Certbot volume: stocknews_certbot_www
-- HTTPS server block in nginx.conf is commented out — enable after certs are in place
+## Nginx (proxy)
+- Test config:   `docker exec proxy-nginx nginx -t`
+- Reload:        `docker exec proxy-nginx nginx -s reload`
+
+## Known issues
+- doihold.com HTTPS block uses isitabuy.com certs — needs its own cert
+- /ws WebSocket location missing from proxy nginx — needs to be added
 
 ## Deployment workflow
-1. Make changes in this sandbox
+1. Make code changes in this sandbox
 2. Commit and push to git
-3. On VPS: `git pull` in `/opt/stocknews/`, then restart affected services
+3. On VPS: `cd /opt/stocknews && git pull`
+4. Rebuild if needed: `docker compose build && docker compose up -d`
 
 ## Rules
 - Always run `nginx -t` before reloading nginx

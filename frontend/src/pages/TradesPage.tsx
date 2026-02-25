@@ -496,8 +496,8 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
 
   const finalPnl = points[points.length - 1].cumPnl;
   const isPositive = finalPnl >= 0;
-  const lineColor = "rgb(234,179,8)";
-  const fillColor = "rgba(234,179,8,0.12)";
+  const lineColor = isPositive ? "rgb(34,197,94)" : "rgb(239,68,68)";
+  const fillColor = isPositive ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)";
 
   const linePath = points
     .map((p, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(p.cumPnl).toFixed(1)}`)
@@ -541,7 +541,7 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" className="overflow-visible">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="overflow-visible">
         {/* Zero line */}
         <line x1={PL} y1={zeroY} x2={W - PR} y2={zeroY} stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="4,3" />
 
@@ -552,8 +552,8 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
         <path d={linePath} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" />
 
         {/* Peak annotation */}
-        <circle cx={toX(peakIdx)} cy={toY(points[peakIdx].cumPnl)} r="3" fill="rgb(234,179,8)" />
-        <text x={toX(peakIdx)} y={toY(points[peakIdx].cumPnl) - 6} textAnchor="middle" fill="rgba(234,179,8,0.8)" fontSize="8" fontFamily="monospace">
+        <circle cx={toX(peakIdx)} cy={toY(points[peakIdx].cumPnl)} r="3" fill="rgb(34,197,94)" />
+        <text x={toX(peakIdx)} y={toY(points[peakIdx].cumPnl) - 6} textAnchor="middle" fill="rgba(34,197,94,0.8)" fontSize="8" fontFamily="monospace">
           +${points[peakIdx].cumPnl.toFixed(0)}
         </text>
 

@@ -96,6 +96,7 @@ async function poll() {
           author: bz.author || "Benzinga",
           createdAt,
           receivedAt,
+          source: "benzinga",
         };
 
         // Push to shared in-memory ring buffer

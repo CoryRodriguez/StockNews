@@ -30,6 +30,7 @@ export interface NewsArticle {
   createdAt: string;
   receivedAt: string;
   stars?: number; // 1-5, derived from catalyst keywords
+  source?: string; // "rtpr" | "benzinga"
 }
 
 // ── Watchlist ──────────────────────────────────────────────────────────────

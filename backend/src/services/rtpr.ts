@@ -65,8 +65,8 @@ function connect() {
     }
   });
 
-  ws.on("close", () => {
-    console.warn("[RTPR] Disconnected — reconnecting in 5s");
+  ws.on("close", (code, reason) => {
+    console.warn(`[RTPR] Disconnected — code=${code} reason="${reason?.toString() ?? ""}" — reconnecting in 5s`);
     scheduleReconnect(5000);
   });
 

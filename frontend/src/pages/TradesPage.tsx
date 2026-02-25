@@ -480,7 +480,7 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   if (points.length === 0) return null;
 
   // SVG coordinate system
-  const W = 800, H = 160;
+  const W = 800, H = 110;
   const PL = 52, PR = 10, PT = 14, PB = 24;
   const chartW = W - PL - PR;
   const chartH = H - PT - PB;

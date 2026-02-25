@@ -23,7 +23,7 @@ interface BenzingaStock {
 }
 
 interface BenzingaArticle {
-  id: string;
+  id: number | string;
   author: string;
   created: string; // RFC 2822, e.g. "Thu, 24 Feb 2025 10:00:00 -0500"
   updated: string;
@@ -73,9 +73,12 @@ async function poll() {
     // Advance the cursor so next poll only fetches new articles
     lastUpdatedSince = Math.floor(Date.now() / 1000);
 
+    let newCount = 0;
     for (const bz of articles) {
-      if (!bz.id || seenIds.has(bz.id)) continue;
-      seenIds.add(bz.id);
+      const idStr = String(bz.id);
+      if (!idStr || seenIds.has(idStr)) continue;
+      seenIds.add(idStr);
+      newCount++;
 
       const tickers = (bz.stocks ?? []).map((s) => s.name).filter(Boolean);
       if (tickers.length === 0) continue; // skip non-equity / macro items
@@ -120,6 +123,9 @@ async function poll() {
           );
         }
       }
+    }
+    if (newCount > 0) {
+      console.log(`[Benzinga] Received ${articles.length} articles, ${newCount} new`);
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

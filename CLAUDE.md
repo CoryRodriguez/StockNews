@@ -1,31 +1,43 @@
-# StockNews VPS — Server Context
+# StockNews — Server Context
+
+## Environments
+- **This sandbox** (Claude Code): `/home/user/StockNews` — git repo, make code changes here
+- **VPS (server1)**: `/opt/stocknews/` — live deployment, pull changes here after pushing
+
+## VPS
+- **Domain**: isitabuy.com
+- **Host**: Namecheap VPS (`server1`)
+- **Project root on VPS**: `/opt/stocknews/`
+- **Other projects on VPS**: `/opt/doihold/`, `/opt/proxy/`
 
 ## Stack
-- **Domain**: isitabuy.com
-- **OS**: Ubuntu on Namecheap VPS
-- **Project root**: /home/user/StockNews
-- **Services**: Docker Compose — postgres, backend (Node/port 3001), frontend, nginx
+- Docker Compose: postgres, backend (Node/port 3001), frontend, nginx
+- Nginx config: `/opt/stocknews/nginx/nginx.conf`
+- SSL certs: `/opt/stocknews/nginx/certs/`
 
-## Docker
-- Start: `docker compose -f /home/user/StockNews/docker-compose.yml up -d`
-- Stop: `docker compose -f /home/user/StockNews/docker-compose.yml down`
-- Restart service: `docker compose -f /home/user/StockNews/docker-compose.yml restart <service>`
+## Key Docker commands (run on VPS)
+- Start: `docker compose -f /opt/stocknews/docker-compose.yml up -d`
+- Stop: `docker compose -f /opt/stocknews/docker-compose.yml down`
+- Restart service: `docker compose -f /opt/stocknews/docker-compose.yml restart <service>`
 - Logs: `docker logs <container> --tail 50`
 - List containers: `docker ps`
 
-## Nginx
-- Config: `/home/user/StockNews/nginx/nginx.conf`
-- Certs: `/home/user/StockNews/nginx/certs/`
-- Test config: `docker exec stocknews-nginx-1 nginx -t`
-- Reload: `docker exec stocknews-nginx-1 nginx -s reload`
+## Nginx (run on VPS)
+- Test config: `docker exec $(docker ps -qf name=nginx) nginx -t`
+- Reload: `docker exec $(docker ps -qf name=nginx) nginx -s reload`
 
 ## SSL
-- Certs not yet set up — need to run certbot for isitabuy.com
+- Certs not yet configured — need certbot for isitabuy.com
 - Certbot volume: stocknews_certbot_www
-- After getting certs, uncomment the HTTPS server block in nginx/nginx.conf
+- HTTPS server block in nginx.conf is commented out — enable after certs are in place
+
+## Deployment workflow
+1. Make changes in this sandbox
+2. Commit and push to git
+3. On VPS: `git pull` in `/opt/stocknews/`, then restart affected services
 
 ## Rules
 - Always run `nginx -t` before reloading nginx
 - Check docker logs before assuming a service is down
 - Never read or modify .env files without explicit instruction
-- Confirm before pushing any git changes
+- Confirm before pushing git changes or restarting production services

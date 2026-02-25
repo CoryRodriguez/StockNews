@@ -42,6 +42,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     restart: unless-stopped
+    networks:
+      - default
+      - web
 
   nginx:
     image: nginx:alpine
@@ -60,3 +63,7 @@ services:
 volumes:
   postgres_data:
   certbot_www:
+
+networks:
+  web:
+    external: true

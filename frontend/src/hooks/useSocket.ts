@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useAuthStore } from "../store/authStore";
 import { useNewsStore } from "../store/newsStore";
 import { useScannerStore } from "../store/scannerStore";
@@ -10,6 +10,7 @@ const WS_URL = import.meta.env.VITE_WS_URL ?? `${window.location.protocol === "h
 
 let globalWs: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+const subscribedChannels = new Set<string>();
 
 function getWs(token: string, onOpen: () => void) {
   if (globalWs && globalWs.readyState <= WebSocket.OPEN) return globalWs;
@@ -23,6 +24,7 @@ function getWs(token: string, onOpen: () => void) {
 
   globalWs.onclose = () => {
     globalWs = null;
+    subscribedChannels.clear();
     if (reconnectTimer) clearTimeout(reconnectTimer);
     reconnectTimer = setTimeout(() => getWs(token, onOpen), 3000);
   };
@@ -33,11 +35,10 @@ function getWs(token: string, onOpen: () => void) {
 export function useSocket() {
   const token = useAuthStore((s) => s.token);
   const addArticle = useNewsStore((s) => s.addArticle);
+  const backfill = useNewsStore((s) => s.backfill);
   const { addAlert, clearAlert, activeScanners } = useScannerStore();
   const updatePrice = useWatchlistStore((s) => s.updatePrice);
   const upsertTrade = useTradesStore((s) => s.upsertTrade);
-  const subscribedRef = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     if (!token) return;
 
@@ -49,9 +50,9 @@ export function useSocket() {
         ...Array.from(activeScanners).map((id) => `scanner:${id}`),
       ];
       for (const ch of channels) {
-        if (!subscribedRef.current.has(ch)) {
+        if (!subscribedChannels.has(ch)) {
           ws.send(JSON.stringify({ type: "subscribe", channel: ch }));
-          subscribedRef.current.add(ch);
+          subscribedChannels.add(ch);
         }
       }
     };
@@ -64,6 +65,13 @@ export function useSocket() {
 
         if (msg.type === "connected") {
           subscribeChannels(ws);
+          // Backfill articles that arrived before we connected
+          fetch("/api/news/recent", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then((r) => (r.ok ? r.json() : []))
+            .then((articles) => { if (Array.isArray(articles)) backfill(articles); })
+            .catch(() => {});
         } else if (msg.type === "news_article") {
           addArticle(msg.article);
         } else if (msg.type === "scanner_alert") {
@@ -82,5 +90,5 @@ export function useSocket() {
 
     ws.addEventListener("message", handleMessage);
     return () => ws.removeEventListener("message", handleMessage);
-  }, [token, activeScanners, addArticle, addAlert, clearAlert, updatePrice, upsertTrade]);
+  }, [token, activeScanners, addArticle, backfill, addAlert, clearAlert, updatePrice, upsertTrade]);
 }

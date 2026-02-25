@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "./store/authStore";
 import { usePageStore } from "./store/pageStore";
+import { useSocket } from "./hooks/useSocket";
 import { LoginPage } from "./components/auth/LoginPage";
 import { Dashboard } from "./pages/Dashboard";
 import { TradesPage } from "./pages/TradesPage";
@@ -20,6 +21,9 @@ export default function App() {
       .catch(() => setNeedsSetup(false))
       .finally(() => setChecking(false));
   }, [setNeedsSetup]);
+
+  // WebSocket connection — runs globally for all pages once authenticated
+  useSocket();
 
   if (checking) {
     return (

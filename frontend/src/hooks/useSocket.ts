@@ -6,7 +6,7 @@ import { useWatchlistStore } from "../store/watchlistStore";
 import { useTradesStore } from "../store/tradesStore";
 import { WsMessage, ScannerAlert } from "../types";
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? `ws://${window.location.host}/ws`;
+const WS_URL = import.meta.env.VITE_WS_URL ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`;
 
 let globalWs: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;

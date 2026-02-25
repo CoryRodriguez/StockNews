@@ -34,6 +34,10 @@ export function hasRecentNews(ticker: string): boolean {
   return Date.now() - ts < 60 * 60 * 1000;
 }
 
+export function markNewsTicker(ticker: string): void {
+  recentNewsTickers.set(ticker, Date.now());
+}
+
 export function startRtpr() {
   if (!config.rtprApiKey) {
     console.warn("[RTPR] No API key set — news feed disabled");

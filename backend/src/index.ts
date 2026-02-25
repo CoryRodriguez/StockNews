@@ -6,6 +6,7 @@ import { WebSocketServer } from "ws";
 import { config } from "./config";
 import { addClient } from "./ws/clientHub";
 import { startRtpr } from "./services/rtpr";
+import { startBenzinga } from "./services/benzinga";
 import { startAlpacaWs } from "./services/alpaca";
 import { startScanner, getScannerDefinitions } from "./services/scanner";
 import { recentArticles } from "./services/rtpr";
@@ -68,6 +69,7 @@ wss.on("connection", (ws) => addClient(ws));
 server.listen(config.port, async () => {
   console.log(`[Server] Listening on :${config.port}`);
   startRtpr();
+  startBenzinga();
   startAlpacaWs();
   startScanner();
 

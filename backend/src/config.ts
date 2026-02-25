@@ -5,6 +5,7 @@ export const config = {
   port: parseInt(process.env.PORT ?? "3001"),
   jwtSecret: process.env.JWT_SECRET ?? "dev_secret_change_me",
   rtprApiKey: process.env.RTPR_API_KEY ?? "",
+  benzingaApiKey: process.env.BENZINGA_API_KEY ?? "",
   alpacaApiKey: process.env.ALPACA_API_KEY ?? "",
   alpacaApiSecret: process.env.ALPACA_API_SECRET ?? "",
   nodeEnv: process.env.NODE_ENV ?? "development",

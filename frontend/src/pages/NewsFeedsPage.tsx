@@ -4,9 +4,10 @@
  * Side-by-side view of multiple news feed providers.
  * Disconnected feeds show demo articles for evaluation.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TopNav } from "../components/layout/TopNav";
 import { useNewsStore } from "../store/newsStore";
+import { useAuthStore } from "../store/authStore";
 import { deriveStars, fmtTime, highlightKeywords } from "../utils/newsUtils";
 import { ChartPanel } from "../components/panels/ChartPanel";
 import { TradesPanel } from "../components/panels/TradesPanel";
@@ -43,8 +44,8 @@ const FEEDS: FeedConfig[] = [
     id: "rtpr",
     name: "RTPR.io",
     shortName: "RTPR",
-    description: "Real-time press release aggregation — currently integrated.",
-    connected: true,
+    description: "Real-time press release aggregation — no API key configured.",
+    connected: false,
     color: "text-emerald-400",
     dotColor: "bg-emerald-400",
   },
@@ -228,9 +229,24 @@ export function NewsFeedsPage() {
   useSocket();
   useDummyData();
   const allArticles = useNewsStore((s) => s.articles);
+  const addArticle = useNewsStore((s) => s.addArticle);
+  const token = useAuthStore((s) => s.token);
   const [selectedFeeds, setSelectedFeeds] = useState<Set<string>>(
     () => new Set(FEEDS.map((f) => f.id))
   );
+
+  // Load recent articles from REST on mount so articles received before
+  // the page loaded are visible immediately (don't wait for next WS push)
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/news/recent", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((articles: { ticker: string; title: string; body: string; author: string; source: string; createdAt: string; receivedAt: string }[]) => {
+        // Add oldest-first so newest ends up at the top of the store
+        for (const a of [...articles].reverse()) addArticle(a as Parameters<typeof addArticle>[0]);
+      })
+      .catch(() => {/* ignore */});
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleFeed = (id: string) => {
     setSelectedFeeds((prev) => {

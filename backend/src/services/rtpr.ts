@@ -21,6 +21,7 @@ export interface RtprArticle {
   title: string;
   body: string;
   author: string;
+  source: string;    // "rtpr" | "benzinga" | etc.
   createdAt: string; // ISO string from RTPR
   receivedAt: string; // when we got it
 }
@@ -96,6 +97,7 @@ function handleMessage(msg: RtprMessage) {
       title: msg.title,
       body: msg.body ?? "",
       author: msg.author ?? "",
+      source: "rtpr",
       createdAt: msg.created ?? new Date().toISOString(),
       receivedAt: new Date().toISOString(),
     };

@@ -91,6 +91,7 @@ async function poll() {
           title: bz.title,
           body: bz.body || bz.teaser || "",
           author: bz.author || "Benzinga",
+          source: "benzinga",
           createdAt,
           receivedAt,
         };

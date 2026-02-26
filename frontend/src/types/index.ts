@@ -27,6 +27,7 @@ export interface NewsArticle {
   title: string;
   body: string;
   author: string;
+  source?: string;   // "rtpr" | "benzinga" | etc.
   createdAt: string;
   receivedAt: string;
   stars?: number; // 1-5, derived from catalyst keywords

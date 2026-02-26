@@ -67,7 +67,7 @@ async function poll() {
       return;
     }
 
-    const articles: BenzingaArticle[] = await resp.json();
+    const articles = (await resp.json()) as BenzingaArticle[];
     if (!Array.isArray(articles) || articles.length === 0) return;
 
     // Advance the cursor so next poll only fetches new articles

@@ -65,7 +65,7 @@ async function poll() {
       return;
     }
 
-    const data: AlpacaNewsResponse = await resp.json();
+    const data = (await resp.json()) as AlpacaNewsResponse;
     if (!data.news?.length) return;
 
     for (const item of data.news) {

@@ -1,117 +1,13 @@
 import { useEffect } from "react";
-import { useNewsStore } from "../store/newsStore";
 import { useScannerStore } from "../store/scannerStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { useTradesStore } from "../store/tradesStore";
-import { NewsArticle, ScannerAlert, PaperTrade } from "../types";
-import { deriveStars } from "../utils/newsUtils";
+import { ScannerAlert, PaperTrade } from "../types";
 
 function ts(minutesAgo: number): string {
   return new Date(Date.now() - minutesAgo * 60 * 1000).toISOString();
 }
 
-const DUMMY_NEWS: NewsArticle[] = [
-  {
-    ticker: "AAPL",
-    title: "Apple acquires AI startup Nexus AI in $4.2B deal, expanding on-device intelligence",
-    body: "Apple has completed the acquisition of Nexus AI, a San Francisco-based startup specializing in on-device large language models. The takeover is expected to close by Q3 and will integrate Nexus's technology into the next iPhone generation.",
-    author: "Reuters",
-    source: "benzinga",
-    createdAt: ts(1),
-    receivedAt: ts(1),
-    stars: 5,
-  },
-  {
-    ticker: "MRNA",
-    title: "Moderna receives FDA approval for mRNA flu vaccine, Phase 3 trial showed 94% efficacy",
-    body: "The FDA approved Moderna's next-generation influenza vaccine mRNA-1010 following Phase 3 clinical trial results. The BLA submission was accepted under fast track designation. PDUFA date was today.",
-    author: "RTPR",
-    source: "rtpr",
-    createdAt: ts(3),
-    receivedAt: ts(3),
-    stars: 4,
-  },
-  {
-    ticker: "NVDA",
-    title: "NVIDIA beats Q4 earnings estimates; revenue $22.1B vs $21.0B expected, raises guidance",
-    body: "NVIDIA reported record quarterly revenue of $22.1B, beating analyst consensus of $21.0B. EPS of $5.16 beat estimates of $4.91. Data center segment surged 409% YoY. Management raised full-year guidance to $88B.",
-    author: "Bloomberg",
-    source: "benzinga",
-    createdAt: ts(6),
-    receivedAt: ts(6),
-    stars: 3,
-  },
-  {
-    ticker: "PLTR",
-    title: "Palantir awarded $480M DoD government contract for AI battlefield analytics platform",
-    body: "Palantir Technologies announced a $480M federal contract with the Department of Defense to deploy its AI-enabled analytics platform across multiple combat commands. The defense contract is a 3-year deal with two optional extensions.",
-    author: "RTPR",
-    source: "rtpr",
-    createdAt: ts(10),
-    receivedAt: ts(10),
-    stars: 2,
-  },
-  {
-    ticker: "GME",
-    title: "GameStop reports quarterly revenue miss; comparable store sales down 14% YoY",
-    body: "GameStop reported Q3 revenue of $1.02B, missing the $1.18B consensus estimate. Net income declined 28% as digital shift continues to pressure physical game sales. Guidance was not raised.",
-    author: "SeekingAlpha",
-    source: "benzinga",
-    createdAt: ts(14),
-    receivedAt: ts(14),
-    stars: 3,
-  },
-  {
-    ticker: "TSLA",
-    title: "Tesla merger talks with Rivian denied by both companies following report",
-    body: "Representatives for Tesla and Rivian both denied reports that acquisition discussions had taken place. A note from a Wedbush analyst claimed the two EV makers explored a merger earlier this year.",
-    author: "RTPR",
-    source: "rtpr",
-    createdAt: ts(18),
-    receivedAt: ts(18),
-    stars: 5,
-  },
-  {
-    ticker: "AMZN",
-    title: "Amazon raises AWS pricing for enterprise cloud contracts by 8% effective March 1",
-    body: "Amazon Web Services notified enterprise customers of an 8% price increase on reserved instance contracts and committed use discounts. The increase applies to compute and storage services.",
-    author: "TechCrunch",
-    source: "benzinga",
-    createdAt: ts(22),
-    receivedAt: ts(22),
-    stars: 1,
-  },
-  {
-    ticker: "BIIB",
-    title: "Biogen Phase 3 clinical trial for Alzheimer's drug shows 27% reduction in cognitive decline",
-    body: "Biogen released Phase III trial data for lecanemab showing statistically significant 27% slowing of cognitive decline vs placebo. NDA filing expected in Q2. FDA fast track designation already granted.",
-    author: "RTPR",
-    source: "rtpr",
-    createdAt: ts(28),
-    receivedAt: ts(28),
-    stars: 4,
-  },
-  {
-    ticker: "META",
-    title: "Meta profit surges 168% YoY on ad revenue recovery; Q4 EPS $5.33 beat $4.86 estimate",
-    body: "Meta Platforms reported net income of $14.0B in Q4, a 168% increase year-over-year. EPS of $5.33 crushed the $4.86 consensus. Revenue grew 25% to $40.1B driven by Reels monetization and AI-powered ad targeting.",
-    author: "Bloomberg",
-    source: "benzinga",
-    createdAt: ts(35),
-    receivedAt: ts(35),
-    stars: 3,
-  },
-  {
-    ticker: "BA",
-    title: "Boeing secures $18B government contract with USAF for next-generation tanker aircraft",
-    body: "Boeing announced an $18B federal contract with the US Air Force for 100 KC-46A Pegasus tanker aircraft. The defense contract includes full sustainment and a 15-year maintenance agreement with the Department of Defense.",
-    author: "DefenseNews",
-    source: "benzinga",
-    createdAt: ts(42),
-    receivedAt: ts(42),
-    stars: 2,
-  },
-];
 
 function makeAlert(
   scannerId: string,
@@ -251,23 +147,10 @@ const DUMMY_PRICES: Record<string, { price: number; prevClose: number; relativeV
   AMD:   { price: 175.40, prevClose: 163.50, relativeVolume: 4.1, float: 1_615_000_000 },
 };
 
-/** Seeds all stores with dummy data for UI testing.
+/** Seeds scanner, watchlist, and trades stores with dummy data for UI testing.
  *  Only seeds if the stores are empty (no real data yet). */
 export function useDummyData() {
   useEffect(() => {
-    // News
-    const newsState = useNewsStore.getState();
-    if (newsState.articles.length === 0) {
-      const articlesWithStars = DUMMY_NEWS.map((a) => ({
-        ...a,
-        stars: a.stars ?? deriveStars(a.title),
-      }));
-      // Add in reverse order so newest ends up at top
-      for (const article of [...articlesWithStars].reverse()) {
-        newsState.addArticle(article);
-      }
-    }
-
     // Scanner alerts
     const scannerState = useScannerStore.getState();
     const allEmpty = DUMMY_SCANNER.every(

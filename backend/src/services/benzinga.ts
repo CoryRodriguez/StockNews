@@ -68,7 +68,11 @@ async function poll() {
     }
 
     const articles = (await resp.json()) as BenzingaArticle[];
-    if (!Array.isArray(articles) || articles.length === 0) return;
+    if (!Array.isArray(articles) || articles.length === 0) {
+      console.log("[Benzinga] Poll: 0 new articles");
+      return;
+    }
+    console.log(`[Benzinga] Poll: ${articles.length} article(s)`);
 
     // Advance the cursor so next poll only fetches new articles
     lastUpdatedSince = Math.floor(Date.now() / 1000);

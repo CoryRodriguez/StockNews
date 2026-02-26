@@ -381,7 +381,7 @@ function MiniChart({ symbol }: { symbol: string }) {
   }, [symbol]);
 
   return (
-    <div className="flex flex-col border border-border rounded bg-panel overflow-hidden" style={{ minHeight: 300 }}>
+    <div className="flex flex-col h-full border border-border rounded bg-panel overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border shrink-0">
         <span className="text-white text-xs font-mono font-semibold">{symbol}</span>
         <span className="text-muted text-[10px]">TradingView</span>
@@ -563,7 +563,7 @@ function TopMoversPanel({ onTickerClick }: { onTickerClick: (t: string) => void 
 
 export function NewsFeedsPage() {
   const liveArticles = useNewsStore((s) => s.articles);
-  const [chartSymbol, setChartSymbol] = useState("NASDAQ:SPY");
+  const [chartSymbol, setChartSymbol] = useState("AMEX:SPY");
 
   const handleTickerClick = useCallback((ticker: string) => {
     const tvSymbol = ticker.includes(":") ? ticker : `NASDAQ:${ticker}`;
@@ -619,16 +619,19 @@ export function NewsFeedsPage() {
 
         {/* Right: Chart + panels */}
         <div className="flex flex-col gap-2 flex-[2] min-w-0 overflow-hidden">
-          {/* Chart */}
-          <div className="flex-1 min-h-0">
+          {/* Chart — takes ~55% of right column */}
+          <div className="flex-[3] min-h-0">
             <MiniChart symbol={chartSymbol} />
           </div>
 
-          {/* News Trades */}
-          <NewsTradesPanel onTickerClick={handleTickerClick} />
+          {/* Bottom panels — scrollable together */}
+          <div className="flex-[2] min-h-0 overflow-y-auto flex flex-col gap-2">
+            {/* News Trades */}
+            <NewsTradesPanel onTickerClick={handleTickerClick} />
 
-          {/* Top Movers */}
-          <TopMoversPanel onTickerClick={handleTickerClick} />
+            {/* Top Movers */}
+            <TopMoversPanel onTickerClick={handleTickerClick} />
+          </div>
         </div>
       </div>
     </div>

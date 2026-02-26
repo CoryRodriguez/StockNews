@@ -39,6 +39,17 @@ export function useSocket() {
   const { addAlert, clearAlert, activeScanners } = useScannerStore();
   const updatePrice = useWatchlistStore((s) => s.updatePrice);
   const upsertTrade = useTradesStore((s) => s.upsertTrade);
+  // Backfill articles from REST on mount (independent of WebSocket)
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/news/recent", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((articles) => { if (Array.isArray(articles)) backfill(articles); })
+      .catch(() => {});
+  }, [token, backfill]);
+
   useEffect(() => {
     if (!token) return;
 
@@ -65,13 +76,6 @@ export function useSocket() {
 
         if (msg.type === "connected") {
           subscribeChannels(ws);
-          // Backfill articles that arrived before we connected
-          fetch("/api/news/recent", {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-            .then((r) => (r.ok ? r.json() : []))
-            .then((articles) => { if (Array.isArray(articles)) backfill(articles); })
-            .catch(() => {});
         } else if (msg.type === "news_article") {
           addArticle(msg.article);
         } else if (msg.type === "scanner_alert") {

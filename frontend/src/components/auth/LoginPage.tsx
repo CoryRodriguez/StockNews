@@ -22,6 +22,10 @@ export function LoginPage({ isSetup }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        throw new Error("Server unavailable — please try again later");
+      }
       const data = (await res.json()) as { token?: string; error?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setToken(data.token!);

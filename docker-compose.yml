@@ -36,6 +36,9 @@ services:
         condition: service_healthy
     expose:
       - "3001"
+    networks:
+      - default
+      - web
 
   frontend:
     build:

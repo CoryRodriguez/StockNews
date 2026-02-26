@@ -13,7 +13,11 @@ export default function App() {
 
   useEffect(() => {
     fetch("/api/auth/status")
-      .then((r) => r.json())
+      .then((r) => {
+        const ct = r.headers.get("content-type") ?? "";
+        if (!ct.includes("application/json")) throw new Error("not json");
+        return r.json();
+      })
       .then((d: { needsSetup: boolean }) => {
         setNeedsSetup(d.needsSetup);
       })

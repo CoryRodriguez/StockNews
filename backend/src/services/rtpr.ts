@@ -23,6 +23,7 @@ export interface RtprArticle {
   author: string;
   createdAt: string; // ISO string from RTPR
   receivedAt: string; // when we got it
+  source?: string;    // "rtpr" | "benzinga" | "alpaca"
 }
 
 // Track tickers that received news in last 60 min (for scanner news dots)
@@ -98,6 +99,7 @@ function handleMessage(msg: RtprMessage) {
       author: msg.author ?? "",
       createdAt: msg.created ?? new Date().toISOString(),
       receivedAt: new Date().toISOString(),
+      source: "rtpr",
     };
 
     // Store in memory ring buffer

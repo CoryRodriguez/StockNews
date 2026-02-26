@@ -8,6 +8,7 @@ import { addClient } from "./ws/clientHub";
 import { startRtpr } from "./services/rtpr";
 import { startBenzinga } from "./services/benzinga";
 import { startAlpacaWs } from "./services/alpaca";
+import { startAlpacaNews } from "./services/alpacaNews";
 import { startScanner, getScannerDefinitions } from "./services/scanner";
 import { recentArticles } from "./services/rtpr";
 import { getSnapshots } from "./services/alpaca";
@@ -70,6 +71,7 @@ server.listen(config.port, async () => {
   console.log(`[Server] Listening on :${config.port}`);
   startRtpr();
   startBenzinga();
+  startAlpacaNews();
   startAlpacaWs();
   startScanner();
 

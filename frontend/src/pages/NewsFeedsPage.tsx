@@ -1,14 +1,15 @@
 /**
  * News Feeds Page
  *
- * Side-by-side view of news feed providers.
- * Connected feeds (RTPR, Benzinga) show live articles from WebSocket.
- * Unconnected feeds show demo data with simulated latency.
+ * Left: side-by-side news feed columns (RTPR, Benzinga, Dow Jones).
+ * Right: TradingView chart, News Trades panel, Top Movers panel.
  */
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TopNav } from "../components/layout/TopNav";
 import { useNewsStore } from "../store/newsStore";
+import { useAuthStore } from "../store/authStore";
 import { NewsArticle } from "../types";
+import { highlightKeywords, deriveStars } from "../utils/newsUtils";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -28,8 +29,33 @@ interface FeedConfig {
   description: string;
   connected: boolean;
   configKey?: string;
-  color: string;       // tailwind text color
-  dotColor: string;    // tailwind bg color for status dot
+  color: string;
+  dotColor: string;
+}
+
+interface MoverData {
+  ticker: string;
+  price: number;
+  changePct: number;
+  volume: number;
+  relativeVolume: number;
+  hasNews: boolean;
+  articles: { ticker: string; title: string; receivedAt: string; source?: string }[];
+}
+
+interface JournalTrade {
+  id: string;
+  ticker: string;
+  catalyst: string;
+  catalystType: string;
+  buyStatus: string;
+  sellStatus: string;
+  createdAt: string;
+  analytics?: {
+    catalystCategory: string;
+    newsHeadline: string;
+    returnPct: number | null;
+  } | null;
 }
 
 // ── Static feed config ─────────────────────────────────────────────────────
@@ -63,26 +89,6 @@ const FEEDS: FeedConfig[] = [
     color: "text-yellow-400",
     dotColor: "bg-yellow-400",
   },
-  {
-    id: "globe",
-    name: "Globe Newswire",
-    shortName: "GLOBE",
-    description: "Press releases and corporate announcements.",
-    connected: false,
-    configKey: "GLOBE_API_KEY",
-    color: "text-purple-400",
-    dotColor: "bg-purple-400",
-  },
-  {
-    id: "businesswire",
-    name: "Business Wire",
-    shortName: "BW",
-    description: "Global press release distribution network.",
-    connected: false,
-    configKey: "BW_API_KEY",
-    color: "text-orange-400",
-    dotColor: "bg-orange-400",
-  },
 ];
 
 // ── Demo data for unconnected feeds ──────────────────────────────────────
@@ -91,7 +97,7 @@ const STORY_BASE: { ticker: string; title: string }[] = [
   { ticker: "AAPL",  title: "Apple Announces Strategic Partnership with OpenAI for On-Device Models" },
   { ticker: "NVDA",  title: "NVIDIA Reports Record Q4 Revenue of $39.3B, Beats Estimates by 12%" },
   { ticker: "TSLA",  title: "Tesla Receives NHTSA Approval for Full Self-Driving in 12 States" },
-  { ticker: "AMZN",  title: "Amazon Secures $4.7B DoD Cloud Contract, Expanding AWS GovCloud" },
+  { ticker: "AMZN",  title: "Amazon Secures $4.7B DoD Contract, Expanding AWS GovCloud" },
   { ticker: "META",  title: "Meta Platforms Q4 EPS $8.02 vs $6.77 Est; Revenue Up 21% YoY" },
   { ticker: "BIIB",  title: "Biogen FDA Accelerated Approval Granted for ALZ-303 Alzheimer Treatment" },
   { ticker: "MRNA",  title: "Moderna Phase 3 mRNA-4157 Cancer Vaccine Shows 44% Reduction in Recurrence" },
@@ -116,7 +122,6 @@ function buildDummyArticles(feedId: string): FeedArticle[] {
   }));
 }
 
-// Convert a live NewsArticle into a FeedArticle
 function toLiveFeedArticle(a: NewsArticle, idx: number): FeedArticle {
   return {
     id: `${a.source ?? "live"}-${a.receivedAt}-${idx}`,
@@ -147,6 +152,70 @@ function fmtTime(iso: string): string {
     hour12: false,
     timeZone: "America/New_York",
   });
+}
+
+function fmtVol(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
+  return String(v);
+}
+
+// ── Highlighted text ──────────────────────────────────────────────────────
+
+function HighlightedText({ text, className }: { text: string; className?: string }) {
+  const parts = highlightKeywords(text);
+  return (
+    <span className={className}>
+      {parts.map((p, i) =>
+        p.highlight ? (
+          <mark key={i} className="bg-yellow-400/20 text-yellow-300 rounded-sm px-px">
+            {p.text}
+          </mark>
+        ) : (
+          <span key={i}>{p.text}</span>
+        )
+      )}
+    </span>
+  );
+}
+
+// ── Speed badge ───────────────────────────────────────────────────────────
+
+function SpeedBadge({ receivedAt }: { receivedAt: string }) {
+  const ageMs = Date.now() - new Date(receivedAt).getTime();
+  if (ageMs < 30_000) {
+    return (
+      <span className="ml-auto shrink-0 text-[8px] font-bold text-red-400 bg-red-500/10 px-1 py-0.5 rounded border border-red-600/30">
+        JUST IN
+      </span>
+    );
+  }
+  if (ageMs < 2 * 60_000) {
+    return (
+      <span className="ml-auto shrink-0 text-[8px] font-bold text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded border border-orange-600/30">
+        NEW
+      </span>
+    );
+  }
+  return null;
+}
+
+// ── Star rating ───────────────────────────────────────────────────────────
+
+function Stars({ count }: { count: number }) {
+  if (count <= 1) return null;
+  return (
+    <span className="shrink-0 flex gap-px" title={`${count} star${count !== 1 ? "s" : ""}`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <span
+          key={i}
+          className={`text-[8px] leading-none ${i < count ? "text-yellow-400" : "text-muted opacity-30"}`}
+        >
+          ★
+        </span>
+      ))}
+    </span>
+  );
 }
 
 // ── Status banner ────────────────────────────────────────────────────────
@@ -184,9 +253,11 @@ function StatusBanner({
 function FeedColumn({
   feed,
   articles,
+  onTickerClick,
 }: {
   feed: FeedConfig;
   articles: FeedArticle[];
+  onTickerClick: (ticker: string) => void;
 }) {
   return (
     <div className="flex flex-col flex-1 min-w-0 border border-border rounded bg-panel overflow-hidden">
@@ -224,30 +295,34 @@ function FeedColumn({
 
       {/* Articles */}
       <div className="overflow-y-auto flex-1">
-        {articles.map((a) => (
-          <div
-            key={a.id}
-            className="border-b border-border px-2.5 py-2 hover:bg-surface"
-          >
-            {/* Row 1: time · ticker · age */}
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[10px] font-mono text-muted shrink-0">
-                {fmtTime(a.receivedAt)}
-              </span>
-              <span className={`text-[10px] font-semibold shrink-0 ${feed.color}`}>
-                {a.ticker}
-              </span>
-              <span className="text-[9px] text-muted shrink-0">{fmtAge(a.receivedAt)}</span>
-              {a.live && (
-                <span className="ml-auto text-[8px] font-bold text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-600/30">
-                  LIVE
+        {articles.map((a) => {
+          const stars = deriveStars(a.title);
+          return (
+            <div
+              key={a.id}
+              className="border-b border-border px-2.5 py-2 hover:bg-surface cursor-pointer"
+              onClick={() => onTickerClick(a.ticker)}
+            >
+              {/* Row 1: time · stars · ticker · age · speed badge */}
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-[10px] font-mono text-muted shrink-0">
+                  {fmtTime(a.receivedAt)}
                 </span>
-              )}
+                <Stars count={stars} />
+                <span className={`text-[10px] font-semibold shrink-0 ${feed.color}`}>
+                  {a.ticker}
+                </span>
+                <span className="text-[9px] text-muted shrink-0">{fmtAge(a.receivedAt)}</span>
+                {a.live && <SpeedBadge receivedAt={a.receivedAt} />}
+              </div>
+              {/* Row 2: headline with keyword highlights */}
+              <HighlightedText
+                text={a.title}
+                className="text-white text-[11px] leading-snug line-clamp-2 block"
+              />
             </div>
-            {/* Row 2: headline */}
-            <p className="text-white text-[11px] leading-snug line-clamp-2">{a.title}</p>
-          </div>
-        ))}
+          );
+        })}
         {articles.length === 0 && (
           <div className="text-muted text-xs text-center py-6">
             {feed.connected ? "Waiting for articles…" : "No articles yet"}
@@ -258,28 +333,247 @@ function FeedColumn({
   );
 }
 
+// ── TradingView Chart ─────────────────────────────────────────────────────
+
+function MiniChart({ symbol }: { symbol: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.innerHTML = "";
+
+    const widgetDiv = document.createElement("div");
+    widgetDiv.className = "tradingview-widget-container__widget";
+    widgetDiv.style.cssText = "height:100%;width:100%;";
+    container.appendChild(widgetDiv);
+
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src =
+      "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol,
+      interval: "1",
+      timezone: "America/New_York",
+      theme: "dark",
+      style: "1",
+      locale: "en",
+      backgroundColor: "#161b22",
+      gridColor: "#21262d",
+      withdateranges: true,
+      hide_side_toolbar: true,
+      allow_symbol_change: true,
+      save_image: false,
+      calendar: false,
+      studies: ["STD;VWAP", "STD;EMA@tv-basicstudies", "STD;Volume"],
+      support_host: "https://www.tradingview.com",
+    });
+
+    container.appendChild(script);
+
+    return () => {
+      if (container) container.innerHTML = "";
+    };
+  }, [symbol]);
+
+  return (
+    <div className="flex flex-col border border-border rounded bg-panel overflow-hidden" style={{ minHeight: 300 }}>
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border shrink-0">
+        <span className="text-white text-xs font-mono font-semibold">{symbol}</span>
+        <span className="text-muted text-[10px]">TradingView</span>
+      </div>
+      <div
+        ref={containerRef}
+        className="tradingview-widget-container flex-1"
+        style={{ minHeight: 0 }}
+      />
+    </div>
+  );
+}
+
+// ── News Trades Panel ─────────────────────────────────────────────────────
+
+function NewsTradesPanel({ onTickerClick }: { onTickerClick: (t: string) => void }) {
+  const token = useAuthStore((s) => s.token);
+  const [trades, setTrades] = useState<JournalTrade[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/trades/journal?limit=50", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // Only show trades that had a news catalyst
+          setTrades(data.filter((t: JournalTrade) => t.catalyst));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  return (
+    <div className="flex flex-col border border-border rounded bg-panel overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+        <span className="text-white text-xs font-semibold">News Trades</span>
+        <span className="text-muted text-[10px] ml-auto">{trades.length} trades</span>
+      </div>
+      <div className="overflow-y-auto" style={{ maxHeight: 220 }}>
+        {loading && (
+          <div className="text-muted text-xs text-center py-4">Loading trades…</div>
+        )}
+        {!loading && trades.length === 0 && (
+          <div className="text-muted text-xs text-center py-4">No news-triggered trades yet</div>
+        )}
+        {trades.map((t) => {
+          const isOpen = t.buyStatus === "filled" && (t.sellStatus === "awaiting" || t.sellStatus === "pending");
+          const returnPct = t.analytics?.returnPct ?? null;
+          const headline = t.analytics?.newsHeadline ?? t.catalyst;
+          return (
+            <div
+              key={t.id}
+              className="border-b border-border px-2.5 py-1.5 hover:bg-surface cursor-pointer"
+              onClick={() => onTickerClick(t.ticker)}
+            >
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-[10px] font-mono text-muted shrink-0">
+                  {fmtTime(t.createdAt)}
+                </span>
+                <span className="text-accent text-[10px] font-semibold shrink-0">
+                  {t.ticker}
+                </span>
+                <span className={`text-[9px] font-mono shrink-0 ${
+                  t.catalystType === "tier1" ? "text-red-400" :
+                  t.catalystType === "tier2" ? "text-purple-400" :
+                  t.catalystType === "tier3" ? "text-blue-400" : "text-muted"
+                }`}>
+                  {t.catalystType.toUpperCase()}
+                </span>
+                {isOpen ? (
+                  <span className="ml-auto text-[8px] font-bold text-blue-400 bg-blue-500/10 px-1 py-0.5 rounded border border-blue-500/30">
+                    HOLDING
+                  </span>
+                ) : returnPct != null ? (
+                  <span className={`ml-auto text-[9px] font-mono font-semibold ${returnPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {returnPct >= 0 ? "+" : ""}{returnPct.toFixed(2)}%
+                  </span>
+                ) : null}
+              </div>
+              <HighlightedText
+                text={headline}
+                className="text-white text-[10px] leading-snug line-clamp-1 block"
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Top Movers Panel ──────────────────────────────────────────────────────
+
+function TopMoversPanel({ onTickerClick }: { onTickerClick: (t: string) => void }) {
+  const token = useAuthStore((s) => s.token);
+  const [movers, setMovers] = useState<MoverData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchMovers = () => {
+      fetch("/api/movers", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((data) => { if (Array.isArray(data)) setMovers(data); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    };
+    fetchMovers();
+    const interval = setInterval(fetchMovers, 30_000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  return (
+    <div className="flex flex-col border border-border rounded bg-panel overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border shrink-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 shrink-0" />
+        <span className="text-white text-xs font-semibold">Top Movers</span>
+        <span className="text-muted text-[10px] ml-auto">today</span>
+      </div>
+      <div className="overflow-y-auto" style={{ maxHeight: 280 }}>
+        {loading && (
+          <div className="text-muted text-xs text-center py-4">Loading movers…</div>
+        )}
+        {!loading && movers.length === 0 && (
+          <div className="text-muted text-xs text-center py-4">No market data available</div>
+        )}
+        {movers.map((m) => (
+          <div
+            key={m.ticker}
+            className="border-b border-border px-2.5 py-1.5 hover:bg-surface cursor-pointer"
+            onClick={() => onTickerClick(m.ticker)}
+          >
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-white text-[11px] font-semibold shrink-0 w-12">
+                {m.ticker}
+              </span>
+              <span className="text-[10px] font-mono text-muted shrink-0">
+                ${m.price.toFixed(2)}
+              </span>
+              <span className={`text-[10px] font-mono font-semibold shrink-0 ${
+                m.changePct >= 0 ? "text-emerald-400" : "text-red-400"
+              }`}>
+                {m.changePct >= 0 ? "+" : ""}{m.changePct.toFixed(2)}%
+              </span>
+              <span className="text-[9px] text-muted shrink-0">
+                {fmtVol(m.volume)}
+              </span>
+              {m.relativeVolume >= 2 && (
+                <span className="text-[8px] font-bold text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded border border-orange-600/30">
+                  {m.relativeVolume.toFixed(1)}x RV
+                </span>
+              )}
+              {m.hasNews && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent shrink-0" title="Has recent news" />
+              )}
+            </div>
+            {/* Show first article if any */}
+            {m.articles.length > 0 && (
+              <HighlightedText
+                text={m.articles[0].title}
+                className="text-muted text-[10px] leading-snug line-clamp-1 block"
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main NewsFeedsPage ────────────────────────────────────────────────────
 
 export function NewsFeedsPage() {
   const liveArticles = useNewsStore((s) => s.articles);
-  const [selectedFeeds, setSelectedFeeds] = useState<Set<string>>(
-    () => new Set(FEEDS.map((f) => f.id))
-  );
+  const [chartSymbol, setChartSymbol] = useState("NASDAQ:SPY");
 
-  const toggleFeed = (id: string) => {
-    setSelectedFeeds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id) && next.size > 1) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const handleTickerClick = useCallback((ticker: string) => {
+    const tvSymbol = ticker.includes(":") ? ticker : `NASDAQ:${ticker}`;
+    setChartSymbol(tvSymbol);
+  }, []);
 
   // Build article lists: live data for connected feeds, demo for others
   const articlesByFeed = useMemo(() => {
     const map = new Map<string, FeedArticle[]>();
 
-    // Split live articles by source
     const rtprArticles: FeedArticle[] = [];
     const benzingaArticles: FeedArticle[] = [];
 
@@ -302,8 +596,6 @@ export function NewsFeedsPage() {
     return map;
   }, [liveArticles]);
 
-  const visibleFeeds = FEEDS.filter((f) => selectedFeeds.has(f.id));
-
   return (
     <div className="h-screen w-screen flex flex-col bg-surface overflow-hidden font-mono">
       <TopNav />
@@ -311,33 +603,33 @@ export function NewsFeedsPage() {
       {/* Status banner */}
       <StatusBanner feeds={FEEDS} articlesByFeed={articlesByFeed} />
 
-      {/* Feed toggles */}
-      <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-panel shrink-0 flex-wrap">
-        <span className="text-[10px] text-muted uppercase tracking-wide">Show:</span>
-        {FEEDS.map((f) => (
-          <button
-            key={f.id}
-            onClick={() => toggleFeed(f.id)}
-            className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${
-              selectedFeeds.has(f.id)
-                ? `${f.color} border-current bg-current/10`
-                : "text-muted border-border hover:text-white"
-            }`}
-          >
-            {f.shortName}
-          </button>
-        ))}
-      </div>
-
-      {/* Feed columns */}
+      {/* Main content: feeds left, chart + panels right */}
       <div className="flex-1 flex gap-2 p-3 overflow-hidden min-h-0">
-        {visibleFeeds.map((feed) => (
-          <FeedColumn
-            key={feed.id}
-            feed={feed}
-            articles={articlesByFeed.get(feed.id) ?? []}
-          />
-        ))}
+        {/* Left: Feed columns */}
+        <div className="flex gap-2 flex-[3] min-w-0 overflow-hidden">
+          {FEEDS.map((feed) => (
+            <FeedColumn
+              key={feed.id}
+              feed={feed}
+              articles={articlesByFeed.get(feed.id) ?? []}
+              onTickerClick={handleTickerClick}
+            />
+          ))}
+        </div>
+
+        {/* Right: Chart + panels */}
+        <div className="flex flex-col gap-2 flex-[2] min-w-0 overflow-hidden">
+          {/* Chart */}
+          <div className="flex-1 min-h-0">
+            <MiniChart symbol={chartSymbol} />
+          </div>
+
+          {/* News Trades */}
+          <NewsTradesPanel onTickerClick={handleTickerClick} />
+
+          {/* Top Movers */}
+          <TopMoversPanel onTickerClick={handleTickerClick} />
+        </div>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ import { startBenzinga } from "./services/benzinga";
 import { startAlpacaWs } from "./services/alpaca";
 import { startScanner, getScannerDefinitions } from "./services/scanner";
 import { recentArticles } from "./services/rtpr";
-import { getSnapshots } from "./services/alpaca";
+import { getSnapshots, getMostActives } from "./services/alpaca";
 import authRouter from "./routes/auth";
 import watchlistsRouter from "./routes/watchlists";
 import layoutsRouter from "./routes/layouts";
@@ -55,6 +55,29 @@ app.get("/api/snapshots", requireAuth, async (req, res) => {
   if (!symbols.length) { res.json([]); return; }
   const data = await getSnapshots(symbols);
   res.json(data);
+});
+
+// Top movers: most-active stocks sorted by absolute % change, with matching news
+app.get("/api/movers", requireAuth, async (_req, res) => {
+  try {
+    const symbols = await getMostActives();
+    if (!symbols.length) { res.json([]); return; }
+    const snapshots = await getSnapshots(symbols.slice(0, 50));
+    // Sort by absolute change %, biggest movers first
+    snapshots.sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
+    const top = snapshots.slice(0, 20);
+    // Attach matching recent news articles to each mover
+    const result = top.map((s) => ({
+      ...s,
+      articles: recentArticles
+        .filter((a) => a.ticker === s.ticker)
+        .slice(0, 5),
+    }));
+    res.json(result);
+  } catch (err) {
+    console.error("[Movers]", err);
+    res.json([]);
+  }
 });
 
 // Health check

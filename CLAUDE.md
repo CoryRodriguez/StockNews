@@ -38,7 +38,10 @@ Internet → proxy-nginx (80/443) → stocknews-frontend-1:80  (frontend)
 
 ## Known issues
 - doihold.com HTTPS block uses isitabuy.com certs — needs its own cert
-- /ws WebSocket location missing from proxy nginx — needs to be added
+
+## Network setup (important)
+- Both `frontend` and `backend` services must be on the external `web` network so proxy-nginx can resolve them by container name
+- If a service can't be reached (502), check `docker network inspect web` to confirm it's a member
 
 ## Deployment workflow
 1. Make code changes in this sandbox

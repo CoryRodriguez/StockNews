@@ -8,12 +8,14 @@ import { useEffect, useMemo, useState } from "react";
 import { TopNav } from "../components/layout/TopNav";
 import { useNewsStore } from "../store/newsStore";
 import { useAuthStore } from "../store/authStore";
+import { useDashboardStore } from "../store/dashboardStore";
 import { deriveStars, fmtTime, highlightKeywords } from "../utils/newsUtils";
 import { ChartPanel } from "../components/panels/ChartPanel";
 import { TradesPanel } from "../components/panels/TradesPanel";
 import { ScannerPanel } from "../components/panels/ScannerPanel";
 import { useSocket } from "../hooks/useSocket";
 import { useDummyData } from "../hooks/useDummyData";
+import { useHourlyChanges } from "../hooks/useHourlyChanges";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -145,10 +147,23 @@ function HighlightedText({ text, className }: { text: string; className?: string
   );
 }
 
-function FeedArticleRow({ article, feedColor }: { article: FeedArticle; feedColor: string }) {
+function FeedArticleRow({
+  article,
+  feedColor,
+  onArticleClick,
+  hourChangePct,
+}: {
+  article: FeedArticle;
+  feedColor: string;
+  onArticleClick: (ticker: string) => void;
+  hourChangePct?: number;
+}) {
   const stars = deriveStars(article.title);
   return (
-    <div className="border-b border-border px-2 py-1.5 hover:bg-surface cursor-pointer">
+    <div
+      className="border-b border-border px-2 py-1.5 hover:bg-surface cursor-pointer"
+      onClick={() => onArticleClick(article.ticker)}
+    >
       <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-muted text-[10px] font-mono shrink-0">{fmtTime(article.receivedAt)}</span>
         <Stars count={stars} />
@@ -156,6 +171,15 @@ function FeedArticleRow({ article, feedColor }: { article: FeedArticle; feedColo
           {article.ticker}
         </span>
         <span className="text-[9px] text-muted shrink-0">{fmtAge(article.receivedAt)}</span>
+        {hourChangePct !== undefined && Math.abs(hourChangePct) >= 0.01 && (
+          <span
+            className={`ml-auto shrink-0 text-[10px] font-mono font-semibold ${
+              hourChangePct > 0 ? "text-up" : "text-down"
+            }`}
+          >
+            {hourChangePct > 0 ? "+" : ""}{hourChangePct.toFixed(2)}%
+          </span>
+        )}
       </div>
       <HighlightedText
         text={article.title}
@@ -170,9 +194,13 @@ function FeedArticleRow({ article, feedColor }: { article: FeedArticle; feedColo
 function FeedColumn({
   feed,
   articles,
+  onArticleClick,
+  hourlyChanges,
 }: {
   feed: FeedConfig;
   articles: FeedArticle[];
+  onArticleClick: (ticker: string) => void;
+  hourlyChanges: Record<string, number>;
 }) {
   const displayCount = articles.length;
 
@@ -213,7 +241,7 @@ function FeedColumn({
       {/* Articles */}
       <div className="overflow-y-auto flex-1">
         {articles.map((a) => (
-          <FeedArticleRow key={a.id} article={a} feedColor={feed.color} />
+          <FeedArticleRow key={a.id} article={a} feedColor={feed.color} onArticleClick={onArticleClick} hourChangePct={hourlyChanges[a.ticker]} />
         ))}
         {articles.length === 0 && (
           <div className="text-muted text-xs text-center py-6">Waiting for articles…</div>
@@ -231,9 +259,19 @@ export function NewsFeedsPage() {
   const allArticles = useNewsStore((s) => s.articles);
   const addArticle = useNewsStore((s) => s.addArticle);
   const token = useAuthStore((s) => s.token);
+  const activeTicker = useDashboardStore((s) => s.activeTicker);
+  const setActiveTicker = useDashboardStore((s) => s.setActiveTicker);
   const [selectedFeeds, setSelectedFeeds] = useState<Set<string>>(
     () => new Set(FEEDS.map((f) => f.id))
   );
+  const [minStars, setMinStars] = useState(1);
+  const [tickerFilter, setTickerFilter] = useState("");
+
+  const chartSymbol = activeTicker
+    ? (activeTicker.includes(":") ? activeTicker : `NASDAQ:${activeTicker}`)
+    : "AMEX:SPY";
+
+  const handleArticleClick = (ticker: string) => setActiveTicker(ticker);
 
   // Load recent articles from REST on mount so articles received before
   // the page loaded are visible immediately (don't wait for next WS push)
@@ -260,27 +298,36 @@ export function NewsFeedsPage() {
   // Connected feeds: filter live articles by source. Disconnected: show demo.
   const articlesByFeed = useMemo(() => {
     const map = new Map<string, FeedArticle[]>();
+    const tickerUpper = tickerFilter.trim().toUpperCase();
     for (const feed of FEEDS) {
+      let articles: FeedArticle[];
       if (feed.connected) {
-        map.set(
-          feed.id,
-          allArticles
-            .filter((a) => a.source === feed.id)
-            .map((a, i): FeedArticle => ({
-              id: `${a.ticker}-${a.receivedAt}-${i}`,
-              ticker: a.ticker,
-              title: a.title,
-              receivedAt: a.receivedAt,
-              source: feed.id,
-              storyIdx: i,
-            }))
-        );
+        articles = allArticles
+          .filter((a) => a.source === feed.id && deriveStars(a.title) >= minStars)
+          .map((a, i): FeedArticle => ({
+            id: `${a.ticker}-${a.receivedAt}-${i}`,
+            ticker: a.ticker,
+            title: a.title,
+            receivedAt: a.receivedAt,
+            source: feed.id,
+            storyIdx: i,
+          }));
       } else {
-        map.set(feed.id, buildDemoArticles(feed.id));
+        articles = buildDemoArticles(feed.id);
       }
+      if (tickerUpper) {
+        articles = articles.filter((a) => a.ticker.includes(tickerUpper));
+      }
+      map.set(feed.id, articles);
     }
     return map;
-  }, [allArticles]);
+  }, [allArticles, minStars, tickerFilter]);
+
+  const allTickers = useMemo(
+    () => [...new Set([...FEEDS].flatMap((f) => (articlesByFeed.get(f.id) ?? []).map((a) => a.ticker)))],
+    [articlesByFeed]
+  );
+  const hourlyChanges = useHourlyChanges(allTickers);
 
   const visibleFeeds = FEEDS.filter((f) => selectedFeeds.has(f.id));
 
@@ -309,6 +356,40 @@ export function NewsFeedsPage() {
             </button>
           );
         })}
+        <div className="w-px bg-border mx-1 self-stretch" />
+        <span className="text-[10px] text-muted uppercase tracking-wide shrink-0">Stars</span>
+        {[1, 2, 3, 4, 5].map((s) => (
+          <button
+            key={s}
+            onClick={() => setMinStars(minStars === s && s > 1 ? 1 : s)}
+            className={`text-[11px] px-1.5 py-0.5 rounded border transition-colors ${
+              minStars === s && s > 1
+                ? "text-yellow-400 border-yellow-500/50 bg-yellow-400/10"
+                : s <= minStars && minStars > 1
+                ? "text-yellow-400/60 border-yellow-600/30"
+                : "text-muted border-border hover:text-white"
+            }`}
+          >
+            {"★".repeat(s)}{s < 5 ? "+" : ""}
+          </button>
+        ))}
+        <div className="w-px bg-border mx-1 self-stretch" />
+        <span className="text-[10px] text-muted uppercase tracking-wide shrink-0">Ticker</span>
+        <input
+          type="text"
+          value={tickerFilter}
+          onChange={(e) => setTickerFilter(e.target.value.toUpperCase())}
+          placeholder="e.g. AAPL"
+          className="text-[11px] px-2 py-0.5 rounded border border-border bg-surface text-white placeholder:text-muted w-24 font-mono focus:border-white/40 focus:outline-none"
+        />
+        {tickerFilter && (
+          <button
+            onClick={() => setTickerFilter("")}
+            className="text-[10px] text-muted hover:text-white leading-none"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Main content */}
@@ -321,6 +402,8 @@ export function NewsFeedsPage() {
               key={feed.id}
               feed={feed}
               articles={articlesByFeed.get(feed.id) ?? []}
+              onArticleClick={handleArticleClick}
+              hourlyChanges={hourlyChanges}
             />
           ))}
         </div>
@@ -328,7 +411,7 @@ export function NewsFeedsPage() {
         {/* Right panel: chart + trades + top movers */}
         <div className="flex-[2] flex flex-col gap-2 min-w-0 overflow-hidden">
           <div className="flex-[3] min-h-0 border border-border rounded overflow-hidden">
-            <ChartPanel panelId="newsfeeds-chart" symbol="AMEX:SPY" />
+            <ChartPanel panelId="newsfeeds-chart" symbol={chartSymbol} />
           </div>
           <div className="flex-[1] min-h-0 border border-border rounded overflow-hidden">
             <TradesPanel />

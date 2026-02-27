@@ -336,7 +336,7 @@ export function NewsFeedsPage() {
       <TopNav />
 
       {/* Feed filter bar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-panel shrink-0">
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-panel shrink-0 overflow-x-auto">
         <span className="text-[10px] text-muted uppercase tracking-wide">Feeds</span>
         {FEEDS.map((f) => {
           const count = articlesByFeed.get(f.id)?.length ?? 0;

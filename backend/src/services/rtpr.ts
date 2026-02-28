@@ -8,13 +8,50 @@ import { config } from "../config";
 import { broadcast } from "../ws/clientHub";
 import { getActiveScannersForTicker } from "./scanner";
 import { executePaperTrade } from "./paperTrader";
+import { evaluateBotSignal, notifyReconnect } from "./signalEngine";
+import prisma from "../db/client";
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let hasConnectedOnce = false;
 
 // In-memory store of recent articles for the REST fallback endpoint
 export const recentArticles: RtprArticle[] = [];
-const MAX_RECENT = 200;
+const MAX_RECENT = 1000;
+
+/** Persist article to DB and prepend to in-memory ring buffer. */
+export function pushArticle(article: RtprArticle): void {
+  recentArticles.unshift(article);
+  if (recentArticles.length > MAX_RECENT) recentArticles.pop();
+  prisma.newsArticle.create({ data: {
+    ticker: article.ticker,
+    title: article.title,
+    body: article.body,
+    author: article.author,
+    source: article.source,
+    createdAt: article.createdAt,
+    receivedAt: article.receivedAt,
+  }}).catch((err: Error) => console.error("[News] DB save error:", err.message));
+}
+
+/** Load today's articles from DB into recentArticles on startup. */
+export async function loadArticlesFromDb(): Promise<void> {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const rows = await prisma.newsArticle.findMany({
+      where: { receivedAt: { gte: startOfDay.toISOString() } },
+      orderBy: { receivedAt: "desc" },
+      take: MAX_RECENT,
+    });
+    for (const r of rows.reverse()) {
+      recentArticles.push({ ticker: r.ticker, title: r.title, body: r.body, author: r.author, source: r.source, createdAt: r.createdAt, receivedAt: r.receivedAt });
+    }
+    console.log(`[News] Loaded ${rows.length} articles from DB`);
+  } catch (err) {
+    console.error("[News] Failed to load from DB:", err);
+  }
+}
 
 export interface RtprArticle {
   ticker: string;
@@ -52,6 +89,10 @@ function connect() {
   ws = new WebSocket(`${config.rtprWsUrl}?apiKey=${config.rtprApiKey}`);
 
   ws.on("open", () => {
+    if (hasConnectedOnce) {
+      notifyReconnect("rtpr");
+    }
+    hasConnectedOnce = true;
     console.log("[RTPR] Connected");
     ws!.send(JSON.stringify({ action: "subscribe", tickers: ["*"] }));
   });
@@ -102,9 +143,8 @@ function handleMessage(msg: RtprMessage) {
       receivedAt: new Date().toISOString(),
     };
 
-    // Store in memory ring buffer
-    recentArticles.unshift(article);
-    if (recentArticles.length > MAX_RECENT) recentArticles.pop();
+    // Store in memory + persist to DB
+    pushArticle(article);
 
     // Update news dot tracker
     recentNewsTickers.set(article.ticker, Date.now());
@@ -128,6 +168,11 @@ function handleMessage(msg: RtprMessage) {
         console.error("[PaperTrader] Uncaught error:", err)
       );
     }
+
+    // Signal engine evaluation — unconditional, fire-and-forget
+    evaluateBotSignal(article).catch((err) =>
+      console.error("[RTPR] SignalEngine error:", err instanceof Error ? err.message : err)
+    );
   }
 }
 

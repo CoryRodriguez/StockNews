@@ -9,7 +9,7 @@
 
 ## Phases
 
-- [x] **Phase 1: Bot Infrastructure Foundation** - Database schema, bot controller lifecycle, startup position reconciliation (completed 2026-02-28)
+- [x] **Phase 1: Bot Infrastructure Foundation** - Database schema, bot controller lifecycle, startup position reconciliation (completed 2026-02-28)
 - [ ] **Phase 2: Signal Engine** - News evaluation pipeline in log-only mode with deduplication and staleness protection
 - [ ] **Phase 3: Trade Executor and Position Monitor** - Paper-mode order placement and automated exit state machine
 - [ ] **Phase 4: Risk Management Enforcement** - Circuit breakers, PDT guard, position sizing, daily stat resets
@@ -23,7 +23,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Bot Infrastructure Foundation | 3/3 | Complete   | 2026-02-28 |
-| 2. Signal Engine | 0/? | Not started | - |
+| 2. Signal Engine | 0/4 | Not started | - |
 | 3. Trade Executor and Position Monitor | 0/? | Not started | - |
 | 4. Risk Management Enforcement | 0/? | Not started | - |
 | 5. Frontend Bot Dashboard | 0/? | Not started | - |
@@ -69,7 +69,13 @@
   6. Tier 1–2 catalyst articles that fail the 5 Pillars check (float > 20M, price > $20, or relative volume < 5x) are logged with reason "failed-5-pillars" and the specific pillar that failed
   7. Tier 3–4 and unclassified articles that pass the 5 Pillars check are sent to Claude API; the evaluation log records the AI's recommendation (proceed / decline) and reasoning within 2 seconds
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — BotSignalLog schema + @anthropic-ai/sdk install + config constants
+- [ ] 02-02-PLAN.md — signalEngine.ts core evaluation gauntlet (steps 1-11, AI placeholder)
+- [ ] 02-03-PLAN.md — Claude AI evaluation branch + hook into all 3 news services
+- [ ] 02-04-PLAN.md — Automated verification suite + human verification checkpoint
 
 ---
 
@@ -209,3 +215,4 @@
 ---
 
 *Roadmap created: 2026-02-27*
+*Last updated: 2026-02-28 — Phase 2 planned (4 plans: 02-01 through 02-04)*

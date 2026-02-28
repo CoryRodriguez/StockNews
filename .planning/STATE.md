@@ -2,6 +2,21 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
+current_phase: 03-trade-executor
+current_plan: 03-02 (not started)
+status: executing
+last_updated: "2026-02-28T19:35:09.632Z"
+progress:
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 12
+  completed_plans: 8
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
 current_phase: 02
 current_plan: Not started
 status: completed
@@ -18,14 +33,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03-trade-executor
-current_plan: 03-01 (not started)
-status: Phase 2 Complete — Begin Phase 3
-last_updated: "2026-02-28T17:20:00Z"
+current_plan: 03-02 (not started)
+status: Phase 3 In Progress — Plan 03-01 Complete
+last_updated: "2026-02-28T19:36:00Z"
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State: StockNews — Autonomous Trading Bot
@@ -48,16 +63,16 @@ progress:
 
 ## Current Position
 
-**Current Phase:** 02
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Current Phase:** 03-trade-executor
+**Current Plan:** 03-02 (not started)
+**Status:** Phase 3 In Progress — Plan 03-01 Complete
 
 ```
-Progress: ████████░░░░░░░░░░░░  33%
+Progress: ████████░░░░░░░░░░░░  35%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
-Phase 3: Trade Executor + Position Mon  [ ] Not started
+Phase 3: Trade Executor + Position Mon  [1/5] In Progress
 Phase 4: Risk Management Enforcement   [ ] Not started
 Phase 5: Frontend Bot Dashboard         [ ] Not started
 Phase 6: Live Trading Mode              [ ] Not started
@@ -71,7 +86,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 |-------|-------------|--------|-----------|
 | 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | COMPLETE (3 plans) | 2026-02-27 |
 | 2. Signal Engine | SIG-01 to SIG-11 (11) | COMPLETE (4 plans) | 2026-02-28 |
-| 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | Not started | - |
+| 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | In Progress (1/5 plans) | 2026-02-28 |
 | 4. Risk Management Enforcement | RISK-01 to RISK-05 (5) | Not started | - |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | Not started | - |
 | 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | Not started | - |
@@ -122,6 +137,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Dedup keyed on symbol+normalizedTitle | Not createdAt — catches the same story re-published by multiple sources within the 5-minute window |
 | Empty getSnapshots() treated as failed price pillar | Guards against API outages causing false signals; safer to reject than to fire without price data |
 | Win-rate bypass when sampleSize === 0 | No historical data yet should not block all signals; winRateAtEval logged as null for transparency |
+| tradeSizeStars3=$50, tradeSizeStars4=$75, tradeSizeStars5=$100 flat-dollar defaults | Star-rating sizing uses fixed USD amounts per tier, not a multiplier of positionSizeUsd |
+| profitTargetPct=10 default | 10% profit target exit threshold from CONTEXT.md locked-in decisions |
+| BotConfigRecord interface updated with schema in same commit | Prevents TypeScript drift before prisma generate regenerates the client |
 
 ### Architecture Notes
 
@@ -164,8 +182,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-28T17:20:00Z
-**Next action:** Begin Phase 3 — Trade Executor + Position Monitor (Plan 03-01)
+**Last session:** 2026-02-28T19:35:09.630Z
+**Next action:** Phase 3 Plan 03-02 — Trade Executor service (tradeExecutor.ts)
 
 ### Handoff Notes
 
@@ -189,7 +207,11 @@ Plan 02-03 commits: f502426 (Claude AI evaluation), 32e68e7 (news service hooks)
 Plan 02-04 commits: e6ea4a8 (automated verification suite — all 6 checks pass)
 Key: Phase 2 signal engine complete and verified. All articles from all 3 feeds route through evaluateBotSignal. Tier 1-2 fires with rejectReason="log-only". Tier 3-4 uses Claude API (ai-unavailable/ai-timeout/ai-declined/fired). Phase 3 replaces log-only with real order submission.
 
+Phase 3 in progress:
+- **03-01** (DONE): Added tradeSizeStars3/4/5 + profitTargetPct to BotConfig schema.prisma, BotConfigRecord interface, and migration SQL 20260228000002
+  - Commits: 8812123 (schema + interface), 80af4df (migration SQL)
+
 ---
 
 *State initialized: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 2 complete (Plan 02-04): Automated verification + human checkpoint approved*
+*Last updated: 2026-02-28 — Phase 3 in progress (Plan 03-01): BotConfig sizing fields schema + migration*

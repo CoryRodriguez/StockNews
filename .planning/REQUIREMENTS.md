@@ -38,9 +38,9 @@
 - [ ] **EXEC-02**: Bot confirms order fills via Alpaca trading WebSocket stream (real-time, not polling)
 - [ ] **EXEC-03**: Bot handles partial fills correctly — reconciles position quantity from Alpaca's position endpoint after every fill event
 - [ ] **EXEC-04**: Bot logs and handles all Alpaca order rejection scenarios without crashing
-- [ ] **EXEC-05**: Bot uses dollar-notional position sizing (configurable dollar amount per trade, e.g., $500) rather than fixed share quantity
+- [x] **EXEC-05**: Bot uses dollar-notional position sizing (configurable dollar amount per trade, e.g., $500) rather than fixed share quantity
 - [ ] **EXEC-06**: Bot fires trade execution asynchronously — news handler is never blocked waiting for order placement
-- [ ] **EXEC-07**: Bot applies confidence-tiered position sizing — tier 1–2 signals (or AI-confirmed high confidence) apply a configurable multiplier to the base position size (default 2×); tier 3–4 use 1×; AI-confirmed low confidence uses 0.5×
+- [x] **EXEC-07**: Bot applies confidence-tiered position sizing — tier 1–2 signals (or AI-confirmed high confidence) apply a configurable multiplier to the base position size (default 2×); tier 3–4 use 1×; AI-confirmed low confidence uses 0.5×
 
 ### Position Exit
 
@@ -142,9 +142,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXEC-02 | Phase 3 | Pending |
 | EXEC-03 | Phase 3 | Pending |
 | EXEC-04 | Phase 3 | Pending |
-| EXEC-05 | Phase 3 | Pending |
+| EXEC-05 | Phase 3 | Complete |
 | EXEC-06 | Phase 3 | Pending |
-| EXEC-07 | Phase 3 | Pending |
+| EXEC-07 | Phase 3 | Complete |
 | EXIT-01 | Phase 3 | Pending |
 | EXIT-02 | Phase 3 | Pending |
 | EXIT-03 | Phase 3 | Pending |

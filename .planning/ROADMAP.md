@@ -23,7 +23,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Bot Infrastructure Foundation | 3/3 | Complete   | 2026-02-28 |
-| 2. Signal Engine | 0/4 | Not started | - |
+| 2. Signal Engine | 1/4 | In Progress | - |
 | 3. Trade Executor and Position Monitor | 0/? | Not started | - |
 | 4. Risk Management Enforcement | 0/? | Not started | - |
 | 5. Frontend Bot Dashboard | 0/? | Not started | - |
@@ -72,7 +72,7 @@
 **Plans**: 4 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — BotSignalLog schema + @anthropic-ai/sdk install + config constants
+- [x] 02-01-PLAN.md — BotSignalLog schema + @anthropic-ai/sdk install + config constants
 - [ ] 02-02-PLAN.md — signalEngine.ts core evaluation gauntlet (steps 1-11, AI placeholder)
 - [ ] 02-03-PLAN.md — Claude AI evaluation branch + hook into all 3 news services
 - [ ] 02-04-PLAN.md — Automated verification suite + human verification checkpoint
@@ -215,4 +215,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 2 planned (4 plans: 02-01 through 02-04)*
+*Last updated: 2026-02-28 — Plan 02-01 complete: BotSignalLog schema + @anthropic-ai/sdk + config constants*

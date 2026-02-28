@@ -2,30 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 01
-current_plan: Not started
-status: completed
-last_updated: "2026-02-28T03:31:27.466Z"
+current_phase: 02-signal-engine
+current_plan: 02-01 (complete)
+status: In Progress — Phase 2
+last_updated: "2026-02-28T17:04:03Z"
 progress:
-  total_phases: 1
+  total_phases: 6
   completed_phases: 1
   total_plans: 3
-  completed_plans: 3
----
-
----
-gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: Phase 1 — Bot Infrastructure Foundation
-current_plan: 01-03 (complete — Phase 1 done)
-status: Phase 1 Complete
-last_updated: "2026-02-27T03:26:23Z"
-progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_plans: 1
 ---
 
 # Project State: StockNews — Autonomous Trading Bot
@@ -48,15 +33,15 @@ progress:
 
 ## Current Position
 
-**Current Phase:** 01
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Current Phase:** 02 — Signal Engine
+**Current Plan:** 02-02 (next)
+**Status:** Phase 2 In Progress — Plan 02-01 complete
 
 ```
-Progress: ████░░░░░░░░░░░░░░░░  17%
+Progress: ████░░░░░░░░░░░░░░░░  20%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
-Phase 2: Signal Engine                  [ ] Not started
+Phase 2: Signal Engine                  [1/?] In Progress
 Phase 3: Trade Executor + Position Mon  [ ] Not started
 Phase 4: Risk Management Enforcement   [ ] Not started
 Phase 5: Frontend Bot Dashboard         [ ] Not started
@@ -69,8 +54,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 | Phase | Requirements | Status | Completed |
 |-------|-------------|--------|-----------|
-| 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | Planned (3 plans) | - |
-| 2. Signal Engine | SIG-01 to SIG-11 (11) | Not started | - |
+| 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | COMPLETE (3 plans) | 2026-02-27 |
+| 2. Signal Engine | SIG-01 to SIG-11 (11) | In Progress (1 plan done) | - |
 | 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | Not started | - |
 | 4. Risk Management Enforcement | RISK-01 to RISK-05 (5) | Not started | - |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | Not started | - |
@@ -85,9 +70,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Phases total | 6 |
 | Phases complete | 1 |
 | Requirements total | 47 |
-| Requirements delivered | 8 |
-| Plans created | 3 |
-| Plans complete | 3 |
+| Requirements delivered | 10 |
+| Plans created | 3+ |
+| Plans complete | 4 (3 in Phase 1, 1 in Phase 2) |
 
 ---
 
@@ -112,6 +97,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 | switchMode() guard at service layer | Prevents mode changes with open positions regardless of which route calls it (INFRA-08) |
 | initBot() after recomputeStrategies() in startup | Strategy win-rate data must be warm before bot processes Phase 2 signals; order enforced in server.listen callback |
 | GET /status has no state guard | UI always polls regardless of bot state; must always succeed; snapshot shape used by Phase 5 dashboard |
+| claudeSignalModel hardcoded in config.ts | Model version is a code decision, not deployment config; single place to update when Anthropic releases new Haiku |
+| anthropicApiKey falls back to empty string | Server starts cleanly without Claude key; signal engine handles missing key as "ai-unavailable" outcome |
 
 ### Architecture Notes
 
@@ -120,6 +107,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 - Paper vs live mode: identical code paths; only Alpaca base URL differs
 - Position monitor polls every 5 seconds using existing getSnapshots() infrastructure
 - Startup reconciliation: on every server start, reconcilePositions() calls GET /v2/positions before enabling signal listeners
+- BotSignalLog: permanent audit record for every news article evaluated by the signal engine (outcome: fired/rejected/skipped)
 
 ### Critical Pitfalls to Watch
 
@@ -143,7 +131,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ### Todos
 
-- None yet
+- User must add ANTHROPIC_API_KEY to backend/.env and docker-compose.yml
 
 ### Blockers
 
@@ -153,8 +141,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-27T03:26:23Z
-**Next action:** Begin Phase 2 — Signal Engine (Plan 02-01)
+**Last session:** 2026-02-28T17:04:03Z
+**Next action:** Continue Phase 2 — Signal Engine (Plan 02-02)
 
 ### Handoff Notes
 
@@ -163,12 +151,16 @@ Phase 1 complete — all 3 plans delivered:
 - **01-02** (DONE): botController.ts singleton — state machine, reconciliation, getAlpacaBaseUrl(), mode guard, config.alpacaLiveUrl
 - **01-03** (DONE): REST routes (bot.ts) + index.ts wiring — /start, /pause, /resume, /stop, /status endpoints + initBot() call
 
+Phase 2 in progress:
+- **02-01** (DONE): BotSignalLog model + migration SQL + @anthropic-ai/sdk + config.anthropicApiKey + config.claudeSignalModel
+
 Plan 01-01 commits: 7fe590a (schema models), c6859b2 (migration SQL), 4cb0f4a (prisma generate)
 Plan 01-02 commits: 04cae2f (config.alpacaLiveUrl), 270c70f (botController.ts)
 Plan 01-03 commits: df03042 (routes/bot.ts), 218dffc (index.ts wiring)
-Key: getBotConfig() returns non-null after initBot() awaited; enabledCatalystTiers is comma-separated string; switchMode() guards at service layer
+Plan 02-01 commits: 0c61852 (BotSignalLog schema + migration), cd65f51 (SDK + config constants)
+Key: getBotConfig() returns non-null after initBot() awaited; enabledCatalystTiers is comma-separated string; switchMode() guards at service layer; prisma.botSignalLog.create() callable; config.claudeSignalModel = "claude-haiku-4-5-20251022"
 
 ---
 
 *State initialized: 2026-02-27*
-*Last updated: 2026-02-27 — Added SIG-10 (5 Pillars), SIG-11 (Claude AI classification), EXEC-07 (confidence-tiered sizing)*
+*Last updated: 2026-02-28 — Phase 2 Plan 02-01 complete: BotSignalLog schema + @anthropic-ai/sdk foundation*

@@ -203,6 +203,10 @@ model BotConfig {
   maxFloatShares           Float    @default(20000000)
   maxSharePrice            Float    @default(20)
   minRelativeVolume        Float    @default(5)
+  tradeSizeStars3          Float    @default(50)
+  tradeSizeStars4          Float    @default(75)
+  tradeSizeStars5          Float    @default(100)
+  profitTargetPct          Float    @default(10)
   updatedAt                DateTime @updatedAt
 }
 

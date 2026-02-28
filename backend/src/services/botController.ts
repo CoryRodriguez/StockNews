@@ -24,6 +24,10 @@ export interface BotConfigRecord {
   maxFloatShares: number;
   maxSharePrice: number;
   minRelativeVolume: number;
+  tradeSizeStars3: number;
+  tradeSizeStars4: number;
+  tradeSizeStars5: number;
+  profitTargetPct: number;
   updatedAt: Date;
 }
 

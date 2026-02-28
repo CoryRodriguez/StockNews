@@ -25,7 +25,7 @@
 | 1. Bot Infrastructure Foundation | 3/3 | Complete   | 2026-02-28 |
 | 2. Signal Engine | 4/4 | Complete   | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | 5/5 | Complete   | 2026-02-28 |
-| 4. Risk Management Enforcement | 0/4 | Not started | - |
+| 4. Risk Management Enforcement | 1/4 | In Progress|  |
 | 5. Frontend Bot Dashboard | 0/? | Not started | - |
 | 6. Live Trading Mode | 0/? | Not started | - |
 

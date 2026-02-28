@@ -93,17 +93,17 @@ progress:
 
 ## Current Position
 
-**Current Phase:** 03
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Current Phase:** 04-risk-management-enforcement
+**Current Plan:** 04-02 (not started)
+**Status:** Phase 4 In Progress — Plan 04-01 Complete
 
 ```
-Progress: ████████████░░░░░░░░  58%
+Progress: ██████████████░░░░░░  67%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
 Phase 3: Trade Executor + Position Mon  [5/5] COMPLETE
-Phase 4: Risk Management Enforcement   [ ] Not started
+Phase 4: Risk Management Enforcement   [1/4] In Progress
 Phase 5: Frontend Bot Dashboard         [ ] Not started
 Phase 6: Live Trading Mode              [ ] Not started
 ```
@@ -117,7 +117,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 | 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | COMPLETE (3 plans) | 2026-02-27 |
 | 2. Signal Engine | SIG-01 to SIG-11 (11) | COMPLETE (4 plans) | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | COMPLETE (5 plans) | 2026-02-28 |
-| 4. Risk Management Enforcement | RISK-01 to RISK-05 (5) | Not started | - |
+| 4. Risk Management Enforcement | RISK-01 to RISK-05, EXIT-02 (6) | In Progress (1/4 plans) | - |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | Not started | - |
 | 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | Not started | - |
 
@@ -185,6 +185,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 | reconcilePositions() imports orphan Alpaca positions | Creates BotTrade + calls addPosition() for any open Alpaca position not in DB |
 | switchMode() calls restartTradingWs() | Trading WebSocket reconnects to correct URL immediately after paper/live mode change |
 | startTradingWs() before startPositionMonitor() in startup | Trading stream starts connecting before monitor begins first poll cycle |
+| trailingStopPct and trailingStopDollar default 0 = disabled | Trailing stop does not fire unless > 0; pct takes precedence over dollar when both set |
 
 ### Architecture Notes
 
@@ -227,8 +228,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-28T22:57:04.102Z
-**Next action:** Phase 4 — Risk Management Enforcement (RISK-01 to RISK-05)
+**Last session:** 2026-02-28T23:55:55Z
+**Stopped at:** Completed 04-01-PLAN.md
+**Next action:** Phase 4 — Plan 04-02 (next risk management plan)
 
 ### Handoff Notes
 
@@ -266,5 +268,9 @@ Phase 3 complete — all 5 plans delivered:
 
 ---
 
+Phase 4 in progress — Plan 04-01 delivered:
+- **04-01** (DONE): Added trailingStopPct + trailingStopDollar to BotConfig schema.prisma, BotConfigRecord interface, initBot() defaults, and migration SQL 20260228000003
+  - Commits: 3a52fb6 (schema + interface), b6d157b (migration SQL)
+
 *State initialized: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 3 complete (all 5 plans); bot places paper-mode orders end-to-end, 13/13 verification checks pass, human-approved; Phase 4 (Risk Management) is next*
+*Last updated: 2026-02-28 — Phase 4 Plan 01 complete; BotConfig schema extended with trailing stop fields (EXIT-02); prisma validate and tsc --noEmit both pass*

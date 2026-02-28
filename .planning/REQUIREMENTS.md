@@ -45,7 +45,7 @@
 ### Position Exit
 
 - [x] **EXIT-01**: Bot applies a hard stop loss (configurable %, default -7% from entry) that triggers immediately regardless of peak price
-- [ ] **EXIT-02**: Bot applies a trailing stop loss that trails peak price (uses strategy engine's per-category trailing stop percentage)
+- [x] **EXIT-02**: Bot applies a trailing stop loss that trails peak price (uses strategy engine's per-category trailing stop percentage)
 - [x] **EXIT-03**: Bot applies a profit target exit (uses strategy engine's per-category hold duration and performance data)
 - [x] **EXIT-04**: Bot applies a time-based forced exit (configurable max hold duration, default from strategy engine per catalyst type)
 - [x] **EXIT-05**: Bot force-closes all open positions at 3:45 PM ET every trading day (before market close) using node-cron
@@ -146,7 +146,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXEC-06 | Phase 3 | Complete |
 | EXEC-07 | Phase 3 | Complete |
 | EXIT-01 | Phase 3 | Complete |
-| EXIT-02 | Phase 3 | Pending |
+| EXIT-02 | Phase 3 | Complete |
 | EXIT-03 | Phase 3 | Complete |
 | EXIT-04 | Phase 3 | Complete |
 | EXIT-05 | Phase 3 | Complete |

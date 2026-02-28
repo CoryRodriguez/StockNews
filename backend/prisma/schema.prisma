@@ -219,3 +219,31 @@ model BotDailyStats {
 
   @@unique([date])
 }
+
+// BotSignalLog — one record per evaluated news article; outcome: "fired" | "rejected" | "skipped"
+model BotSignalLog {
+  id               String    @id @default(cuid())
+  symbol           String
+  source           String    // "rtpr" | "benzinga" | "alpaca"
+  headline         String    @db.Text
+  catalystCategory String?
+  catalystTier     Int?
+  outcome          String    // "fired" | "rejected" | "skipped"
+  rejectReason     String?   // "not-running" | "stale" | "reconnect-cooldown" | "duplicate" |
+                             // "market-closed" | "opening-auction" | "tier-disabled" |
+                             // "danger-pattern" | "below-win-rate" | "failed-5-pillars" |
+                             // "ai-declined" | "ai-timeout" | "log-only" | "ai-unavailable"
+  failedPillar     String?   // "price" | "relative_volume" — when rejectReason = "failed-5-pillars"
+  aiProceed        Boolean?
+  aiConfidence     String?   // "high" | "medium" | "low"
+  aiReasoning      String?   @db.Text
+  winRateAtEval    Float?
+  priceAtEval      Float?
+  relVolAtEval     Float?
+  articleCreatedAt DateTime?
+  evaluatedAt      DateTime  @default(now())
+
+  @@index([symbol])
+  @@index([outcome])
+  @@index([evaluatedAt])
+}

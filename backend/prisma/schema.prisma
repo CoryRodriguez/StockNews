@@ -207,6 +207,8 @@ model BotConfig {
   tradeSizeStars4          Float    @default(75)
   tradeSizeStars5          Float    @default(100)
   profitTargetPct          Float    @default(10)
+  trailingStopPct          Float    @default(0)   // EXIT-02: % trail from peak; 0 = disabled
+  trailingStopDollar       Float    @default(0)   // EXIT-02: $ trail from peak; 0 = disabled; pct takes precedence when both > 0
   updatedAt                DateTime @updatedAt
 }
 

@@ -30,6 +30,8 @@ export interface BotConfigRecord {
   tradeSizeStars4: number;
   tradeSizeStars5: number;
   profitTargetPct: number;
+  trailingStopPct: number;
+  trailingStopDollar: number;
   updatedAt: Date;
 }
 
@@ -198,6 +200,8 @@ export async function initBot(): Promise<void> {
       tradeSizeStars4: 75,
       tradeSizeStars5: 100,
       profitTargetPct: 10,
+      trailingStopPct: 0,
+      trailingStopDollar: 0,
     },
   });
 

@@ -3,7 +3,7 @@
 **Milestone:** Autonomous Trading Bot
 **Created:** 2026-02-27
 **Depth:** Comprehensive
-**Coverage:** 44/44 v1 requirements mapped
+**Coverage:** 47/47 v1 requirements mapped
 
 ---
 
@@ -58,14 +58,16 @@
 
 **Depends on**: Phase 1
 
-**Requirements**: SIG-01, SIG-02, SIG-03, SIG-04, SIG-05, SIG-06, SIG-07, SIG-08, SIG-09
+**Requirements**: SIG-01, SIG-02, SIG-03, SIG-04, SIG-05, SIG-06, SIG-07, SIG-08, SIG-09, SIG-10, SIG-11
 
 **Success Criteria** (what must be TRUE):
-  1. When a qualifying news article arrives from RTPR, Benzinga, or Alpaca News, the bot logs a signal evaluation record showing whether it would have fired a trade and the specific reason if rejected (below win rate threshold, wrong catalyst tier, stale article, reconnect suppression, duplicate, etc.)
+  1. When a qualifying news article arrives from RTPR, Benzinga, or Alpaca News, the bot logs a signal evaluation record showing whether it would have fired a trade and the specific reason if rejected (below win rate threshold, wrong catalyst tier, stale article, reconnect suppression, duplicate, failed 5 Pillars, AI-declined, etc.)
   2. The same catalyst event arriving from two or three news sources within 5 minutes produces exactly one signal evaluation log entry, not multiple
   3. An article timestamped more than 90 seconds before the evaluation moment is rejected with reason "stale" and no trade evaluation proceeds
   4. For 30 seconds after any news WebSocket reconnect, incoming articles are suppressed and logged with reason "reconnect-cooldown"
   5. No order is placed during Phase 2 operation — the bot operates in log-only mode regardless of signal strength
+  6. Tier 1–2 catalyst articles that fail the 5 Pillars check (float > 20M, price > $20, or relative volume < 5x) are logged with reason "failed-5-pillars" and the specific pillar that failed
+  7. Tier 3–4 and unclassified articles that pass the 5 Pillars check are sent to Claude API; the evaluation log records the AI's recommendation (proceed / decline) and reasoning within 2 seconds
 
 **Plans**: TBD
 
@@ -77,10 +79,10 @@
 
 **Depends on**: Phase 2
 
-**Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06, EXIT-01, EXIT-02, EXIT-03, EXIT-04, EXIT-05, EXIT-06
+**Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06, EXEC-07, EXIT-01, EXIT-02, EXIT-03, EXIT-04, EXIT-05, EXIT-06
 
 **Success Criteria** (what must be TRUE):
-  1. When the signal engine fires a qualifying signal, a market buy order is placed on the Alpaca paper API using dollar-notional sizing, and the news handler is never blocked waiting for the order to complete
+  1. When the signal engine fires a qualifying signal, a market buy order is placed on the Alpaca paper API using confidence-tiered dollar-notional sizing (2× base for tier 1–2 or AI high-confidence, 1× for tier 3–4, 0.5× for AI low-confidence), and the news handler is never blocked waiting for the order to complete
   2. Fill confirmation arrives via the Alpaca trading WebSocket stream (not polling); partial fills are reconciled against `GET /v2/positions/{symbol}` so the tracked position quantity always matches the broker's actual quantity
   3. Every order rejection from Alpaca is logged with the rejection reason, and the bot continues operating without crashing
   4. An open position is automatically closed when any of the following is true: price drops to the hard stop loss threshold from entry, trailing stop activates after peak price, profit target is reached per catalyst category, or max hold duration elapses
@@ -169,12 +171,15 @@
 | SIG-07 | Phase 2 |
 | SIG-08 | Phase 2 |
 | SIG-09 | Phase 2 |
+| SIG-10 | Phase 2 |
+| SIG-11 | Phase 2 |
 | EXEC-01 | Phase 3 |
 | EXEC-02 | Phase 3 |
 | EXEC-03 | Phase 3 |
 | EXEC-04 | Phase 3 |
 | EXEC-05 | Phase 3 |
 | EXEC-06 | Phase 3 |
+| EXEC-07 | Phase 3 |
 | EXIT-01 | Phase 3 |
 | EXIT-02 | Phase 3 |
 | EXIT-03 | Phase 3 |
@@ -197,8 +202,8 @@
 | LIVE-02 | Phase 6 |
 | LIVE-03 | Phase 6 |
 
-**Total v1 requirements:** 44
-**Mapped:** 44/44
+**Total v1 requirements:** 47
+**Mapped:** 47/47
 **Unmapped:** 0
 
 ---

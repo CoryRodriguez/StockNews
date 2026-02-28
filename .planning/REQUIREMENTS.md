@@ -29,6 +29,8 @@
 - [ ] **SIG-07**: Bot logs every evaluated signal with outcome (fired, rejected, reason) for audit and threshold calibration
 - [ ] **SIG-08**: Bot operates in log-only mode initially (signals evaluated and logged, no orders placed) until explicitly enabled
 - [ ] **SIG-09**: Bot suppresses new buy signals during the opening auction window (9:30–9:45 AM ET)
+- [ ] **SIG-10**: Bot validates Warrior Trading 5 Pillars before allowing a signal to proceed — confirms float < 20M shares, share price < $20, and relative volume ≥ 5x 30-day average (uses existing Alpaca snapshot data; configurable thresholds)
+- [ ] **SIG-11**: Bot uses a hybrid classification pipeline — tier 1–2 catalyst matches proceed immediately; tier 3–4 and unclassified headlines are sent to Claude API with 5 Pillars context to evaluate whether a trade is warranted before proceeding
 
 ### Trade Execution
 
@@ -38,6 +40,7 @@
 - [ ] **EXEC-04**: Bot logs and handles all Alpaca order rejection scenarios without crashing
 - [ ] **EXEC-05**: Bot uses dollar-notional position sizing (configurable dollar amount per trade, e.g., $500) rather than fixed share quantity
 - [ ] **EXEC-06**: Bot fires trade execution asynchronously — news handler is never blocked waiting for order placement
+- [ ] **EXEC-07**: Bot applies confidence-tiered position sizing — tier 1–2 signals (or AI-confirmed high confidence) apply a configurable multiplier to the base position size (default 2×); tier 3–4 use 1×; AI-confirmed low confidence uses 0.5×
 
 ### Position Exit
 
@@ -62,7 +65,7 @@
 - [ ] **UI-02**: Bot Panel displays all currently open positions with live P&L updating in real time
 - [ ] **UI-03**: Bot Panel displays a log of recent bot trades (entry price, exit price, P&L, exit reason, catalyst type)
 - [ ] **UI-04**: Bot Panel provides pause, resume, and emergency stop controls
-- [ ] **UI-05**: Bot Panel provides a configuration UI for: enabled catalyst tiers, position size (USD), max concurrent positions, daily loss limit, min win rate threshold, hard stop loss %, max hold duration
+- [ ] **UI-05**: Bot Panel provides a configuration UI for: enabled catalyst tiers, position size (USD), confidence multipliers (high/med/low), max concurrent positions, daily loss limit, min win rate threshold, hard stop loss %, max hold duration, 5 Pillars thresholds (max float, max price, min relative volume)
 - [ ] **UI-06**: Bot Panel displays the current PDT day-trade counter and remaining day trades
 - [ ] **UI-07**: Bot Panel displays a signal rejection log showing evaluated-but-rejected signals with rejection reasons
 
@@ -103,7 +106,7 @@
 | Short selling | Opposite direction of catalyst plays; requires margin account confirmation |
 | Multi-broker support | Alpaca-only by design; abstract interface is a future concern |
 | Kelly criterion position sizing | Requires large sample size (300+ trades per category); start with fixed notional |
-| ML/NLP headline scoring | Strategy engine is empirical, not ML-based; ML adds training pipeline complexity |
+| ML/NLP model training | Strategy engine is empirical, not ML-based; training pipelines add complexity — Claude API classification (SIG-11) is inference-only, not model training |
 | Multi-symbol backtesting | Beyond the scope of the strategy engine's current design |
 | Mobile app | Desktop-first; responsive web only |
 | Social/chat features | Personal single-user tool |
@@ -133,12 +136,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SIG-07 | Phase 2 | Pending |
 | SIG-08 | Phase 2 | Pending |
 | SIG-09 | Phase 2 | Pending |
+| SIG-10 | Phase 2 | Pending |
+| SIG-11 | Phase 2 | Pending |
 | EXEC-01 | Phase 3 | Pending |
 | EXEC-02 | Phase 3 | Pending |
 | EXEC-03 | Phase 3 | Pending |
 | EXEC-04 | Phase 3 | Pending |
 | EXEC-05 | Phase 3 | Pending |
 | EXEC-06 | Phase 3 | Pending |
+| EXEC-07 | Phase 3 | Pending |
 | EXIT-01 | Phase 3 | Pending |
 | EXIT-02 | Phase 3 | Pending |
 | EXIT-03 | Phase 3 | Pending |
@@ -162,10 +168,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LIVE-03 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 44 total
-- Mapped to phases: 44
+- v1 requirements: 47 total
+- Mapped to phases: 47
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-02-27*
-*Last updated: 2026-02-27 after initial definition*
+*Last updated: 2026-02-27 after adding 5 Pillars gate (SIG-10), Claude AI classification (SIG-11), confidence-tiered sizing (EXEC-07)*

@@ -40,8 +40,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Phase | Requirements | Status | Completed |
 |-------|-------------|--------|-----------|
 | 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | Not started | - |
-| 2. Signal Engine | SIG-01 to SIG-09 (9) | Not started | - |
-| 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-06, EXIT-01 to EXIT-06 (12) | Not started | - |
+| 2. Signal Engine | SIG-01 to SIG-11 (11) | Not started | - |
+| 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | Not started | - |
 | 4. Risk Management Enforcement | RISK-01 to RISK-05 (5) | Not started | - |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | Not started | - |
 | 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | Not started | - |
@@ -54,7 +54,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 |--------|-------|
 | Phases total | 6 |
 | Phases complete | 0 |
-| Requirements total | 44 |
+| Requirements total | 47 |
 | Requirements delivered | 0 |
 | Plans created | 0 |
 | Plans complete | 0 |
@@ -125,4 +125,4 @@ The project is at the very start of the autonomous trading bot milestone. The ex
 ---
 
 *State initialized: 2026-02-27*
-*Last updated: 2026-02-27 — Roadmap created*
+*Last updated: 2026-02-27 — Added SIG-10 (5 Pillars), SIG-11 (Claude AI classification), EXEC-07 (confidence-tiered sizing)*

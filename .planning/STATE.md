@@ -64,15 +64,15 @@ progress:
 ## Current Position
 
 **Current Phase:** 03-trade-executor
-**Current Plan:** 03-04 (not started)
-**Status:** Phase 3 In Progress — Plans 03-01, 03-02, 03-03 Complete
+**Current Plan:** 03-03 (not started)
+**Status:** Phase 3 In Progress — Plans 03-01, 03-02 Complete
 
 ```
-Progress: ████████░░░░░░░░░░░░  35%
+Progress: ████████░░░░░░░░░░░░  38%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
-Phase 3: Trade Executor + Position Mon  [3/5] In Progress
+Phase 3: Trade Executor + Position Mon  [2/5] In Progress
 Phase 4: Risk Management Enforcement   [ ] Not started
 Phase 5: Frontend Bot Dashboard         [ ] Not started
 Phase 6: Live Trading Mode              [ ] Not started
@@ -140,6 +140,10 @@ Phase 6: Live Trading Mode              [ ] Not started
 | tradeSizeStars3=$50, tradeSizeStars4=$75, tradeSizeStars5=$100 flat-dollar defaults | Star-rating sizing uses fixed USD amounts per tier, not a multiplier of positionSizeUsd |
 | profitTargetPct=10 default | 10% profit target exit threshold from CONTEXT.md locked-in decisions |
 | BotConfigRecord interface updated with schema in same commit | Prevents TypeScript drift before prisma generate regenerates the client |
+| BotTrade created on order placement not fill | Position tracked even if trading WebSocket loses connection between order and fill |
+| partial_fill calls GET /v2/positions/{symbol} for authoritative qty | Never trust WebSocket partial fill qty alone (EXEC-03 pitfall avoidance) |
+| tradingWs message handler is async void + .catch | Prevents unhandled promise rejection if fill dispatch throws; WS handler itself stays synchronous |
+| restartTradingWs uses 100ms setTimeout after close | Allows socket state machine to fully reset before new connection attempt |
 | Position monitor leaf service — no executor or ws imports | Prevents circular dependency; monitor is purely a watchdog, not an orchestrator |
 | sold=true set before first await in closePosition | Race condition guard: any concurrent poll cycle sees sold=true and returns before any duplicate sell |
 | Position monitor always active after import | setInterval starts at module load — monitor runs even when bot is paused, protecting all open positions |
@@ -186,8 +190,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-28T20:08:00Z
-**Next action:** Phase 3 Plan 03-04 — Startup wiring (wire tradeExecutor + positionMonitor into server startup)
+**Last session:** 2026-02-28T19:38:00Z
+**Next action:** Phase 3 Plan 03-03 — Position Monitor (5s exit loop, hard stop/profit target/time exit, EOD cron)
 
 ### Handoff Notes
 
@@ -214,9 +218,8 @@ Key: Phase 2 signal engine complete and verified. All articles from all 3 feeds 
 Phase 3 in progress:
 - **03-01** (DONE): Added tradeSizeStars3/4/5 + profitTargetPct to BotConfig schema.prisma, BotConfigRecord interface, and migration SQL 20260228000002
   - Commits: 8812123 (schema + interface), 80af4df (migration SQL)
-- **03-02** (DONE): tradeExecutor.ts — buy order logic, fill confirmation, BotTrade creation, star-rating sizing
-- **03-03** (DONE): positionMonitor.ts — 5s exit loop, hard stop/profit target/time exit, EOD cron, addPosition/removePosition API
-  - Commit: 16931ed (positionMonitor.ts + node-cron dependency)
+- **03-02** (DONE): tradeExecutor.ts (buy order + BotTrade lifecycle) + tradingWs.ts (Alpaca trading WebSocket)
+  - Commits: 0df1919 (tradeExecutor.ts), f370f91 (tradingWs.ts)
 
 ---
 

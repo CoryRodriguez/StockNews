@@ -25,7 +25,7 @@
 | 1. Bot Infrastructure Foundation | 3/3 | Complete   | 2026-02-28 |
 | 2. Signal Engine | 4/4 | Complete   | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | 5/5 | Complete   | 2026-02-28 |
-| 4. Risk Management Enforcement | 0/? | Not started | - |
+| 4. Risk Management Enforcement | 0/4 | Not started | - |
 | 5. Frontend Bot Dashboard | 0/? | Not started | - |
 | 6. Live Trading Mode | 0/? | Not started | - |
 
@@ -108,21 +108,29 @@ Plans:
 
 ### Phase 4: Risk Management Enforcement
 
-**Goal**: The bot enforces hard limits on daily loss, concurrent positions, PDT day-trade count, and per-symbol concentration — and resets daily counters automatically each morning.
+**Goal**: The bot enforces limits on concurrent positions, PDT day-trade count, and per-symbol concentration, implements trailing stop exit logic, and resets daily counters automatically each morning.
 
 **Depends on**: Phase 3
 
-**Requirements**: RISK-01, RISK-02, RISK-03, RISK-04, RISK-05, EXIT-02
+**Requirements**: RISK-01 (removed per user decision), RISK-02, RISK-03, RISK-04, RISK-05, EXIT-02
+
+**Note**: RISK-01 (daily P&L circuit breaker) was removed per user decision in CONTEXT.md. Risk management approach is fast-entry + tight exits (trailing stop + hard stop), not aggregate daily limits.
 
 **Success Criteria** (what must be TRUE):
-  1. When the bot's cumulative realized P&L for the day falls below the configured daily loss limit, all new buy signal evaluations are blocked for the remainder of that trading day — no trades fire regardless of signal strength
-  2. When the number of concurrently open positions equals or exceeds the configured maximum, new buy signals are rejected until an existing position closes
-  3. Before every live-mode buy order, the bot checks the Alpaca account's `daytrade_count`; if placing the trade would exceed 3 day trades in the current 5-day window, the order is blocked and logged as "PDT limit reached"
-  4. At 4:00 AM ET each trading day, daily P&L and trade count reset to zero automatically — the circuit breaker clears without manual intervention
-  5. A ticker with an already-open position cannot receive a new buy order — the bot rejects signals for symbols it already holds
-  6. (EXIT-02) Trailing stop logic is implemented and configurable via BotConfig — `peakPrice` tracking groundwork laid in Phase 3 is wired into actual exit logic
+  1. (RISK-01 REMOVED) No daily P&L circuit breaker — risk is managed per-trade via trailing stop and hard stop
+  2. When the number of concurrently open positions equals or exceeds the configured maximum, new buy signals are rejected and logged as 'max-positions' in BotSignalLog
+  3. Before every live-mode buy order, the bot checks the Alpaca account's `daytrade_count`; if placing the trade would exceed 3 day trades in the current 5-day window, the order is blocked and a rejected BotTrade record is written with exitReason='pdt_limit'
+  4. At 4:00 AM ET each trading day, in-memory daily state is reset automatically via node-cron — no manual intervention required
+  5. A ticker with an already-open position cannot receive a new buy order — the bot rejects signals for symbols it already holds with 'already-holding' in BotSignalLog
+  6. (EXIT-02) Trailing stop wired into positionMonitor.ts: configurable by percentage (trailingStopPct) or dollar amount (trailingStopDollar) via BotConfig; percentage takes precedence when both set; fires after hard stop check, before profit target check
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Schema migration (trailingStopPct + trailingStopDollar) + BotConfigRecord update
+- [ ] 04-02-PLAN.md — Risk gates: RISK-02 (max-positions) + RISK-05 (already-holding) in signalEngine.ts; RISK-03 (PDT) in tradeExecutor.ts
+- [ ] 04-03-PLAN.md — Trailing stop (EXIT-02) + 4AM reset cron (RISK-04) + getOpenPositionCount/getOpenSymbols exports in positionMonitor.ts
+- [ ] 04-04-PLAN.md — Automated verification suite + human checkpoint
 
 ---
 
@@ -223,4 +231,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 3 complete (5/5 plans); bot places paper-mode orders end-to-end; advancing to Phase 4 (Risk Management)*
+*Last updated: 2026-02-28 — Phase 4 planned (4 plans); advancing to execution*

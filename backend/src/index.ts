@@ -22,6 +22,8 @@ import botRouter from "./routes/bot";
 import { requireAuth } from "./middleware/auth";
 import { initBot } from "./services/botController";
 import { loadStrategiesFromDb, recomputeStrategies } from "./services/strategyEngine";
+import { startTradingWs } from "./services/tradingWs";
+import { startPositionMonitor } from "./services/positionMonitor";
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -112,9 +114,11 @@ server.listen(config.port, async () => {
   await loadStrategiesFromDb();
   await recomputeStrategies();
 
-  // Initialize bot controller (loads config, reconciles positions)
+  // Initialize bot controller (loads config, reconciles positions, hydrates positionMonitor)
   // Must run AFTER strategy cache is warm so win-rate checks have data
   await initBot();
+  startTradingWs();        // connect to Alpaca trading stream
+  startPositionMonitor();  // start 5s poll loop + EOD cron
 
   // Recompute strategies every hour in case server has been up a long time
   setInterval(() => recomputeStrategies(), 60 * 60 * 1000);

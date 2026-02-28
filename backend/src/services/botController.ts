@@ -1,5 +1,7 @@
 import prisma from '../db/client';
 import { config } from '../config';
+import { addPosition } from './positionMonitor';
+import { restartTradingWs } from './tradingWs';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,28 +52,86 @@ function getTodayDateET(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
 }
 
+interface AlpacaPositionFull {
+  symbol: string;
+  avg_entry_price: string;
+  qty: string;
+}
+
 async function reconcilePositions(): Promise<void> {
   try {
     const res = await fetch(`${getAlpacaBaseUrl()}/v2/positions`, {
       headers: getAlpacaHeaders(),
     });
-    const livePositions: Array<{ symbol: string }> = res.ok ? (await res.json() as Array<{ symbol: string }>) : [];
-    const liveSymbols = new Set(livePositions.map((p) => p.symbol));
+    const livePositions: AlpacaPositionFull[] = res.ok
+      ? (await res.json() as AlpacaPositionFull[])
+      : [];
+
+    // Build a map from symbol → live position for O(1) lookup
+    const liveMap = new Map<string, AlpacaPositionFull>();
+    for (const pos of livePositions) {
+      liveMap.set(pos.symbol, pos);
+    }
 
     const dbOpenTrades = await prisma.botTrade.findMany({
       where: { status: 'open' },
     });
 
+    // Track which symbols are already in the DB to detect orphans
+    const dbSymbols = new Set(dbOpenTrades.map((t) => t.symbol));
+
     let reconciled = 0;
     for (const trade of dbOpenTrades) {
-      if (!liveSymbols.has(trade.symbol)) {
+      if (!liveMap.has(trade.symbol)) {
+        // DB says open but Alpaca doesn't have it — mark as missed
         await prisma.botTrade.update({
           where: { id: trade.id },
           data: { status: 'missed', exitReason: 'reconciled_missing_on_startup' },
         });
         reconciled++;
+      } else {
+        // DB open + Alpaca open → warm the position monitor on startup
+        addPosition({
+          tradeId: trade.id,
+          symbol: trade.symbol,
+          entryPrice: trade.entryPrice ?? 0,
+          entryAt: trade.entryAt ?? new Date(),
+          peakPrice: trade.entryPrice ?? 0,
+          shares: trade.shares ?? 0,
+          catalystCategory: trade.catalystType ?? 'unknown',
+        });
       }
     }
+
+    // Import any orphan positions (Alpaca has them, DB does not)
+    for (const [symbol, livePos] of liveMap) {
+      if (!dbSymbols.has(symbol)) {
+        console.warn(`[BotController] Orphan position imported: ${symbol} qty=${livePos.qty}`);
+        const newTrade = await prisma.botTrade.create({
+          data: {
+            symbol: livePos.symbol,
+            entryPrice: parseFloat(livePos.avg_entry_price),
+            shares: parseFloat(livePos.qty),
+            status: 'open',
+            catalystType: 'unknown',
+            catalystTier: null,
+            alpacaOrderId: null,
+            exitReason: null,
+            entryAt: new Date(),
+          },
+        });
+        addPosition({
+          tradeId: newTrade.id,
+          symbol: livePos.symbol,
+          entryPrice: parseFloat(livePos.avg_entry_price),
+          entryAt: new Date(),
+          peakPrice: parseFloat(livePos.avg_entry_price),
+          shares: parseFloat(livePos.qty),
+          catalystCategory: 'unknown',
+        });
+      }
+    }
+
     console.log(`[BotController] Reconciled ${dbOpenTrades.length} open positions, ${reconciled} marked missed`);
   } catch (err) {
     // Do NOT throw — server must start even if Alpaca is unreachable (outside market hours, bad key, etc.)
@@ -134,6 +194,10 @@ export async function initBot(): Promise<void> {
       maxFloatShares: 20000000,
       maxSharePrice: 20,
       minRelativeVolume: 5,
+      tradeSizeStars3: 50,
+      tradeSizeStars4: 75,
+      tradeSizeStars5: 100,
+      profitTargetPct: 10,
     },
   });
 
@@ -197,6 +261,8 @@ export async function switchMode(newMode: BotMode): Promise<void> {
     where: { id: 'singleton' },
     data: { mode: newMode },
   });
+  // Reconnect trading WebSocket to the new mode's URL (paper ↔ live)
+  restartTradingWs();
 }
 
 // ─── Exported: Config updates ──────────────────────────────────────────────────

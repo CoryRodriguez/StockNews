@@ -12,11 +12,11 @@
 - [x] **INFRA-01**: System stores bot trade lifecycle in a persistent database table (BotTrade) so positions survive server restarts
 - [x] **INFRA-02**: System stores bot configuration (enabled, mode, thresholds) in a persistent database table (BotConfig) so settings survive restarts
 - [x] **INFRA-03**: System stores daily trading statistics (daily P&L, trade count, day trade count) in a persistent table (BotDailyStats) for circuit breaker persistence
-- [ ] **INFRA-04**: Bot reconciles open positions against Alpaca's live position data on every server startup before accepting new signals
-- [ ] **INFRA-05**: Bot can be enabled or disabled via a persistent kill switch that survives server restarts
+- [x] **INFRA-04**: Bot reconciles open positions against Alpaca's live position data on every server startup before accepting new signals
+- [x] **INFRA-05**: Bot can be enabled or disabled via a persistent kill switch that survives server restarts
 - [ ] **INFRA-06**: Bot exposes REST endpoints for start, pause, resume, and stop operations
-- [ ] **INFRA-07**: Bot supports paper trading mode and live trading mode, switched via configuration
-- [ ] **INFRA-08**: Mode switch from paper to live is blocked when any positions are currently open
+- [x] **INFRA-07**: Bot supports paper trading mode and live trading mode, switched via configuration
+- [x] **INFRA-08**: Mode switch from paper to live is blocked when any positions are currently open
 
 ### Signal Engine
 
@@ -122,11 +122,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-03 | Phase 1 | Complete |
-| INFRA-04 | Phase 1 | Pending |
-| INFRA-05 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Complete |
+| INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Pending |
-| INFRA-07 | Phase 1 | Pending |
-| INFRA-08 | Phase 1 | Pending |
+| INFRA-07 | Phase 1 | Complete |
+| INFRA-08 | Phase 1 | Complete |
 | SIG-01 | Phase 2 | Pending |
 | SIG-02 | Phase 2 | Pending |
 | SIG-03 | Phase 2 | Pending |

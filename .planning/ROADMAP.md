@@ -24,7 +24,7 @@
 |-------|----------------|--------|-----------|
 | 1. Bot Infrastructure Foundation | 3/3 | Complete   | 2026-02-28 |
 | 2. Signal Engine | 4/4 | Complete   | 2026-02-28 |
-| 3. Trade Executor and Position Monitor | 0/? | Not started | - |
+| 3. Trade Executor and Position Monitor | 0/5 | In progress | - |
 | 4. Risk Management Enforcement | 0/? | Not started | - |
 | 5. Frontend Bot Dashboard | 0/? | Not started | - |
 | 6. Live Trading Mode | 0/? | Not started | - |
@@ -81,21 +81,28 @@ Plans:
 
 ### Phase 3: Trade Executor and Position Monitor
 
-**Goal**: The bot places paper-mode buy orders on qualifying signals, confirms fills in real time, and automatically exits positions using hard stop, trailing stop, profit target, and time limit rules — with full crash recovery.
+**Goal**: The bot places paper-mode buy orders on qualifying signals, confirms fills in real time, and automatically exits positions using hard stop, profit target, and time limit rules — with full crash recovery.
 
 **Depends on**: Phase 2
 
 **Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06, EXEC-07, EXIT-01, EXIT-02, EXIT-03, EXIT-04, EXIT-05, EXIT-06
 
 **Success Criteria** (what must be TRUE):
-  1. When the signal engine fires a qualifying signal, a market buy order is placed on the Alpaca paper API using confidence-tiered dollar-notional sizing (2× base for tier 1–2 or AI high-confidence, 1× for tier 3–4, 0.5× for AI low-confidence), and the news handler is never blocked waiting for the order to complete
+  1. When the signal engine fires a qualifying signal, a market buy order is placed on the Alpaca paper API using star-rating dollar-notional sizing (5-star=$100, 4-star=$75, 3-star=$50 from BotConfig; 1-2 star = skip), and the news handler is never blocked waiting for the order to complete
   2. Fill confirmation arrives via the Alpaca trading WebSocket stream (not polling); partial fills are reconciled against `GET /v2/positions/{symbol}` so the tracked position quantity always matches the broker's actual quantity
   3. Every order rejection from Alpaca is logged with the rejection reason, and the bot continues operating without crashing
-  4. An open position is automatically closed when any of the following is true: price drops to the hard stop loss threshold from entry, trailing stop activates after peak price, profit target is reached per catalyst category, or max hold duration elapses
+  4. An open position is automatically closed when any of the following is true: price drops to the hard stop loss threshold from entry, profit target is reached, or max hold duration elapses
   5. At 3:45 PM ET every trading day, all open positions are force-closed regardless of P&L — no positions are held overnight
   6. On server restart with open positions in the database, the position monitor resumes watching those positions immediately without requiring a new buy signal
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — BotConfig schema migration (tradeSizeStars3/4/5 + profitTargetPct fields)
+- [ ] 03-02-PLAN.md — tradeExecutor.ts + tradingWs.ts (buy-side execution + WebSocket fill events)
+- [ ] 03-03-PLAN.md — positionMonitor.ts (5s exit loop + EOD cron + addPosition interface)
+- [ ] 03-04-PLAN.md — Wiring: signalEngine + botController + index.ts integration
+- [ ] 03-05-PLAN.md — Automated verification suite + human verification checkpoint
 
 ---
 
@@ -215,4 +222,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 2 complete (Plan 02-04): automated verification + human checkpoint approved*
+*Last updated: 2026-02-28 — Phase 3 planned (5 plans, waves 1-4)*

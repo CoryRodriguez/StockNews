@@ -26,7 +26,7 @@
 - [x] **SIG-04**: Bot deduplicates signals across news sources — same catalyst event arriving from multiple sources within 5 minutes triggers at most one trade evaluation
 - [x] **SIG-05**: Bot rejects articles older than 90 seconds at time of evaluation (stale news protection)
 - [x] **SIG-06**: Bot suppresses signal evaluation for 30 seconds after any news source WebSocket reconnect
-- [ ] **SIG-07**: Bot logs every evaluated signal with outcome (fired, rejected, reason) for audit and threshold calibration
+- [x] **SIG-07**: Bot logs every evaluated signal with outcome (fired, rejected, reason) for audit and threshold calibration
 - [x] **SIG-08**: Bot operates in log-only mode initially (signals evaluated and logged, no orders placed) until explicitly enabled
 - [x] **SIG-09**: Bot suppresses new buy signals during the opening auction window (9:30–9:45 AM ET)
 - [x] **SIG-10**: Bot validates Warrior Trading 5 Pillars before allowing a signal to proceed — confirms float < 20M shares, share price < $20, and relative volume ≥ 5x 30-day average (uses existing Alpaca snapshot data; configurable thresholds)

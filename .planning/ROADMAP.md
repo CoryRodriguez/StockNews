@@ -10,7 +10,7 @@
 ## Phases
 
 - [x] **Phase 1: Bot Infrastructure Foundation** - Database schema, bot controller lifecycle, startup position reconciliation (completed 2026-02-28)
-- [ ] **Phase 2: Signal Engine** - News evaluation pipeline in log-only mode with deduplication and staleness protection
+- [x] **Phase 2: Signal Engine** - News evaluation pipeline in log-only mode with deduplication and staleness protection (completed 2026-02-28)
 - [ ] **Phase 3: Trade Executor and Position Monitor** - Paper-mode order placement and automated exit state machine
 - [ ] **Phase 4: Risk Management Enforcement** - Circuit breakers, PDT guard, position sizing, daily stat resets
 - [ ] **Phase 5: Frontend Bot Dashboard** - UI panel for bot status, live P&L, controls, and signal rejection log
@@ -23,7 +23,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Bot Infrastructure Foundation | 3/3 | Complete   | 2026-02-28 |
-| 2. Signal Engine | 3/4 | In Progress|  |
+| 2. Signal Engine | 4/4 | Complete   | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | 0/? | Not started | - |
 | 4. Risk Management Enforcement | 0/? | Not started | - |
 | 5. Frontend Bot Dashboard | 0/? | Not started | - |
@@ -74,8 +74,8 @@
 Plans:
 - [x] 02-01-PLAN.md — BotSignalLog schema + @anthropic-ai/sdk install + config constants
 - [x] 02-02-PLAN.md — signalEngine.ts core evaluation gauntlet (steps 1-11, AI placeholder)
-- [ ] 02-03-PLAN.md — Claude AI evaluation branch + hook into all 3 news services
-- [ ] 02-04-PLAN.md — Automated verification suite + human verification checkpoint
+- [x] 02-03-PLAN.md — Claude AI evaluation branch + hook into all 3 news services
+- [x] 02-04-PLAN.md — Automated verification suite + human verification checkpoint
 
 ---
 
@@ -215,4 +215,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-02-28 — Plan 02-02 complete: signalEngine.ts full 10-step evaluation gauntlet*
+*Last updated: 2026-02-28 — Phase 2 complete (Plan 02-04): automated verification + human checkpoint approved*

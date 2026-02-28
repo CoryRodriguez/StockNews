@@ -14,7 +14,9 @@
  * Do NOT add those hooks here.
  */
 
+import Anthropic from "@anthropic-ai/sdk";
 import prisma from "../db/client";
+import { config as appConfig } from "../config";
 import { getBotState, getBotConfig, isMarketOpen } from "./botController";
 import { classifyCatalystGranular } from "./catalystClassifier";
 import { getSnapshots } from "./alpaca";
@@ -47,6 +49,21 @@ setInterval(() => {
 
 /** Maximum age of an article before it is considered stale (90 seconds). */
 const MAX_ARTICLE_AGE_MS = 90_000;
+
+// ── Anthropic client (lazy init) ───────────────────────────────────────────
+
+let anthropicClient: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic | null {
+  if (!appConfig.anthropicApiKey) return null; // key absent — no crash
+  if (!anthropicClient) {
+    anthropicClient = new Anthropic({
+      apiKey: appConfig.anthropicApiKey,
+      timeout: 2000,
+    });
+  }
+  return anthropicClient;
+}
 
 // ── Private helpers ────────────────────────────────────────────────────────
 
@@ -102,6 +119,55 @@ async function writeSignalLog(
       err instanceof Error ? err.message : err
     )
   );
+}
+
+// ── AI evaluation ─────────────────────────────────────────────────────────
+
+interface AiEvaluation {
+  proceed: boolean;
+  confidence: "high" | "medium" | "low";
+  reasoning: string;
+}
+
+/**
+ * Calls Claude API to evaluate whether a tier 3-4 article warrants a trade.
+ * Returns null if the key is absent (ai-unavailable) or on any error/timeout (ai-timeout).
+ */
+async function evaluateWithAI(
+  symbol: string,
+  headline: string,
+  body: string,
+  priceAtEval: number,
+  relVolAtEval: number
+): Promise<AiEvaluation | null> {
+  const client = getAnthropicClient();
+  if (!client) return null; // signals "ai-unavailable" to caller
+
+  try {
+    const response = await client.messages.create({
+      model: appConfig.claudeSignalModel,
+      max_tokens: 150,
+      system: `You are a day-trading signal evaluator. Evaluate if a news headline warrants a momentum buy.
+Respond with JSON only: {"proceed": true|false, "confidence": "high"|"medium"|"low", "reasoning": "one sentence"}.
+Rules: proceed=true only for clear positive catalysts with strong momentum potential. Decline vague, speculative, or negative news.`,
+      messages: [
+        {
+          role: "user",
+          content: `Symbol: ${symbol}\nHeadline: ${headline}\nBody: ${body.slice(0, 300)}\nPrice: $${priceAtEval.toFixed(2)}, RelVol: ${relVolAtEval.toFixed(1)}x`,
+        },
+      ],
+    });
+
+    const text =
+      response.content[0]?.type === "text" ? response.content[0].text : "";
+    return JSON.parse(text) as AiEvaluation;
+  } catch (err) {
+    console.warn(
+      "[SignalEngine] AI evaluation failed:",
+      err instanceof Error ? err.message : err
+    );
+    return null; // null signals timeout/error to caller
+  }
 }
 
 // ── Exported: Reconnect notification ──────────────────────────────────────
@@ -412,22 +478,79 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
     } else {
-      // Tier 3-4: AI branch — placeholder replaced in Plan 02-03
+      // Tier 3-4: send to Claude API for evaluation
+      const priceAtEval = snap.price;
+      const relVolAtEval = snap.relativeVolume;
+
+      const aiResult = await evaluateWithAI(
+        article.ticker,
+        article.title,
+        article.body,
+        priceAtEval,
+        relVolAtEval
+      );
+
+      if (aiResult === null) {
+        // null = either key absent OR timeout/error
+        const reason =
+          getAnthropicClient() === null ? "ai-unavailable" : "ai-timeout";
+        await writeSignalLog({
+          symbol,
+          source: article.source,
+          headline: article.title,
+          catalystCategory: classification.category,
+          catalystTier: classification.tier,
+          outcome: "rejected",
+          rejectReason: reason,
+          failedPillar: null,
+          aiProceed: null,
+          aiConfidence: null,
+          aiReasoning: null,
+          winRateAtEval,
+          priceAtEval,
+          relVolAtEval,
+          articleCreatedAt: new Date(article.createdAt),
+        });
+        return;
+      }
+
+      if (!aiResult.proceed) {
+        await writeSignalLog({
+          symbol,
+          source: article.source,
+          headline: article.title,
+          catalystCategory: classification.category,
+          catalystTier: classification.tier,
+          outcome: "rejected",
+          rejectReason: "ai-declined",
+          failedPillar: null,
+          aiProceed: false,
+          aiConfidence: aiResult.confidence,
+          aiReasoning: aiResult.reasoning,
+          winRateAtEval,
+          priceAtEval,
+          relVolAtEval,
+          articleCreatedAt: new Date(article.createdAt),
+        });
+        return;
+      }
+
+      // AI approved — log-only (Phase 2: no order placed)
       await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
         catalystCategory: classification.category,
         catalystTier: classification.tier,
-        outcome: "skipped",
-        rejectReason: "ai-unavailable",
+        outcome: "fired",
+        rejectReason: "log-only",
         failedPillar: null,
-        aiProceed: null,
-        aiConfidence: null,
-        aiReasoning: null,
+        aiProceed: true,
+        aiConfidence: aiResult.confidence,
+        aiReasoning: aiResult.reasoning,
         winRateAtEval,
-        priceAtEval: snap.price,
-        relVolAtEval: snap.relativeVolume,
+        priceAtEval,
+        relVolAtEval,
         articleCreatedAt: new Date(article.createdAt),
       });
     }

@@ -85,7 +85,7 @@ Plans:
 
 **Depends on**: Phase 2
 
-**Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06, EXEC-07, EXIT-01, EXIT-02, EXIT-03, EXIT-04, EXIT-05, EXIT-06
+**Requirements**: EXEC-01, EXEC-02, EXEC-03, EXEC-04, EXEC-05, EXEC-06, EXEC-07, EXIT-01, EXIT-03, EXIT-04, EXIT-05, EXIT-06
 
 **Success Criteria** (what must be TRUE):
   1. When the signal engine fires a qualifying signal, a market buy order is placed on the Alpaca paper API using star-rating dollar-notional sizing (5-star=$100, 4-star=$75, 3-star=$50 from BotConfig; 1-2 star = skip), and the news handler is never blocked waiting for the order to complete
@@ -112,7 +112,7 @@ Plans:
 
 **Depends on**: Phase 3
 
-**Requirements**: RISK-01, RISK-02, RISK-03, RISK-04, RISK-05
+**Requirements**: RISK-01, RISK-02, RISK-03, RISK-04, RISK-05, EXIT-02
 
 **Success Criteria** (what must be TRUE):
   1. When the bot's cumulative realized P&L for the day falls below the configured daily loss limit, all new buy signal evaluations are blocked for the remainder of that trading day — no trades fire regardless of signal strength
@@ -120,6 +120,7 @@ Plans:
   3. Before every live-mode buy order, the bot checks the Alpaca account's `daytrade_count`; if placing the trade would exceed 3 day trades in the current 5-day window, the order is blocked and logged as "PDT limit reached"
   4. At 4:00 AM ET each trading day, daily P&L and trade count reset to zero automatically — the circuit breaker clears without manual intervention
   5. A ticker with an already-open position cannot receive a new buy order — the bot rejects signals for symbols it already holds
+  6. (EXIT-02) Trailing stop logic is implemented and configurable via BotConfig — `peakPrice` tracking groundwork laid in Phase 3 is wired into actual exit logic
 
 **Plans**: TBD
 
@@ -194,7 +195,7 @@ Plans:
 | EXEC-06 | Phase 3 |
 | EXEC-07 | Phase 3 |
 | EXIT-01 | Phase 3 |
-| EXIT-02 | Phase 3 |
+| EXIT-02 | Phase 4 |
 | EXIT-03 | Phase 3 |
 | EXIT-04 | Phase 3 |
 | EXIT-05 | Phase 3 |
@@ -222,4 +223,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 3 planned (5 plans, waves 1-4)*
+*Last updated: 2026-02-28 — Phase 3 planned (5 plans, waves 1-4); EXIT-02 deferred to Phase 4 per user decision*

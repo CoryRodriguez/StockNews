@@ -22,6 +22,7 @@ import { classifyCatalystGranular } from "./catalystClassifier";
 import { getSnapshots } from "./alpaca";
 import { getStrategy } from "./strategyEngine";
 import { RtprArticle } from "./rtpr";
+import { executeTradeAsync } from "./tradeExecutor";
 
 // ── Module-level state ─────────────────────────────────────────────────────
 
@@ -199,7 +200,7 @@ export function notifyReconnect(source: string): void {
  * Step 8: Opening auction window (9:30–9:45 AM ET) → reject "opening-auction"
  * Step 9: Strategy win-rate gate → reject "below-win-rate" (bypassed when sampleSize === 0)
  * Step 10: 5 Pillars check (price, relativeVolume) → reject "failed-5-pillars"
- * Step 11: Outcome — tier 1-2: fired (log-only); tier 3-4: skipped (ai-unavailable)
+ * Step 11: Outcome — tier 1-2: fired (calls executeTradeAsync); tier 3-4: skipped (ai-unavailable)
  *
  * Never throws — all errors are caught and logged.
  */
@@ -453,13 +454,12 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
     }
 
     // ── Step 11: Branch on tier ───────────────────────────────────────────
-    // Tier 1-2: fast path — log outcome="fired", rejectReason="log-only"
-    //   (actual order placement added in Phase 3 — log-only during Phase 2)
+    // Tier 1-2: fast path — log outcome="fired", then fire trade executor asynchronously
     // Tier 3-4: AI classification required — placeholder until Plan 02-03
     const needsAI = classification.tier >= 3;
 
     if (!needsAI) {
-      // Tier 1 or 2: signal fired (log-only mode in Phase 2)
+      // Tier 1 or 2: signal fired — place order asynchronously
       await writeSignalLog({
         symbol,
         source: article.source,
@@ -467,7 +467,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         catalystCategory: classification.category,
         catalystTier: classification.tier,
         outcome: "fired",
-        rejectReason: "log-only",
+        rejectReason: null,
         failedPillar: null,
         aiProceed: null,
         aiConfidence: null,
@@ -477,6 +477,16 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: snap.relativeVolume,
         articleCreatedAt: new Date(article.createdAt),
       });
+      // Phase 3: fire trade executor asynchronously — never blocks news handler (EXEC-06)
+      void executeTradeAsync({
+        symbol,
+        catalystCategory: classification.category,
+        catalystTier: classification.tier,
+        aiConfidence: null,          // tier 1-2 has no AI eval
+        priceAtSignal: snap.price,
+      }).catch((err) =>
+        console.error('[SignalEngine] executeTradeAsync error:', err instanceof Error ? err.message : err)
+      );
     } else {
       // Tier 3-4: send to Claude API for evaluation
       const priceAtEval = snap.price;
@@ -535,7 +545,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         return;
       }
 
-      // AI approved — log-only (Phase 2: no order placed)
+      // AI approved — fire trade executor asynchronously
       await writeSignalLog({
         symbol,
         source: article.source,
@@ -543,7 +553,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         catalystCategory: classification.category,
         catalystTier: classification.tier,
         outcome: "fired",
-        rejectReason: "log-only",
+        rejectReason: null,
         failedPillar: null,
         aiProceed: true,
         aiConfidence: aiResult.confidence,
@@ -553,6 +563,15 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval,
         articleCreatedAt: new Date(article.createdAt),
       });
+      void executeTradeAsync({
+        symbol,
+        catalystCategory: classification.category,
+        catalystTier: classification.tier,
+        aiConfidence: aiResult.confidence,
+        priceAtSignal: priceAtEval,
+      }).catch((err) =>
+        console.error('[SignalEngine] executeTradeAsync error:', err instanceof Error ? err.message : err)
+      );
     }
   } catch (err) {
     console.error(

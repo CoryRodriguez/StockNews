@@ -1,0 +1,7 @@
+-- Migration: add star-rating sizing fields and profitTargetPct to BotConfig
+-- Phase 3: Trade Executor and Position Monitor
+
+ALTER TABLE "BotConfig" ADD COLUMN IF NOT EXISTS "tradeSizeStars3" DOUBLE PRECISION NOT NULL DEFAULT 50;
+ALTER TABLE "BotConfig" ADD COLUMN IF NOT EXISTS "tradeSizeStars4" DOUBLE PRECISION NOT NULL DEFAULT 75;
+ALTER TABLE "BotConfig" ADD COLUMN IF NOT EXISTS "tradeSizeStars5" DOUBLE PRECISION NOT NULL DEFAULT 100;
+ALTER TABLE "BotConfig" ADD COLUMN IF NOT EXISTS "profitTargetPct" DOUBLE PRECISION NOT NULL DEFAULT 10;

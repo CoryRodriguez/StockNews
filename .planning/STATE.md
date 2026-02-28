@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: Phase 1 — Bot Infrastructure Foundation
-current_plan: None started
-status: Not started
-last_updated: "2026-02-28T02:53:54.624Z"
+current_plan: 01-02 (ready to execute)
+status: In Progress
+last_updated: "2026-02-28T03:17:00.000Z"
 progress:
   total_phases: 1
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State: StockNews — Autonomous Trading Bot
@@ -34,13 +34,13 @@ progress:
 ## Current Position
 
 **Current Phase:** Phase 1 — Bot Infrastructure Foundation
-**Current Plan:** None started
-**Status:** Not started
+**Current Plan:** 01-02 — botController.ts Singleton (ready to execute)
+**Status:** In Progress — 1/3 plans complete
 
 ```
-Progress: ░░░░░░░░░░░░░░░░░░░░  0%
+Progress: ██░░░░░░░░░░░░░░░░░░  5%
 
-Phase 1: Bot Infrastructure Foundation  [ ] Not started
+Phase 1: Bot Infrastructure Foundation  [1/3] In Progress (01-01 done, 01-02 next)
 Phase 2: Signal Engine                  [ ] Not started
 Phase 3: Trade Executor + Position Mon  [ ] Not started
 Phase 4: Risk Management Enforcement   [ ] Not started
@@ -54,7 +54,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 | Phase | Requirements | Status | Completed |
 |-------|-------------|--------|-----------|
-| 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | Not started | - |
+| 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | Planned (3 plans) | - |
 | 2. Signal Engine | SIG-01 to SIG-11 (11) | Not started | - |
 | 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | Not started | - |
 | 4. Risk Management Enforcement | RISK-01 to RISK-05 (5) | Not started | - |
@@ -71,8 +71,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Phases complete | 0 |
 | Requirements total | 47 |
 | Requirements delivered | 0 |
-| Plans created | 0 |
-| Plans complete | 0 |
+| Plans created | 3 |
+| Plans complete | 1 |
 
 ---
 
@@ -87,6 +87,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Exit strategy via strategy engine data | Use per-category trailing stop % and hold duration from existing strategyEngine.ts |
 | Bot runs inside existing Express process | No subprocess or worker threads; initialized at server startup; clientHub broadcasts state |
 | Three new DB models only | BotTrade, BotConfig, BotDailyStats — no changes to existing models |
+| enabledCatalystTiers as String "1,2,3,4" | Prisma Int[] defaults have edge cases; String is simple, callers parse with .split(",").map(Number) |
+| BotConfig singleton via @id @default("singleton") | Enforces single-row constraint at schema level; no application logic needed |
+| status/exitReason as String not enum | Avoids migration churn if values need expanding; documented in schema comments |
 | node-cron for scheduling | Only new dependency; handles daily reset at 4 AM ET and force-close at 3:45 PM ET |
 | Fire-and-forget signal evaluation | News handler must never block on order placement; tradeExecutor runs async |
 
@@ -130,12 +133,18 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-28T02:53:54.623Z
-**Next action:** Begin Phase 1 planning with `/gsd:plan-phase 1`
+**Last session:** 2026-02-28T03:17:00.000Z
+**Next action:** Execute Plan 01-02 — botController.ts singleton
 
 ### Handoff Notes
 
-The project is at the very start of the autonomous trading bot milestone. The existing platform (news ingestion, catalyst classification, paper trading, analytics, dashboard) is fully operational. This milestone adds six new layers: DB schema + controller, signal engine, trade executor + position monitor, risk management, bot UI panel, and live mode unlock. Phase 1 starts with three Prisma model additions and botController.ts — no changes to existing models or services.
+Plan 01-01 complete — DB schema migration done:
+- **01-01** (DONE): BotTrade, BotConfig, BotDailyStats added to schema.prisma + migration SQL created
+- **01-02** (NEXT): botController.ts singleton — state machine, reconciliation, getAlpacaBaseUrl(), mode guard
+- **01-03** (PENDING): REST routes (bot.ts) + index.ts wiring — /start, /pause, /resume, /stop, /status endpoints
+
+Plan 01-01 commits: 7fe590a (schema models), c6859b2 (migration SQL), 4cb0f4a (prisma generate)
+Key: enabledCatalystTiers stored as String "1,2,3,4"; BotConfig singleton id; prisma validate passes
 
 ---
 

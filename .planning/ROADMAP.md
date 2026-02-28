@@ -22,7 +22,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Bot Infrastructure Foundation | 0/? | Not started | - |
+| 1. Bot Infrastructure Foundation | 1/3 | In Progress | 01-01 done (2026-02-28) |
 | 2. Signal Engine | 0/? | Not started | - |
 | 3. Trade Executor and Position Monitor | 0/? | Not started | - |
 | 4. Risk Management Enforcement | 0/? | Not started | - |
@@ -48,7 +48,7 @@
   4. The bot can be configured for paper mode or live mode via a persistent setting, and a mode switch is rejected when any positions are currently open
   5. Bot status is readable via `GET /api/bot/status` at any time
 
-**Plans**: TBD
+**Plans**: 01-01 (DB Schema), 01-02 (Bot Controller), 01-03 (REST Routes + Wiring)
 
 ---
 

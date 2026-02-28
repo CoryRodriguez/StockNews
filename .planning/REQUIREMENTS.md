@@ -9,9 +9,9 @@
 
 ### Bot Infrastructure
 
-- [ ] **INFRA-01**: System stores bot trade lifecycle in a persistent database table (BotTrade) so positions survive server restarts
-- [ ] **INFRA-02**: System stores bot configuration (enabled, mode, thresholds) in a persistent database table (BotConfig) so settings survive restarts
-- [ ] **INFRA-03**: System stores daily trading statistics (daily P&L, trade count, day trade count) in a persistent table (BotDailyStats) for circuit breaker persistence
+- [x] **INFRA-01**: System stores bot trade lifecycle in a persistent database table (BotTrade) so positions survive server restarts
+- [x] **INFRA-02**: System stores bot configuration (enabled, mode, thresholds) in a persistent database table (BotConfig) so settings survive restarts
+- [x] **INFRA-03**: System stores daily trading statistics (daily P&L, trade count, day trade count) in a persistent table (BotDailyStats) for circuit breaker persistence
 - [ ] **INFRA-04**: Bot reconciles open positions against Alpaca's live position data on every server startup before accepting new signals
 - [ ] **INFRA-05**: Bot can be enabled or disabled via a persistent kill switch that survives server restarts
 - [ ] **INFRA-06**: Bot exposes REST endpoints for start, pause, resume, and stop operations
@@ -119,9 +119,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-03 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Complete |
+| INFRA-02 | Phase 1 | Complete |
+| INFRA-03 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Pending |
 | INFRA-05 | Phase 1 | Pending |
 | INFRA-06 | Phase 1 | Pending |

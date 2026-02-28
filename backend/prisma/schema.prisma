@@ -117,6 +117,22 @@ model PriceSnapshot {
   @@unique([tradeAnalyticsId, offsetSeconds])
 }
 
+// ── Persisted news articles ────────────────────────────────────────────────
+
+model NewsArticle {
+  id         Int    @id @default(autoincrement())
+  ticker     String
+  title      String @db.Text
+  body       String @db.Text
+  author     String
+  source     String
+  createdAt  String
+  receivedAt String
+
+  @@index([receivedAt])
+  @@index([source])
+}
+
 // ── Strategy cache: persisted strategy recommendations ─────────────────────
 
 model StrategyRule {
@@ -136,4 +152,70 @@ model StrategyRule {
   computedAt        DateTime @default(now())
 
   @@unique([catalystCategory, capBucket, todBucket])
+}
+
+// ── Autonomous bot tables ──────────────────────────────────────────────────
+
+// BotTrade — full lifecycle record for every trade the bot considers or executes
+// status: "open" | "closed" | "missed"
+// exitReason: "trailing_stop" | "hard_stop" | "profit_target" | "time_exit" | "force_close" | "reconciled_missing_on_startup"
+model BotTrade {
+  id             String    @id @default(cuid())
+  symbol         String
+  entryPrice     Float?
+  exitPrice      Float?
+  shares         Float?
+  pnl            Float?
+  catalystType   String?
+  catalystTier   Int?
+  exitReason     String?
+  status         String
+  alpacaOrderId  String?
+  entryAt        DateTime?
+  exitAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+  @@index([symbol])
+  @@index([createdAt])
+}
+
+// BotConfig — singleton row (id = "singleton"); all thresholds defined upfront
+// state: "stopped" | "running" | "paused"
+// mode: "paper" | "live"
+// enabledCatalystTiers: comma-separated string e.g. "1,2,3,4"; parse with .split(",").map(Number)
+model BotConfig {
+  id                       String   @id @default("singleton")
+  enabled                  Boolean  @default(false)
+  state                    String   @default("stopped")
+  mode                     String   @default("paper")
+  positionSizeUsd          Float    @default(500)
+  confidenceMultiplierHigh Float    @default(2.0)
+  confidenceMultiplierMed  Float    @default(1.0)
+  confidenceMultiplierLow  Float    @default(0.5)
+  maxConcurrentPositions   Int      @default(3)
+  dailyLossLimitUsd        Float    @default(500)
+  minWinRate               Float    @default(0.5)
+  hardStopLossPct          Float    @default(7.0)
+  maxHoldDurationSec       Int      @default(300)
+  enabledCatalystTiers     String   @default("1,2,3,4")
+  maxFloatShares           Float    @default(20000000)
+  maxSharePrice            Float    @default(20)
+  minRelativeVolume        Float    @default(5)
+  updatedAt                DateTime @updatedAt
+}
+
+// BotDailyStats — one row per trading day, keyed on date string ("YYYY-MM-DD" ET)
+// Used by circuit breakers (dailyLossLimitUsd) and PDT guard (dayTradeCount)
+model BotDailyStats {
+  id            String   @id @default(cuid())
+  date          String
+  realizedPnl   Float    @default(0)
+  tradeCount    Int      @default(0)
+  dayTradeCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([date])
 }

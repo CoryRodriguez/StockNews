@@ -3,6 +3,21 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03-trade-executor
+current_plan: 03-03 (not started)
+status: executing
+last_updated: "2026-02-28T19:44:55.821Z"
+progress:
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 12
+  completed_plans: 11
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 03-trade-executor
 current_plan: 03-02 (not started)
 status: executing
 last_updated: "2026-02-28T19:35:09.632Z"
@@ -64,15 +79,15 @@ progress:
 ## Current Position
 
 **Current Phase:** 03-trade-executor
-**Current Plan:** 03-03 (not started)
-**Status:** Phase 3 In Progress — Plans 03-01, 03-02 Complete
+**Current Plan:** 03-05 (not started)
+**Status:** Phase 3 In Progress — Plans 03-01 through 03-04 Complete
 
 ```
-Progress: ████████░░░░░░░░░░░░  38%
+Progress: ██████████░░░░░░░░░░  48%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
-Phase 3: Trade Executor + Position Mon  [2/5] In Progress
+Phase 3: Trade Executor + Position Mon  [4/5] In Progress
 Phase 4: Risk Management Enforcement   [ ] Not started
 Phase 5: Frontend Bot Dashboard         [ ] Not started
 Phase 6: Live Trading Mode              [ ] Not started
@@ -86,7 +101,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 |-------|-------------|--------|-----------|
 | 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | COMPLETE (3 plans) | 2026-02-27 |
 | 2. Signal Engine | SIG-01 to SIG-11 (11) | COMPLETE (4 plans) | 2026-02-28 |
-| 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | In Progress (3/5 plans) | 2026-02-28 |
+| 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | In Progress (4/5 plans) | 2026-02-28 |
 | 4. Risk Management Enforcement | RISK-01 to RISK-05 (5) | Not started | - |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | Not started | - |
 | 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | Not started | - |
@@ -105,6 +120,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Plans complete | 7 (3 in Phase 1, 4 in Phase 2) |
 
 ---
+| Phase 03 P04 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -148,6 +164,11 @@ Phase 6: Live Trading Mode              [ ] Not started
 | sold=true set before first await in closePosition | Race condition guard: any concurrent poll cycle sees sold=true and returns before any duplicate sell |
 | Position monitor always active after import | setInterval starts at module load — monitor runs even when bot is paused, protecting all open positions |
 | EOD cron uses America/New_York timezone | DST-correct scheduling via node-cron timezone option; 3:45 PM ET correct year-round |
+| void executeTradeAsync().catch() in signalEngine | Fire-and-forget ensures news handler is never blocked on order placement (EXEC-06) |
+| rejectReason=null (not "log-only") in fired writeSignalLog | Signal is genuinely fired now — log-only was Phase 2 placeholder |
+| reconcilePositions() imports orphan Alpaca positions | Creates BotTrade + calls addPosition() for any open Alpaca position not in DB |
+| switchMode() calls restartTradingWs() | Trading WebSocket reconnects to correct URL immediately after paper/live mode change |
+| startTradingWs() before startPositionMonitor() in startup | Trading stream starts connecting before monitor begins first poll cycle |
 
 ### Architecture Notes
 
@@ -190,8 +211,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-28T19:38:00Z
-**Next action:** Phase 3 Plan 03-03 — Position Monitor (5s exit loop, hard stop/profit target/time exit, EOD cron)
+**Last session:** 2026-02-28T19:44:55.820Z
+**Next action:** Phase 3 Plan 03-05 — Verification suite / human checkpoint
 
 ### Handoff Notes
 
@@ -213,15 +234,19 @@ Plan 02-01 commits: 0c61852 (BotSignalLog schema + migration), cd65f51 (SDK + co
 Plan 02-02 commits: ca3b780 (signalEngine.ts — full gauntlet)
 Plan 02-03 commits: f502426 (Claude AI evaluation), 32e68e7 (news service hooks)
 Plan 02-04 commits: e6ea4a8 (automated verification suite — all 6 checks pass)
-Key: Phase 2 signal engine complete and verified. All articles from all 3 feeds route through evaluateBotSignal. Tier 1-2 fires with rejectReason="log-only". Tier 3-4 uses Claude API (ai-unavailable/ai-timeout/ai-declined/fired). Phase 3 replaces log-only with real order submission.
+Key: Phase 2 signal engine complete and verified. All articles from all 3 feeds route through evaluateBotSignal. Tier 3-4 uses Claude API (ai-unavailable/ai-timeout/ai-declined/fired). Phase 3 wired real order submission — rejectReason="log-only" is fully removed.
 
 Phase 3 in progress:
 - **03-01** (DONE): Added tradeSizeStars3/4/5 + profitTargetPct to BotConfig schema.prisma, BotConfigRecord interface, and migration SQL 20260228000002
   - Commits: 8812123 (schema + interface), 80af4df (migration SQL)
 - **03-02** (DONE): tradeExecutor.ts (buy order + BotTrade lifecycle) + tradingWs.ts (Alpaca trading WebSocket)
   - Commits: 0df1919 (tradeExecutor.ts), f370f91 (tradingWs.ts)
+- **03-03** (DONE): positionMonitor.ts — 5s exit loop, hard stop / profit target / time exit / EOD cron at 3:45 PM ET
+  - Commits: 16931ed (positionMonitor.ts + node-cron install)
+- **03-04** (DONE): Integration wiring — signalEngine fires executeTradeAsync, reconcilePositions hydrates positionMonitor, startTradingWs+startPositionMonitor in index.ts
+  - Commits: d08b25b (signalEngine.ts), 475d515 (botController.ts + index.ts)
 
 ---
 
 *State initialized: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 3 in progress (Plan 03-03 complete): positionMonitor.ts 5s exit loop + EOD cron*
+*Last updated: 2026-02-28 — Phase 3 plans 03-01 through 03-04 complete; bot is functionally wired for paper trading; 03-05 (verification) remaining*

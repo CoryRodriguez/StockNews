@@ -3,16 +3,14 @@
  *
  * Watches all open bot positions every 5 seconds and fires exit conditions:
  *   EXIT-01: Hard stop loss (hardStopLossPct from BotConfig)
+ *   EXIT-02: Trailing stop (configurable via BotConfig.trailingStopPct / trailingStopDollar)
  *   EXIT-03: Profit target (profitTargetPct from BotConfig)
  *   EXIT-04: Max hold time (maxHoldDurationSec from BotConfig)
  *   EXIT-05: EOD force-close at 3:45 PM ET (node-cron, Mon-Fri)
  *   EXIT-06: 5-second polling loop using batch getSnapshots()
  *
- * EXIT-02 (trailing stop) is deferred to Phase 4 per user decision.
- * peakPrice is tracked as groundwork only — no exit logic fires on it.
- *
  * Leaf service — does NOT import tradeExecutor.ts or tradingWs.ts.
- * Plan 03-04 will wire startPositionMonitor() into server startup.
+ * startPositionMonitor() is called once from server startup (wired in Plan 03-04).
  */
 import cron from 'node-cron';
 import prisma from '../db/client';
@@ -27,7 +25,7 @@ interface TrackedPosition {
   symbol: string;
   entryPrice: number;
   entryAt: Date;
-  peakPrice: number;    // tracked as groundwork for EXIT-02 trailing stop (deferred to Phase 4)
+  peakPrice: number;    // tracked for EXIT-02 trailing stop — updated on every poll cycle
   shares: number;       // authoritative qty — updated after partial_fill
   catalystCategory: string;
   sold: boolean;        // race condition guard — set true BEFORE any sell
@@ -35,12 +33,14 @@ interface TrackedPosition {
 
 const openPositions = new Map<string, TrackedPosition>(); // key = tradeId
 
+let cronsScheduled = false; // guard against duplicate cron registration on multiple startPositionMonitor() calls
+
 // ── Exit condition check ──────────────────────────────────────────────────────
 
 async function checkExitConditions(pos: TrackedPosition, currentPrice: number): Promise<void> {
   if (pos.sold) return;
 
-  // Update peak for future trailing stop (EXIT-02, deferred to Phase 4)
+  // Update peak price — used by EXIT-02 trailing stop below
   if (currentPrice > pos.peakPrice) pos.peakPrice = currentPrice;
 
   const cfg = getBotConfig();
@@ -188,4 +188,24 @@ export function addPosition(pos: Omit<TrackedPosition, 'sold'>): void {
  */
 export function removePosition(tradeId: string): void {
   openPositions.delete(tradeId);
+}
+
+// ── Risk gate helpers (RISK-02 and RISK-05 — consumed by signalEngine.ts) ─────
+// Added in Plan 04-02 alongside signalEngine.ts changes. Plan 04-03 may also
+// export these — these stubs ensure tsc passes regardless of wave completion order.
+
+/**
+ * Returns the number of currently open tracked positions.
+ * Used by signalEngine.ts step 10.5 (RISK-02: max concurrent positions).
+ */
+export function getOpenPositionCount(): number {
+  return openPositions.size;
+}
+
+/**
+ * Returns a Set of ticker symbols currently held in open positions.
+ * Used by signalEngine.ts step 10.6 (RISK-05: per-symbol concentration).
+ */
+export function getOpenSymbols(): Set<string> {
+  return new Set([...openPositions.values()].map(p => p.symbol));
 }

@@ -23,6 +23,9 @@ import { getSnapshots } from "./alpaca";
 import { getStrategy } from "./strategyEngine";
 import { RtprArticle } from "./rtpr";
 import { executeTradeAsync } from "./tradeExecutor";
+// Plan 04-02: risk gate helpers — exports added to positionMonitor.ts in this plan
+// (Plan 04-03 may also touch these exports; both plans run in Wave 2 in parallel)
+import { getOpenPositionCount, getOpenSymbols } from "./positionMonitor";
 
 // ── Module-level state ─────────────────────────────────────────────────────
 
@@ -442,6 +445,53 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         outcome: "rejected",
         rejectReason: "failed-5-pillars",
         failedPillar: "relative_volume",
+        aiProceed: null,
+        aiConfidence: null,
+        aiReasoning: null,
+        winRateAtEval,
+        priceAtEval: snap.price,
+        relVolAtEval: snap.relativeVolume,
+        articleCreatedAt: new Date(article.createdAt),
+      });
+      return;
+    }
+
+    // ── Step 10.5: Max concurrent positions check (RISK-02) ───────────────
+    const openCount = getOpenPositionCount();
+    if (openCount >= config.maxConcurrentPositions) {
+      await writeSignalLog({
+        symbol,
+        source: article.source,
+        headline: article.title,
+        catalystCategory: classification.category,
+        catalystTier: classification.tier,
+        outcome: 'rejected',
+        rejectReason: 'max-positions',
+        failedPillar: null,
+        aiProceed: null,
+        aiConfidence: null,
+        aiReasoning: null,
+        winRateAtEval,
+        priceAtEval: snap.price,
+        relVolAtEval: snap.relativeVolume,
+        articleCreatedAt: new Date(article.createdAt),
+      });
+      return;
+    }
+
+    // ── Step 10.6: Per-symbol concentration check (RISK-05) ───────────────
+    // Moves the silent skip from tradeExecutor.ts step 2 into the signal engine
+    // so the BotSignalLog has full article context (headline, source, catalystCategory).
+    if (getOpenSymbols().has(symbol)) {
+      await writeSignalLog({
+        symbol,
+        source: article.source,
+        headline: article.title,
+        catalystCategory: classification.category,
+        catalystTier: classification.tier,
+        outcome: 'rejected',
+        rejectReason: 'already-holding',
+        failedPillar: null,
         aiProceed: null,
         aiConfidence: null,
         aiReasoning: null,

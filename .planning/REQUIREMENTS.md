@@ -20,7 +20,7 @@
 
 ### Signal Engine
 
-- [ ] **SIG-01**: Bot evaluates incoming news articles from RTPR, Benzinga, and Alpaca News feeds for trade signals
+- [x] **SIG-01**: Bot evaluates incoming news articles from RTPR, Benzinga, and Alpaca News feeds for trade signals
 - [x] **SIG-02**: Bot filters signals by catalyst tier — only processes categories with sufficient historical win rate data
 - [x] **SIG-03**: Bot uses strategy engine win-rate data to gate signals (configurable minimum win rate threshold, default ≥50%)
 - [x] **SIG-04**: Bot deduplicates signals across news sources — same catalyst event arriving from multiple sources within 5 minutes triggers at most one trade evaluation
@@ -30,7 +30,7 @@
 - [x] **SIG-08**: Bot operates in log-only mode initially (signals evaluated and logged, no orders placed) until explicitly enabled
 - [x] **SIG-09**: Bot suppresses new buy signals during the opening auction window (9:30–9:45 AM ET)
 - [x] **SIG-10**: Bot validates Warrior Trading 5 Pillars before allowing a signal to proceed — confirms float < 20M shares, share price < $20, and relative volume ≥ 5x 30-day average (uses existing Alpaca snapshot data; configurable thresholds)
-- [ ] **SIG-11**: Bot uses a hybrid classification pipeline — tier 1–2 catalyst matches proceed immediately; tier 3–4 and unclassified headlines are sent to Claude API with 5 Pillars context to evaluate whether a trade is warranted before proceeding
+- [x] **SIG-11**: Bot uses a hybrid classification pipeline — tier 1–2 catalyst matches proceed immediately; tier 3–4 and unclassified headlines are sent to Claude API with 5 Pillars context to evaluate whether a trade is warranted before proceeding
 
 ### Trade Execution
 
@@ -127,7 +127,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-06 | Phase 1 | Complete |
 | INFRA-07 | Phase 1 | Complete |
 | INFRA-08 | Phase 1 | Complete |
-| SIG-01 | Phase 2 | Pending |
+| SIG-01 | Phase 2 | Complete |
 | SIG-02 | Phase 2 | Complete |
 | SIG-03 | Phase 2 | Complete |
 | SIG-04 | Phase 2 | Complete |
@@ -137,7 +137,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SIG-08 | Phase 2 | Complete |
 | SIG-09 | Phase 2 | Complete |
 | SIG-10 | Phase 2 | Complete |
-| SIG-11 | Phase 2 | Pending |
+| SIG-11 | Phase 2 | Complete |
 | EXEC-01 | Phase 3 | Pending |
 | EXEC-02 | Phase 3 | Pending |
 | EXEC-03 | Phase 3 | Pending |

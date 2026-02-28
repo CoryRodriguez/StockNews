@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 02-signal-engine
-current_plan: 02-02 (complete)
-status: In Progress — Phase 2
-last_updated: "2026-02-28T17:08:46Z"
+current_plan: 02-03 (complete)
+status: In Progress — Phase 2 complete, Phase 3 next
+last_updated: "2026-02-28T17:14:13Z"
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State: StockNews — Autonomous Trading Bot
@@ -33,15 +33,15 @@ progress:
 
 ## Current Position
 
-**Current Phase:** 02 — Signal Engine
-**Current Plan:** 02-03 (next)
-**Status:** Phase 2 In Progress — Plan 02-02 complete
+**Current Phase:** 02 — Signal Engine (COMPLETE)
+**Current Plan:** 02-03 (complete) — Phase 2 done, Phase 3 next
+**Status:** Phase 2 Complete — all 3 plans delivered
 
 ```
-Progress: ████░░░░░░░░░░░░░░░░  22%
+Progress: ████████░░░░░░░░░░░░  33%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
-Phase 2: Signal Engine                  [2/?] In Progress
+Phase 2: Signal Engine                  [3/3] COMPLETE
 Phase 3: Trade Executor + Position Mon  [ ] Not started
 Phase 4: Risk Management Enforcement   [ ] Not started
 Phase 5: Frontend Bot Dashboard         [ ] Not started
@@ -55,7 +55,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Phase | Requirements | Status | Completed |
 |-------|-------------|--------|-----------|
 | 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | COMPLETE (3 plans) | 2026-02-27 |
-| 2. Signal Engine | SIG-01 to SIG-11 (11) | In Progress (2 plans done) | - |
+| 2. Signal Engine | SIG-01 to SIG-11 (11) | COMPLETE (3 plans) | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | Not started | - |
 | 4. Risk Management Enforcement | RISK-01 to RISK-05 (5) | Not started | - |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | Not started | - |
@@ -70,9 +70,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Phases total | 6 |
 | Phases complete | 1 |
 | Requirements total | 47 |
-| Requirements delivered | 10 |
+| Requirements delivered | 12 |
 | Plans created | 3+ |
-| Plans complete | 5 (3 in Phase 1, 2 in Phase 2) |
+| Plans complete | 6 (3 in Phase 1, 3 in Phase 2) |
 
 ---
 
@@ -100,6 +100,10 @@ Phase 6: Live Trading Mode              [ ] Not started
 | claudeSignalModel hardcoded in config.ts | Model version is a code decision, not deployment config; single place to update when Anthropic releases new Haiku |
 | anthropicApiKey falls back to empty string | Server starts cleanly without Claude key; signal engine handles missing key as "ai-unavailable" outcome |
 | Silent skips write no BotSignalLog record | Bot-not-running, market-closed, and dedup cases are silent — keeps audit log clean and queryable |
+| appConfig alias for ../config import | Prevents shadowing of local getBotConfig() result inside evaluateBotSignal; TypeScript would silently use wrong variable without alias |
+| 2s timeout at Anthropic client constructor | SDK throws on timeout; catch in evaluateWithAI returns null cleanly without needing Promise.race() |
+| getAnthropicClient() check after aiResult===null | Distinguishes ai-unavailable (null client) from ai-timeout (catch returned null) without a separate flag variable |
+| evaluateBotSignal unconditional in news services | Signal engine evaluates all articles regardless of paper trade state; evaluateBotSignal outside activeScanners guard |
 | Dedup keyed on symbol+normalizedTitle | Not createdAt — catches the same story re-published by multiple sources within the 5-minute window |
 | Empty getSnapshots() treated as failed price pillar | Guards against API outages causing false signals; safer to reject than to fire without price data |
 | Win-rate bypass when sampleSize === 0 | No historical data yet should not block all signals; winRateAtEval logged as null for transparency |
@@ -145,8 +149,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-28T17:08:46Z
-**Next action:** Continue Phase 2 — Signal Engine (Plan 02-03)
+**Last session:** 2026-02-28T17:14:13Z
+**Next action:** Begin Phase 3 — Trade Executor + Position Monitor
 
 ### Handoff Notes
 
@@ -155,18 +159,20 @@ Phase 1 complete — all 3 plans delivered:
 - **01-02** (DONE): botController.ts singleton — state machine, reconciliation, getAlpacaBaseUrl(), mode guard, config.alpacaLiveUrl
 - **01-03** (DONE): REST routes (bot.ts) + index.ts wiring — /start, /pause, /resume, /stop, /status endpoints + initBot() call
 
-Phase 2 in progress:
+Phase 2 complete:
 - **02-01** (DONE): BotSignalLog model + migration SQL + @anthropic-ai/sdk + config.anthropicApiKey + config.claudeSignalModel
 - **02-02** (DONE): signalEngine.ts — full 10-step evaluation gauntlet with BotSignalLog writes; evaluateBotSignal() + notifyReconnect() exported
+- **02-03** (DONE): Claude AI evaluation for tier 3-4 + evaluateBotSignal hooked into rtpr, alpacaNews, benzinga; notifyReconnect in rtpr + alpacaNews
 
 Plan 01-01 commits: 7fe590a (schema models), c6859b2 (migration SQL), 4cb0f4a (prisma generate)
 Plan 01-02 commits: 04cae2f (config.alpacaLiveUrl), 270c70f (botController.ts)
 Plan 01-03 commits: df03042 (routes/bot.ts), 218dffc (index.ts wiring)
 Plan 02-01 commits: 0c61852 (BotSignalLog schema + migration), cd65f51 (SDK + config constants)
 Plan 02-02 commits: ca3b780 (signalEngine.ts — full gauntlet)
-Key: evaluateBotSignal(article) is the main entry point; notifyReconnect(source) called from ws.on("open") after first connect; tier 1-2 fires with rejectReason="log-only"; tier 3-4 placeholder uses rejectReason="ai-unavailable" (Plan 02-03 replaces)
+Plan 02-03 commits: f502426 (Claude AI evaluation), 32e68e7 (news service hooks)
+Key: Phase 2 signal engine complete. All articles from all 3 feeds route through evaluateBotSignal. Tier 1-2 fires with rejectReason="log-only". Tier 3-4 uses Claude API (ai-unavailable/ai-timeout/ai-declined/fired). Phase 3 replaces log-only with real order submission.
 
 ---
 
 *State initialized: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 2 Plan 02-02 complete: signalEngine.ts full evaluation gauntlet*
+*Last updated: 2026-02-28 — Phase 2 complete (Plan 02-03): Claude AI evaluation + news service hooks wired*

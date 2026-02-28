@@ -16,6 +16,9 @@ export const config = {
   paperTradingEnabled: process.env.PAPER_TRADING_ENABLED === "true",
   alpacaPaperUrl: "https://paper-api.alpaca.markets",
   alpacaLiveUrl: "https://api.alpaca.markets",
+  // Anthropic Claude integration
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  claudeSignalModel: "claude-haiku-4-5-20251022",
   paperTradeQty: parseInt(process.env.PAPER_TRADE_QTY ?? "10"),
   paperTradeSellDelaySec: parseInt(process.env.PAPER_TRADE_SELL_DELAY_SEC ?? "60"),
   paperTradeCooldownMin: parseInt(process.env.PAPER_TRADE_COOLDOWN_MIN ?? "5"),

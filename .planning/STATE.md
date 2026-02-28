@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: Phase 1 — Bot Infrastructure Foundation
-current_plan: 01-03 (ready to execute)
-status: In Progress
-last_updated: "2026-02-28T03:21:45Z"
+current_plan: 01-03 (complete — Phase 1 done)
+status: Phase 1 Complete
+last_updated: "2026-02-27T03:26:23Z"
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State: StockNews — Autonomous Trading Bot
@@ -33,14 +33,14 @@ progress:
 
 ## Current Position
 
-**Current Phase:** Phase 1 — Bot Infrastructure Foundation
-**Current Plan:** 01-03 — REST Routes + index.ts wiring (ready to execute)
-**Status:** In Progress — 2/3 plans complete
+**Current Phase:** Phase 1 — Bot Infrastructure Foundation (COMPLETE)
+**Current Plan:** 01-03 — REST Routes + index.ts wiring (complete)
+**Status:** Phase 1 Complete — 3/3 plans done — Ready for Phase 2
 
 ```
-Progress: ████░░░░░░░░░░░░░░░░  10%
+Progress: ████░░░░░░░░░░░░░░░░  17%
 
-Phase 1: Bot Infrastructure Foundation  [2/3] In Progress (01-01 done, 01-02 done, 01-03 next)
+Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [ ] Not started
 Phase 3: Trade Executor + Position Mon  [ ] Not started
 Phase 4: Risk Management Enforcement   [ ] Not started
@@ -68,11 +68,11 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Metric | Value |
 |--------|-------|
 | Phases total | 6 |
-| Phases complete | 0 |
+| Phases complete | 1 |
 | Requirements total | 47 |
-| Requirements delivered | 0 |
+| Requirements delivered | 8 |
 | Plans created | 3 |
-| Plans complete | 1 |
+| Plans complete | 3 |
 
 ---
 
@@ -95,6 +95,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 | getAlpacaBaseUrl() falls back to paper URL when botConfig null | Safe before initBot() completes — no null pointer on early calls |
 | reconcilePositions() non-fatal | Server must start even if Alpaca unreachable outside market hours or with bad keys |
 | switchMode() guard at service layer | Prevents mode changes with open positions regardless of which route calls it (INFRA-08) |
+| initBot() after recomputeStrategies() in startup | Strategy win-rate data must be warm before bot processes Phase 2 signals; order enforced in server.listen callback |
+| GET /status has no state guard | UI always polls regardless of bot state; must always succeed; snapshot shape used by Phase 5 dashboard |
 
 ### Architecture Notes
 
@@ -136,18 +138,19 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-28T03:21:45Z
-**Next action:** Execute Plan 01-03 — REST routes (bot.ts) + index.ts wiring
+**Last session:** 2026-02-27T03:26:23Z
+**Next action:** Begin Phase 2 — Signal Engine (Plan 02-01)
 
 ### Handoff Notes
 
-Plans 01-01 and 01-02 complete:
+Phase 1 complete — all 3 plans delivered:
 - **01-01** (DONE): BotTrade, BotConfig, BotDailyStats added to schema.prisma + migration SQL created
 - **01-02** (DONE): botController.ts singleton — state machine, reconciliation, getAlpacaBaseUrl(), mode guard, config.alpacaLiveUrl
-- **01-03** (NEXT): REST routes (bot.ts) + index.ts wiring — /start, /pause, /resume, /stop, /status endpoints + initBot() call
+- **01-03** (DONE): REST routes (bot.ts) + index.ts wiring — /start, /pause, /resume, /stop, /status endpoints + initBot() call
 
 Plan 01-01 commits: 7fe590a (schema models), c6859b2 (migration SQL), 4cb0f4a (prisma generate)
 Plan 01-02 commits: 04cae2f (config.alpacaLiveUrl), 270c70f (botController.ts)
+Plan 01-03 commits: df03042 (routes/bot.ts), 218dffc (index.ts wiring)
 Key: getBotConfig() returns non-null after initBot() awaited; enabledCatalystTiers is comma-separated string; switchMode() guards at service layer
 
 ---

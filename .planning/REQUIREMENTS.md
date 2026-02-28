@@ -14,7 +14,7 @@
 - [x] **INFRA-03**: System stores daily trading statistics (daily P&L, trade count, day trade count) in a persistent table (BotDailyStats) for circuit breaker persistence
 - [x] **INFRA-04**: Bot reconciles open positions against Alpaca's live position data on every server startup before accepting new signals
 - [x] **INFRA-05**: Bot can be enabled or disabled via a persistent kill switch that survives server restarts
-- [ ] **INFRA-06**: Bot exposes REST endpoints for start, pause, resume, and stop operations
+- [x] **INFRA-06**: Bot exposes REST endpoints for start, pause, resume, and stop operations
 - [x] **INFRA-07**: Bot supports paper trading mode and live trading mode, switched via configuration
 - [x] **INFRA-08**: Mode switch from paper to live is blocked when any positions are currently open
 
@@ -124,7 +124,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-03 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Complete |
 | INFRA-05 | Phase 1 | Complete |
-| INFRA-06 | Phase 1 | Pending |
+| INFRA-06 | Phase 1 | Complete |
 | INFRA-07 | Phase 1 | Complete |
 | INFRA-08 | Phase 1 | Complete |
 | SIG-01 | Phase 2 | Pending |

@@ -4,6 +4,7 @@ import { useNewsStore } from "../store/newsStore";
 import { useScannerStore } from "../store/scannerStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { useTradesStore } from "../store/tradesStore";
+import { useBotStore } from "../store/botStore";
 import { WsMessage, ScannerAlert } from "../types";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`;
@@ -36,6 +37,9 @@ export function useSocket() {
   const { addAlert, clearAlert, activeScanners } = useScannerStore();
   const updatePrice = useWatchlistStore((s) => s.updatePrice);
   const upsertTrade = useTradesStore((s) => s.upsertTrade);
+  const setBotStatus = useBotStore((s) => s.setStatus);
+  const prependBotTrade = useBotStore((s) => s.prependTrade);
+  const prependBotSignal = useBotStore((s) => s.prependSignal);
   const subscribedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -45,6 +49,7 @@ export function useSocket() {
       const channels = [
         "news",
         "trades",
+        "bot",
         "scanner:news_flow",
         ...Array.from(activeScanners).map((id) => `scanner:${id}`),
       ];
@@ -63,6 +68,7 @@ export function useSocket() {
         const msg = JSON.parse(event.data as string) as WsMessage;
 
         if (msg.type === "connected") {
+          subscribedRef.current.clear();  // FIX: clear so all channels re-subscribe after reconnect
           subscribeChannels(ws);
         } else if (msg.type === "news_article") {
           addArticle(msg.article);
@@ -74,6 +80,12 @@ export function useSocket() {
           updatePrice(msg.ticker, msg.price);
         } else if (msg.type === "trade_update") {
           upsertTrade(msg.trade);
+        } else if (msg.type === "bot_status_update") {
+          setBotStatus(msg.status as Parameters<typeof setBotStatus>[0]);
+        } else if (msg.type === "bot_trade_closed") {
+          prependBotTrade(msg.trade as Parameters<typeof prependBotTrade>[0]);
+        } else if (msg.type === "bot_signal_evaluated") {
+          prependBotSignal(msg.signal as Parameters<typeof prependBotSignal>[0]);
         }
       } catch {
         // ignore
@@ -82,5 +94,21 @@ export function useSocket() {
 
     ws.addEventListener("message", handleMessage);
     return () => ws.removeEventListener("message", handleMessage);
-  }, [token, activeScanners, addArticle, addAlert, clearAlert, updatePrice, upsertTrade]);
+  }, [token, activeScanners, addArticle, addAlert, clearAlert, updatePrice, upsertTrade,
+      setBotStatus, prependBotTrade, prependBotSignal]);
+
+  // Seed scanner store with current server-side alert state on mount
+  useEffect(() => {
+    if (!token) return;
+    fetch("/api/scanner-alerts", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data: Record<string, unknown[]>) => {
+        for (const [scannerId, alerts] of Object.entries(data)) {
+          for (const snap of alerts) {
+            addAlert({ ...(snap as object), scannerId, alertedAt: new Date().toISOString() } as ScannerAlert);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 }

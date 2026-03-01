@@ -2,6 +2,38 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
+current_phase: 04-risk-management-enforcement
+current_plan: 04-03 (not started)
+status: executing
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-03-01T00:01:47.435Z"
+progress:
+  total_phases: 4
+  completed_phases: 3
+  total_plans: 16
+  completed_plans: 15
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 04-risk-management-enforcement
+current_plan: 04-02 (not started)
+status: executing
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-03-01T00:01:16.865Z"
+progress:
+  total_phases: 4
+  completed_phases: 3
+  total_plans: 16
+  completed_plans: 14
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
 current_phase: 03
 current_plan: Not started
 status: completed
@@ -94,16 +126,16 @@ progress:
 ## Current Position
 
 **Current Phase:** 04-risk-management-enforcement
-**Current Plan:** 04-02 (not started)
-**Status:** Phase 4 In Progress — Plan 04-01 Complete
+**Current Plan:** 04-04 (not started)
+**Status:** Phase 4 In Progress — Plans 04-01, 04-02, and 04-03 Complete
 
 ```
-Progress: ██████████████░░░░░░  67%
+Progress: ████████████████░░░░  75%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
 Phase 3: Trade Executor + Position Mon  [5/5] COMPLETE
-Phase 4: Risk Management Enforcement   [1/4] In Progress
+Phase 4: Risk Management Enforcement   [3/4] In Progress
 Phase 5: Frontend Bot Dashboard         [ ] Not started
 Phase 6: Live Trading Mode              [ ] Not started
 ```
@@ -117,7 +149,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 | 1. Bot Infrastructure Foundation | INFRA-01 to INFRA-08 (8) | COMPLETE (3 plans) | 2026-02-27 |
 | 2. Signal Engine | SIG-01 to SIG-11 (11) | COMPLETE (4 plans) | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | COMPLETE (5 plans) | 2026-02-28 |
-| 4. Risk Management Enforcement | RISK-01 to RISK-05, EXIT-02 (6) | In Progress (1/4 plans) | - |
+| 4. Risk Management Enforcement | RISK-01 to RISK-05, EXIT-02 (6) | In Progress (2/4 plans) | - |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | Not started | - |
 | 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | Not started | - |
 
@@ -137,6 +169,8 @@ Phase 6: Live Trading Mode              [ ] Not started
 ---
 | Phase 03 P04 | 3 | 2 tasks | 3 files |
 | Phase 03 P05 | ~10 | 2 tasks | 1 file |
+| Phase 04 P02 | 88 | 2 tasks | 3 files |
+| Phase 04 P03 | 7 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -186,6 +220,10 @@ Phase 6: Live Trading Mode              [ ] Not started
 | switchMode() calls restartTradingWs() | Trading WebSocket reconnects to correct URL immediately after paper/live mode change |
 | startTradingWs() before startPositionMonitor() in startup | Trading stream starts connecting before monitor begins first poll cycle |
 | trailingStopPct and trailingStopDollar default 0 = disabled | Trailing stop does not fire unless > 0; pct takes precedence over dollar when both set |
+| getOpenPositionCount/getOpenSymbols exported from positionMonitor.ts in plan 04-02 | Wave 2 parallelism — both plans needed the exports; adding in 04-02 ensures tsc passes regardless of 04-03 completion order |
+| checkPdtLimit fails open on API error | Alpaca maintenance windows must not freeze all trades; logging covers the gap |
+| PDT check skipped in paper mode | Paper account is >$25k by design; PDT rule doesn't apply (CONTEXT.md locked decision) |
+| already-holding check moved from tradeExecutor to signalEngine | BotSignalLog captures full article context (headline, source, catalystCategory) at upstream rejection point |
 
 ### Architecture Notes
 
@@ -228,9 +266,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-02-28T23:55:55Z
-**Stopped at:** Completed 04-01-PLAN.md
-**Next action:** Phase 4 — Plan 04-02 (next risk management plan)
+**Last session:** 2026-03-01T00:01:47.433Z
+**Stopped at:** Completed 04-02-PLAN.md
+**Next action:** Phase 4 — Plan 04-03 (trailing stop implementation)
 
 ### Handoff Notes
 
@@ -268,9 +306,11 @@ Phase 3 complete — all 5 plans delivered:
 
 ---
 
-Phase 4 in progress — Plan 04-01 delivered:
+Phase 4 in progress — Plans 04-01 and 04-02 delivered:
 - **04-01** (DONE): Added trailingStopPct + trailingStopDollar to BotConfig schema.prisma, BotConfigRecord interface, initBot() defaults, and migration SQL 20260228000003
   - Commits: 3a52fb6 (schema + interface), b6d157b (migration SQL)
+- **04-02** (DONE): RISK-02 (max positions), RISK-05 (per-symbol), RISK-03 (PDT) gates added to signalEngine.ts and tradeExecutor.ts; positionMonitor.ts exports getOpenPositionCount/getOpenSymbols
+  - Commits: c4c93de (signalEngine.ts + positionMonitor.ts stubs), 9b95639 (tradeExecutor.ts PDT guard)
 
 *State initialized: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 4 Plan 01 complete; BotConfig schema extended with trailing stop fields (EXIT-02); prisma validate and tsc --noEmit both pass*
+*Last updated: 2026-02-28 — Phase 4 Plan 02 complete; signal-layer and executor-layer risk gates implemented; RISK-02, RISK-03, RISK-05 satisfied*

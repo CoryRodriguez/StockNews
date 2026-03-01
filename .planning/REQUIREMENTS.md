@@ -54,10 +54,10 @@
 ### Risk Management
 
 - [ ] **RISK-01**: Bot halts all new trade entries when cumulative realized P&L for the day falls below a configured daily loss limit (e.g., -$500)
-- [ ] **RISK-02**: Bot rejects new trade entries when the number of concurrently open positions meets or exceeds a configured maximum (e.g., 3)
-- [ ] **RISK-03**: Bot checks Alpaca day trade count before every live buy and blocks the trade if it would exceed 3 day trades in the current 5-day window (PDT protection) for accounts under $25,000
-- [ ] **RISK-04**: Bot resets daily statistics (P&L, trade count) at 4:00 AM ET each trading day via scheduled job
-- [ ] **RISK-05**: Bot enforces a per-ticker cooldown — no new entry in a symbol that already has an open position
+- [x] **RISK-02**: Bot rejects new trade entries when the number of concurrently open positions meets or exceeds a configured maximum (e.g., 3)
+- [x] **RISK-03**: Bot checks Alpaca day trade count before every live buy and blocks the trade if it would exceed 3 day trades in the current 5-day window (PDT protection) for accounts under $25,000
+- [x] **RISK-04**: Bot resets daily statistics (P&L, trade count) at 4:00 AM ET each trading day via scheduled job
+- [x] **RISK-05**: Bot enforces a per-ticker cooldown — no new entry in a symbol that already has an open position
 
 ### Bot Dashboard (Frontend)
 
@@ -152,10 +152,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXIT-05 | Phase 3 | Complete |
 | EXIT-06 | Phase 3 | Complete |
 | RISK-01 | Phase 4 | Pending |
-| RISK-02 | Phase 4 | Pending |
-| RISK-03 | Phase 4 | Pending |
-| RISK-04 | Phase 4 | Pending |
-| RISK-05 | Phase 4 | Pending |
+| RISK-02 | Phase 4 | Complete |
+| RISK-03 | Phase 4 | Complete |
+| RISK-04 | Phase 4 | Complete |
+| RISK-05 | Phase 4 | Complete |
 | UI-01 | Phase 5 | Pending |
 | UI-02 | Phase 5 | Pending |
 | UI-03 | Phase 5 | Pending |

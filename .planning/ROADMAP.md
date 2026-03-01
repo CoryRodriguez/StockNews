@@ -27,7 +27,7 @@
 | 3. Trade Executor and Position Monitor | 5/5 | Complete   | 2026-02-28 |
 | 4. Risk Management Enforcement | 4/4 | Complete   | 2026-03-01 |
 | 5. Frontend Bot Dashboard | 5/5 | Complete   | 2026-03-01 |
-| 6. Live Trading Mode | 1/3 | In progress | - |
+| 6. Live Trading Mode | 2/3 | In Progress|  |
 
 ---
 

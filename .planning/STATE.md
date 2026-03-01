@@ -5,6 +5,22 @@ milestone_name: milestone
 current_phase: 04
 current_plan: Not started
 status: completed
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-01T09:21:03.613Z"
+progress:
+  total_phases: 5
+  completed_phases: 4
+  total_plans: 21
+  completed_plans: 19
+---
+
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 04
+current_plan: Not started
+status: completed
 stopped_at: Completed 05-01-PLAN.md
 last_updated: "2026-03-01T09:17:21.906Z"
 progress:
@@ -246,6 +262,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 | writeSignalLog() returns created record (not void) | Enables id-based WS broadcasts without a second DB read; null return on error keeps call sites clean |
 | broadcastRejectedSignal() no-op on null input | Guards against DB write failures at all 11 rejection sites without try/catch per-call |
 | setBotState broadcast sends lightweight snapshot (zeros) | Full status requires async DB queries incompatible with post-update sync flow; frontend hydrates via GET /status on mount |
+| BotPanel.tsx stub created in 05-03 (not deferred to 05-04) | tsc passes immediately; stub is preferred per plan; 05-04 replaces with full component |
+| subscribedRef.current.clear() on 'connected' message | Pre-existing bug: channels did not re-subscribe after WebSocket reconnect because set was never cleared; fix in 05-03 |
+| bot-1 panel at x:0 y:28 w:6 h:20 | Left column below both scanner panels; gives bot dashboard prominent vertical space |
 
 ### Architecture Notes
 
@@ -288,9 +307,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-03-01T09:17:21.904Z
-**Stopped at:** Completed 05-01-PLAN.md
-**Next action:** Phase 5 — Plan 05-02 (Frontend Bot Dashboard — Bot Data Layer)
+**Last session:** 2026-03-01T09:21:03.611Z
+**Stopped at:** Completed 05-03-PLAN.md
+**Next action:** Phase 5 — Plan 05-04 (Frontend Bot Dashboard — BotPanel full implementation)
 
 ### Handoff Notes
 
@@ -338,5 +357,13 @@ Phase 4 COMPLETE — All 4 plans delivered and verified:
 - **04-04** (DONE): Phase 4 automated verification suite (24/24 checks pass) + human checkpoint approved — bot starts clean in paper mode
   - Commits: 4838744 (phase04-checks.sh)
 
+Phase 5 In Progress:
+- **05-01** (DONE): clientHub.ts bot channel broadcasting — setBotState, broadcastBotTradeClose, broadcastBotSignalEval; GET /api/bot/status snapshot shape aligned with UI
+  - Commits: (see 05-01-SUMMARY.md)
+- **05-02** (DONE): botStore.ts (BotStatus, BotTrade, BotSignal, BotConfig types + Zustand store); WsMessage bot variants added to types/index.ts; PanelType includes "bot"
+  - Commits: (see 05-02-SUMMARY.md)
+- **05-03** (DONE): useSocket.ts wired to 'bot' channel with bot_status_update/bot_trade_closed/bot_signal_evaluated handlers; subscribedRef reconnect bug fixed; BotPanel stub + Dashboard.tsx case "bot" + DEFAULT_PANELS bot-1 entry
+  - Commits: c422a7f (useSocket.ts), da9c76f (BotPanel stub + Dashboard + dashboardStore)
+
 *State initialized: 2026-02-27*
-*Last updated: 2026-03-01 — Phase 4 COMPLETE; all risk gates verified; bot starts cleanly in paper mode; ready for Phase 5*
+*Last updated: 2026-03-01 — Phase 5 Plan 03 COMPLETE; bot WS channel wired; reconnect fix applied; BotPanel stub registered in dashboard*

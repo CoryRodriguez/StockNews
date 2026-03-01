@@ -44,6 +44,11 @@ interface AlpacaBarsResponse {
   next_page_token?: string | null;
 }
 
+interface AlpacaHourlyBarsResponse {
+  bars: Record<string, Array<{ o: number; c: number }>>;
+  next_page_token?: string | null;
+}
+
 // ── 30-day average volume cache (refreshed hourly) ───────────────────────────
 
 const avgVolCache: { data: Record<string, number>; ts: number; symbols: string } = {
@@ -148,6 +153,65 @@ export async function getSnapshots(symbols: string[]): Promise<Snapshot[]> {
       hasNews: hasRecentNews(symbol),
     };
   });
+}
+
+// ── 1-hour % change ──────────────────────────────────────────────────────────
+
+const hourlyChangeCache = new Map<string, { pct: number; ts: number }>();
+const HOURLY_CHANGE_TTL = 60_000; // 60 seconds
+
+/** Returns % change from the open of the current 1-hour bar to latest price. */
+export async function getHourlyChanges(symbols: string[]): Promise<Record<string, number>> {
+  if (!symbols.length) return {};
+  const now = Date.now();
+
+  const fresh: Record<string, number> = {};
+  const stale: string[] = [];
+
+  for (const sym of symbols) {
+    const cached = hourlyChangeCache.get(sym);
+    if (cached && now - cached.ts < HOURLY_CHANGE_TTL) {
+      fresh[sym] = cached.pct;
+    } else {
+      stale.push(sym);
+    }
+  }
+
+  if (stale.length === 0) return fresh;
+
+  const data = await fetchJson<AlpacaHourlyBarsResponse>(
+    `/v2/stocks/bars?symbols=${encodeURIComponent(stale.join(","))}&timeframe=1Hour&limit=2&feed=iex&adjustment=raw`
+  );
+
+  const needsSnapshot: string[] = [];
+  for (const sym of stale) {
+    const bars = data?.bars?.[sym];
+    if (bars && bars.length > 0) {
+      const bar = bars[bars.length - 1];
+      const pct = bar.o > 0 ? ((bar.c - bar.o) / bar.o) * 100 : 0;
+      fresh[sym] = pct;
+      hourlyChangeCache.set(sym, { pct, ts: now });
+    } else {
+      needsSnapshot.push(sym);
+    }
+  }
+
+  // Fallback: use daily changePct from snapshot when no 1h bars available (pre/post-market)
+  if (needsSnapshot.length > 0) {
+    const snapData = await fetchJson<AlpacaSnapshotResponse>(
+      `/v2/stocks/snapshots?symbols=${encodeURIComponent(needsSnapshot.join(","))}&feed=iex`
+    );
+    for (const sym of needsSnapshot) {
+      const snap = snapData?.[sym];
+      const price = snap?.latestTrade?.p ?? snap?.dailyBar?.c ?? 0;
+      const prevClose = snap?.prevDailyBar?.c ?? 0;
+      const pct = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
+      fresh[sym] = pct;
+      hourlyChangeCache.set(sym, { pct, ts: now });
+    }
+  }
+
+  return fresh;
 }
 
 // ── Intraday VWAP ────────────────────────────────────────────────────────────

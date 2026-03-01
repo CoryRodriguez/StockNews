@@ -117,6 +117,22 @@ model PriceSnapshot {
   @@unique([tradeAnalyticsId, offsetSeconds])
 }
 
+// ── Persisted news articles ────────────────────────────────────────────────
+
+model NewsArticle {
+  id         Int    @id @default(autoincrement())
+  ticker     String
+  title      String @db.Text
+  body       String @db.Text
+  author     String
+  source     String
+  createdAt  String
+  receivedAt String
+
+  @@index([receivedAt])
+  @@index([source])
+}
+
 // ── Strategy cache: persisted strategy recommendations ─────────────────────
 
 model StrategyRule {

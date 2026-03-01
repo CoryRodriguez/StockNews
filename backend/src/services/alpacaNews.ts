@@ -8,12 +8,11 @@
 import WebSocket from "ws";
 import { config } from "../config";
 import { broadcast } from "../ws/clientHub";
-import { recentArticles, RtprArticle, markNewsTicker } from "./rtpr";
+import { pushArticle, RtprArticle, markNewsTicker } from "./rtpr";
 import { getActiveScannersForTicker } from "./scanner";
 import { executePaperTrade } from "./paperTrader";
 
 const WS_URL = "wss://stream.data.alpaca.markets/v1beta1/news";
-const MAX_RECENT = 200;
 const seenIds = new Set<string>();
 
 let ws: WebSocket | null = null;
@@ -104,9 +103,8 @@ function handleMessage(msg: AlpacaNewsMessage) {
         receivedAt,
       };
 
-      // Push to shared in-memory ring buffer
-      recentArticles.unshift(article);
-      if (recentArticles.length > MAX_RECENT) recentArticles.pop();
+      // Persist + push to in-memory ring buffer
+      pushArticle(article);
 
       // Mark ticker as having recent news (drives scanner news dots)
       markNewsTicker(ticker);

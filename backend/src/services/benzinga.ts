@@ -7,13 +7,12 @@
  */
 import { config } from "../config";
 import { broadcast } from "../ws/clientHub";
-import { recentArticles, RtprArticle, markNewsTicker } from "./rtpr";
+import { pushArticle, RtprArticle, markNewsTicker } from "./rtpr";
 import { getActiveScannersForTicker } from "./scanner";
 import { executePaperTrade } from "./paperTrader";
 
 const POLL_INTERVAL_MS = 15_000;
 const BASE_URL = "https://api.benzinga.com/api/v2/news";
-const MAX_RECENT = 200;
 
 // Track IDs we've already processed to avoid re-broadcasting on overlap
 const seenIds = new Set<string>();
@@ -34,8 +33,8 @@ interface BenzingaArticle {
   stocks: BenzingaStock[];
 }
 
-// Unix timestamp (seconds) — how far back to fetch on the first poll (1 hour)
-let lastUpdatedSince = Math.floor((Date.now() - 60 * 60 * 1000) / 1000);
+// Unix timestamp (seconds) — how far back to fetch on the first poll (6 hours)
+let lastUpdatedSince = Math.floor((Date.now() - 6 * 60 * 60 * 1000) / 1000);
 
 export function startBenzinga() {
   if (!config.benzingaApiKey) {
@@ -100,9 +99,8 @@ async function poll() {
           receivedAt,
         };
 
-        // Push to shared in-memory ring buffer
-        recentArticles.unshift(article);
-        if (recentArticles.length > MAX_RECENT) recentArticles.pop();
+        // Persist + push to in-memory ring buffer
+        pushArticle(article);
 
         // Mark ticker as having recent news (drives scanner news dots)
         markNewsTicker(ticker);

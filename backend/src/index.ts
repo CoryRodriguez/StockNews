@@ -10,8 +10,9 @@ import { startBenzinga } from "./services/benzinga";
 import { startAlpacaWs } from "./services/alpaca";
 import { startAlpacaNews } from "./services/alpacaNews";
 import { startScanner, getScannerDefinitions } from "./services/scanner";
-import { recentArticles } from "./services/rtpr";
-import { getSnapshots } from "./services/alpaca";
+import { recentArticles, loadArticlesFromDb } from "./services/rtpr";
+import { getSnapshots, getHourlyChanges } from "./services/alpaca";
+import prisma from "./db/client";
 import authRouter from "./routes/auth";
 import watchlistsRouter from "./routes/watchlists";
 import layoutsRouter from "./routes/layouts";
@@ -36,9 +37,20 @@ app.get("/api/scanners", (_req, res) => {
   res.json(getScannerDefinitions());
 });
 
-// Recent news REST fallback
-app.get("/api/news/recent", requireAuth, (_req, res) => {
-  res.json(recentArticles.slice(0, 50));
+// Return today's news from DB (for persistence across restarts)
+app.get("/api/news/recent", requireAuth, async (_req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const articles = await prisma.newsArticle.findMany({
+      where: { receivedAt: { gte: startOfDay.toISOString() } },
+      orderBy: { receivedAt: "desc" },
+      take: 1000,
+    });
+    res.json(articles);
+  } catch {
+    res.json(recentArticles.slice(0, 200));
+  }
 });
 
 app.get("/api/news/ticker/:symbol", requireAuth, (req, res) => {
@@ -58,6 +70,18 @@ app.get("/api/snapshots", requireAuth, async (req, res) => {
   res.json(data);
 });
 
+// 1-hour % change for news article tickers
+app.get("/api/hourly-changes", requireAuth, async (req, res) => {
+  const symbols = String(req.query.symbols ?? "")
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean)
+    .slice(0, 100);
+  if (!symbols.length) { res.json({}); return; }
+  const data = await getHourlyChanges(symbols);
+  res.json(data);
+});
+
 // Health check
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
@@ -69,6 +93,7 @@ wss.on("connection", (ws) => addClient(ws));
 
 server.listen(config.port, async () => {
   console.log(`[Server] Listening on :${config.port}`);
+  await loadArticlesFromDb();
   startRtpr();
   startBenzinga();
   startAlpacaNews();

@@ -1,0 +1,158 @@
+[33mcommit a144382d4dea7dd62cae52aa0a7a99b90810fd87[m
+Author: Claude <noreply@anthropic.com>
+Date:   Thu Feb 26 02:42:58 2026 +0000
+
+    fix: remove redundant nginx service that conflicts with central proxy
+    
+    The StockNews nginx service bound to host ports 80/443, conflicting
+    with the central proxy at /opt/proxy/. Now that the frontend container
+    handles API and WebSocket proxying to the backend directly, this
+    service is no longer needed.
+    
+    https://claude.ai/code/session_01XtKdMGui1NrS42igiTGQZv
+
+[33mcommit ca8ff44d9d521f633bd7d7d9684f9107b29a1382[m
+Author: Claude <noreply@anthropic.com>
+Date:   Thu Feb 26 02:36:15 2026 +0000
+
+    fix: add nginx service to web network for proxy reachability
+    
+    The central proxy may route to the StockNews nginx service rather
+    than directly to individual containers. The nginx service was only
+    on the default network, making it unreachable from the proxy's web
+    network. This also ensures the proxy can be reloaded to pick up
+    the backend's new DNS on the web network.
+    
+    https://claude.ai/code/session_01XtKdMGui1NrS42igiTGQZv
+
+[33mcommit 01bacc8af9b68a7d4e2e29e23983dc735e1a915d[m
+Author: Claude <noreply@anthropic.com>
+Date:   Thu Feb 26 02:27:11 2026 +0000
+
+    fix: add backend to web network so proxy can reach API routes
+    
+    The backend service was only on the default network, making it
+    unreachable by the central reverse proxy (which routes via the
+    external web network). API requests to /api/auth/login were falling
+    through to the frontend, which returned index.html instead of JSON,
+    causing the "Unexpected token '<'" parse error on login.
+    
+    Also adds content-type checks before calling res.json() so non-JSON
+    responses produce a clear "Server unavailable" message instead of
+    a cryptic parse error.
+    
+    https://claude.ai/code/session_01XtKdMGui1NrS42igiTGQZv
+
+[33mcommit b57e22dc4295b37d031387c35fc8b26f6d3be374[m[33m ([m[1;31morigin/claude/local-dev-setup-NfPKu[m[33m)[m
+Author: Claude <noreply@anthropic.com>
+Date:   Wed Feb 25 19:23:19 2026 +0000
+
+    fix: attach frontend to web network for proxy DNS resolution
+    
+    https://claude.ai/code/session_01UJhL31yLZD3M5zmyPuZHYR
+
+[33mcommit 85fde0b3e2facb5d7f8a8fd16bd02a385012a4c9[m
+Author: Claude <noreply@anthropic.com>
+Date:   Wed Feb 25 15:56:08 2026 +0000
+
+    feat: integrate Benzinga REST news feed (regular tier)
+    
+    Adds a polling service that fetches from api.benzinga.com/api/v2/news
+    every 15 seconds, de-duplicates by article ID, and broadcasts articles
+    through the same clientHub WebSocket pipeline as RTPR. Articles fan out
+    per-ticker so scanner news dots, paper trading, and the news panel all
+    work without changes.
+    
+    Set BENZINGA_API_KEY in .env to activate.
+    
+    https://claude.ai/code/session_01UJhL31yLZD3M5zmyPuZHYR
+
+[33mcommit 80b1ca3ca8f4cbc17700e9d3f97bf7d8dc1b96a4[m[33m ([m[1;35mrefs/stash[m[33m)[m
+Merge: d14f537 d018405
+Author: git stash <git@stash>
+Date:   Wed Feb 25 03:53:37 2026 +0000
+
+    WIP on claude/local-dev-setup-NfPKu: d14f537 Trades calendar: inline nav arrows and weekly recap column
+
+[33mcommit c961e81795904c999f8cc1ffbf78f85d7e9fc056[m
+Author: Claude <noreply@anthropic.com>
+Date:   Tue Feb 24 15:21:02 2026 +0000
+
+    chore: remove obsolete version attribute from docker-compose.yml
+    
+    Compose v2 no longer uses the top-level version field and warns when
+    it is present.
+    
+    https://claude.ai/code/session_01UJhL31yLZD3M5zmyPuZHYR
+
+[33mcommit a735bf5244f4a8e4fb0faa80fddbdc4e24290f6b[m
+Author: Claude <noreply@anthropic.com>
+Date:   Tue Feb 24 12:55:24 2026 +0000
+
+    fix: replace env_file with explicit environment vars in docker-compose
+    
+    Remove env_file: .env from backend service to avoid Docker Compose v2
+    behavior where auto-loaded project .env for variable substitution
+    conflicts with env_file processing, causing secrets like ALPACA_API_KEY
+    and ALPACA_API_SECRET to arrive empty in the container.
+    
+    All variables are now passed explicitly via ${VAR} substitution which
+    reads unambiguously from the project .env file. Paper trading vars use
+    :-default syntax so they remain optional.
+    
+    https://claude.ai/code/session_01UJhL31yLZD3M5zmyPuZHYR
+
+[33mcommit 717951aaa1c608f4818ebf493f94253a37621a70[m
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Feb 21 22:36:03 2026 +0000
+
+    Add paper trading: auto-buy 10 shares on news for scanner-active tickers
+    
+    - paperTrader.ts: classify catalyst (high/medium/low via keywords), place
+      market buy via Alpaca paper API, poll for fill, schedule sell after 60 s
+    - scanner.ts: export getActiveScannersForTicker() so rtpr.ts can check
+      whether an incoming news ticker is currently on a scanner alert
+    - rtpr.ts: trigger executePaperTrade() when news hits a scanner ticker
+    - PaperTrade Prisma model + migration (buy/sell order IDs, prices, P&L)
+    - /api/trades REST routes (history + open positions)
+    - TradesPanel: live feed of paper trades with catalyst badge and P&L
+    - tradesStore + useSocket trade_update handling
+    - Config: PAPER_TRADING_ENABLED, PAPER_TRADE_QTY, PAPER_TRADE_SELL_DELAY_SEC,
+      PAPER_TRADE_COOLDOWN_MIN (defaults: disabled, 10 shares, 60 s, 5 min)
+    
+    https://claude.ai/code/session_01UJhL31yLZD3M5zmyPuZHYR
+
+[33mcommit 6e77807beb69737563f2c7f9a43e8bfbc5a3b9c9[m
+Author: Claude <noreply@anthropic.com>
+Date:   Sat Feb 21 11:11:30 2026 +0000
+
+    Build full Day Trade Dashboard scaffold
+    
+    Complete working scaffold for the Day Trade Dashboard application:
+    
+    Backend (Node.js + TypeScript):
+    - Express REST API: auth (setup/login/status), watchlists, layouts, news
+    - WebSocket server with JWT auth handshake and channel subscriptions
+    - RTPR.io service: firehose WebSocket proxy → news_flow scanner + news panel
+    - Alpaca Markets service: REST polling for scanners, WebSocket for watchlist quotes
+    - Scanner engine: 6 scanners (gap_up, gap_down, high_rvol, momentum, big_gainer, big_loser)
+    - Prisma + PostgreSQL: User, Watchlist, Layout models
+    
+    Frontend (React 18 + TypeScript + Vite + Tailwind):
+    - react-grid-layout: draggable/resizable panels persisted to localStorage
+    - 4 panel types: ScannerPanel, ChartPanel, NewsPanel, WatchlistPanel
+    - TradingView Advanced Chart Widget embed with symbol linking
+    - Zustand stores: auth, dashboard, news, scanner, watchlist
+    - useSocket hook: manages WebSocket lifecycle, routes messages to stores
+    - useAudioAlert hook: Web Audio API beeps for scanner/news alerts
+    - LoginPage with first-time setup and returning user flows
+    - TopNav with preset layouts (Pre-Market, Market Open)
+    - Dark theme matching TradingView color palette
+    
+    Infrastructure:
+    - Docker Compose: postgres, backend, frontend, nginx
+    - nginx: reverse proxy, WebSocket upgrade, Let's Encrypt ready
+    - .env.example: all required environment variables documented
+    - Dockerfiles for backend (multi-stage) and frontend (nginx static)
+    
+    https://claude.ai/code/session_01SKQDj7vuWHiUGezH5Fa8Fd

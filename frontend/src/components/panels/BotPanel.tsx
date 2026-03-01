@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { useBotStore, BotConfig, BotPosition, BotTrade, BotSignal } from "../../store/botStore";
 import { useAuthStore } from "../../store/authStore";
 import { useWatchlistStore } from "../../store/watchlistStore";
+import { useRecapStore, RecapData } from "../../store/recapStore";
+import { usePageStore } from "../../store/pageStore";
 
 // ── Tab type ──────────────────────────────────────────────────────────────────
-type BotTab = "status" | "history" | "signals" | "config";
+type BotTab = "status" | "history" | "signals" | "config" | "recap";
 
 // ── Go-live gate type (mirrors backend GoLiveGate interface) ──────────────────
 interface GoLiveGate {
@@ -177,6 +179,13 @@ export function BotPanel() {
     setStatus, setPositions, setTrades, setSignals, setConfig,
   } = useBotStore();
 
+  const {
+    recap, loading: recapLoading, error: recapError, selectedDate, recapUnread,
+    setRecap, setLoading: setRecapLoading, setError: setRecapError,
+    setSelectedDate, setRecapUnread,
+  } = useRecapStore();
+  const { setPage } = usePageStore();
+
   // ── Hydrate all data on mount ─────────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
@@ -206,6 +215,63 @@ export function BotPanel() {
   useEffect(() => {
     if (config && !draft) setDraft(config);
   }, [config, draft]);
+
+  // ── Fetch recap data when Recap tab is active or selectedDate changes ─────
+  useEffect(() => {
+    if (tab !== "recap") return;
+    setRecapLoading(true);
+    setRecapError(null);
+    fetch(`/api/bot/recap?date=${selectedDate}`, {
+      headers: { Authorization: `Bearer ${token ?? ""}` },
+    })
+      .then((r) => r.json())
+      .then((data: Record<string, unknown>) => {
+        // Normalize persisted vs computed response shape
+        if (data.summary) {
+          setRecap(data as unknown as RecapData);
+        } else if (data.date) {
+          // Persisted DailyRecap row — wrap into RecapData shape
+          setRecap({
+            date: data.date as string,
+            summary: {
+              date: data.date as string,
+              totalPnl: (data.totalPnl as number) ?? 0,
+              tradeCount: (data.tradeCount as number) ?? 0,
+              winCount: (data.winCount as number) ?? 0,
+              lossCount: (data.lossCount as number) ?? 0,
+              winRate: (data.winRate as number) ?? 0,
+              score: (data.score as number) ?? 0,
+              signalCount: (data.signalCount as number) ?? 0,
+              firedCount: (data.firedCount as number) ?? 0,
+              bestTradePnl: (data.bestTradePnl as number | null) ?? null,
+              worstTradePnl: (data.worstTradePnl as number | null) ?? null,
+              spyChangePct: (data.spyChangePct as number | null) ?? null,
+              qqqChangePct: (data.qqqChangePct as number | null) ?? null,
+            },
+            sections: (data.sectionsJson as RecapData["sections"]) ?? {
+              trades: [],
+              signals: { rejectionHistogram: {}, missedOpportunities: [], totalEvaluated: 0, totalFired: 0, totalRejected: 0 },
+              catalysts: [],
+              adherence: { exitReasonDistribution: {}, trades: [], adherencePct: 0 },
+              suggestions: [],
+            },
+            benchmarks: {
+              spyChangePct: (data.spyChangePct as number | null) ?? null,
+              qqqChangePct: (data.qqqChangePct as number | null) ?? null,
+              selfAvg5d: null,
+              selfAvg30d: null,
+            },
+          });
+        } else {
+          setRecap(null);
+        }
+        setRecapLoading(false);
+      })
+      .catch(() => {
+        setRecapError("Failed to load recap");
+        setRecapLoading(false);
+      });
+  }, [tab, selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Bot control actions ───────────────────────────────────────────────────
   async function botAction(path: string) {
@@ -351,15 +417,23 @@ export function BotPanel() {
 
       {/* Tab bar */}
       <div className="flex border-b border-border shrink-0">
-        {(["status", "history", "signals", "config"] as BotTab[]).map((t) => (
+        {(["status", "history", "signals", "config", "recap"] as BotTab[]).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setTab(t);
+              if (t === "recap") setRecapUnread(false);
+            }}
             className={`px-3 py-1 text-[10px] font-mono capitalize ${
               tab === t ? "text-accent border-b-2 border-accent" : "text-muted hover:text-white"
             }`}
           >
-            {t}
+            <span className="relative">
+              {t}
+              {t === "recap" && recapUnread && (
+                <span className="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+              )}
+            </span>
           </button>
         ))}
       </div>
@@ -524,6 +598,99 @@ export function BotPanel() {
               <div className="text-muted text-[10px] text-center py-3 font-mono">No rejected signals yet</div>
             ) : (
               signals.map((s) => <SignalRow key={s.id} signal={s} />)
+            )}
+          </div>
+        )}
+
+        {/* ── Recap tab ───────────────────────────────────────────────────── */}
+        {tab === "recap" && (
+          <div className="p-3 space-y-3 overflow-y-auto flex-1">
+            {/* Date picker */}
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-surface border border-border rounded px-2 py-1 text-xs text-white"
+              />
+              <button
+                onClick={() => setPage("recap")}
+                className="text-xs text-blue-400 hover:text-blue-300 underline ml-auto"
+              >
+                View full recap →
+              </button>
+            </div>
+
+            {recapLoading && <div className="text-muted text-xs">Loading recap...</div>}
+            {recapError && <div className="text-red-400 text-xs">{recapError}</div>}
+
+            {recap && !recapLoading && (
+              <>
+                {/* Hero metric — Daily P&L */}
+                <div className="text-center py-2">
+                  <div className={`text-3xl font-bold ${recap.summary.totalPnl >= 0 ? "text-up" : "text-down"}`}>
+                    {recap.summary.totalPnl >= 0 ? "+" : ""}{recap.summary.totalPnl.toFixed(2)}
+                  </div>
+                  <div className="text-muted text-xs mt-0.5">Daily P&amp;L</div>
+                </div>
+
+                {/* Score badge */}
+                <div className="flex justify-center">
+                  <span className={`px-2 py-0.5 rounded text-xs font-mono ${
+                    recap.summary.score >= 70 ? "bg-green-900 text-green-300" :
+                    recap.summary.score >= 40 ? "bg-yellow-900 text-yellow-300" :
+                    "bg-red-900 text-red-300"
+                  }`}>
+                    Score: {recap.summary.score}/100
+                  </span>
+                </div>
+
+                {/* Stats grid */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-surface rounded p-2">
+                    <div className="text-muted">Win/Loss</div>
+                    <div className="font-mono">{recap.summary.winCount}W / {recap.summary.lossCount}L ({(recap.summary.winRate * 100).toFixed(0)}%)</div>
+                  </div>
+                  <div className="bg-surface rounded p-2">
+                    <div className="text-muted">Trades</div>
+                    <div className="font-mono">{recap.summary.tradeCount}</div>
+                  </div>
+                  <div className="bg-surface rounded p-2">
+                    <div className="text-muted">Signals</div>
+                    <div className="font-mono">{recap.summary.firedCount} / {recap.summary.signalCount} fired</div>
+                  </div>
+                  <div className="bg-surface rounded p-2">
+                    <div className="text-muted">Best / Worst</div>
+                    <div className="font-mono">
+                      <span className="text-up">{recap.summary.bestTradePnl != null ? `+$${recap.summary.bestTradePnl.toFixed(2)}` : "—"}</span>
+                      {" / "}
+                      <span className="text-down">{recap.summary.worstTradePnl != null ? `$${recap.summary.worstTradePnl.toFixed(2)}` : "—"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Benchmarks */}
+                {(recap.summary.spyChangePct != null || recap.summary.qqqChangePct != null) && (
+                  <div className="text-xs text-muted">
+                    Benchmarks: SPY {recap.summary.spyChangePct != null ? `${recap.summary.spyChangePct >= 0 ? "+" : ""}${recap.summary.spyChangePct.toFixed(2)}%` : "—"}
+                    {" | "}QQQ {recap.summary.qqqChangePct != null ? `${recap.summary.qqqChangePct >= 0 ? "+" : ""}${recap.summary.qqqChangePct.toFixed(2)}%` : "—"}
+                  </div>
+                )}
+
+                {/* Suggestions */}
+                {recap.sections.suggestions.length > 0 && (
+                  <div className="border border-border rounded p-2">
+                    <div className="text-xs text-muted mb-1 font-semibold">Suggestions</div>
+                    {recap.sections.suggestions.map((s, i) => (
+                      <div key={i} className="text-xs text-white mb-0.5">• {s}</div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {!recap && !recapLoading && !recapError && (
+              <div className="text-muted text-xs text-center py-4">No recap data for {selectedDate}</div>
             )}
           </div>
         )}

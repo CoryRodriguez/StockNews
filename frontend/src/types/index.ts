@@ -77,7 +77,7 @@ export interface PaperTrade {
 
 // ── Layout ─────────────────────────────────────────────────────────────────
 
-export type PanelType = "scanner" | "chart" | "news" | "watchlist" | "trades" | "analytics";
+export type PanelType = "scanner" | "chart" | "news" | "watchlist" | "trades" | "analytics" | "bot";
 
 export interface PanelConfig {
   id: string;
@@ -111,4 +111,7 @@ export type WsMessage =
   | { type: "scanner_alert"; channel: string; scannerId: string } & ScannerAlert
   | { type: "scanner_clear"; channel: string; scannerId: string; ticker: string }
   | { type: "quote_update"; channel: string; ticker: string; price: number; volume?: number }
-  | { type: "trade_update"; channel: string; trade: PaperTrade };
+  | { type: "trade_update"; channel: string; trade: PaperTrade }
+  | { type: "bot_status_update"; channel: string; status: { state: string; mode: string; openPositionCount: number; todayRealizedPnl: number; todayTradeCount: number; dayTradeCount: number; marketOpen: boolean } }
+  | { type: "bot_trade_closed"; channel: string; trade: { id: string; symbol: string; entryPrice: number | null; exitPrice: number | null; shares: number | null; pnl: number | null; catalystType: string | null; exitReason: string | null; entryAt: string | null; exitAt: string | null } }
+  | { type: "bot_signal_evaluated"; channel: string; signal: { id: string; symbol: string; catalystCategory: string | null; catalystTier: number | null; rejectReason: string | null; evaluatedAt: string } };

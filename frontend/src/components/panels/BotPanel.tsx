@@ -6,6 +6,18 @@ import { useWatchlistStore } from "../../store/watchlistStore";
 // ── Tab type ──────────────────────────────────────────────────────────────────
 type BotTab = "status" | "history" | "signals" | "config";
 
+// ── Go-live gate type (mirrors backend GoLiveGate interface) ──────────────────
+interface GoLiveGate {
+  passed: boolean;
+  tradeCount: number;
+  tradeCountMet: boolean;
+  winRate: number;
+  winRateMet: boolean;
+  cleanDays: number;
+  cleanDaysMet: boolean;
+  blockingReason: string | null;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATE_COLORS: Record<string, string> = {
@@ -154,6 +166,10 @@ export function BotPanel() {
   const [draft, setDraft] = useState<BotConfig | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showLiveConfirm, setShowLiveConfirm] = useState(false);
+  const [liveGate, setLiveGate] = useState<GoLiveGate | null>(null);
+  const [liveGateLoading, setLiveGateLoading] = useState(false);
+  const [modeSwitchError, setModeSwitchError] = useState<string | null>(null);
 
   const token = useAuthStore((s) => s.token);
   const {
@@ -231,6 +247,54 @@ export function BotPanel() {
       setSaveError("Network error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ── Fetch gate status and open the live-mode confirmation dialog ──────────────
+  async function openLiveConfirm() {
+    if (!token) return;
+    setModeSwitchError(null);
+    setShowLiveConfirm(true);
+    setLiveGateLoading(true);
+    try {
+      const res = await fetch("/api/bot/gate", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const gate = (await res.json()) as GoLiveGate;
+      setLiveGate(gate);
+    } catch {
+      setModeSwitchError("Failed to load gate status");
+    } finally {
+      setLiveGateLoading(false);
+    }
+  }
+
+  // ── Call POST /api/bot/mode with the target mode ──────────────────────────────
+  async function handleModeSwitch(targetMode: "live" | "paper") {
+    if (!token) return;
+    setModeSwitchError(null);
+    try {
+      const res = await fetch("/api/bot/mode", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: targetMode }),
+      });
+      if (res.ok) {
+        setShowLiveConfirm(false);
+        setLiveGate(null);
+        // Re-fetch status to update the mode badge in the header (Pitfall 3 avoidance)
+        if (status) {
+          const s = await fetch("/api/bot/status", {
+            headers: { Authorization: `Bearer ${token}` },
+          }).then((r) => r.json()) as typeof status & { error?: string };
+          if (s && !s.error) setStatus(s);
+        }
+      } else {
+        const err = (await res.json()) as { error?: string };
+        setModeSwitchError(err.error ?? "Mode switch failed");
+      }
+    } catch {
+      setModeSwitchError("Network error");
     }
   }
 
@@ -336,6 +400,97 @@ export function BotPanel() {
                     <span className="text-muted"> (resets {pdtResetDay()})</span>
                   </span>
                 </div>
+              </div>
+            )}
+
+            {/* Mode switch — only visible when bot is stopped */}
+            {status && state === "stopped" && (
+              <div className="px-2 py-2 border-b border-border">
+                {/* Switch TO LIVE button */}
+                {status.mode === "paper" && !showLiveConfirm && (
+                  <button
+                    onClick={() => void openLiveConfirm()}
+                    className="w-full text-[10px] px-2 py-1 rounded border border-yellow-600/50 bg-yellow-500/5 text-yellow-400 hover:bg-yellow-500/10 font-mono"
+                  >
+                    Switch to LIVE Trading
+                  </button>
+                )}
+
+                {/* Switch BACK TO PAPER button */}
+                {status.mode === "live" && !showLiveConfirm && (
+                  <button
+                    onClick={() => void handleModeSwitch("paper")}
+                    className="w-full text-[10px] px-2 py-1 rounded border border-border bg-surface text-muted hover:text-white font-mono"
+                  >
+                    Switch to PAPER
+                  </button>
+                )}
+
+                {/* Inline live-mode confirmation panel */}
+                {showLiveConfirm && (
+                  <div className="border border-red-600/50 bg-red-500/5 rounded p-2 space-y-2">
+                    <div className="text-[10px] font-mono text-red-400 font-semibold tracking-wide">
+                      SWITCH TO LIVE TRADING?
+                    </div>
+
+                    {liveGateLoading && (
+                      <div className="text-muted text-[10px] font-mono">Checking gate...</div>
+                    )}
+
+                    {!liveGateLoading && liveGate && (
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-mono">
+                          <span className="text-muted">Completed trades</span>
+                          <span className={liveGate.tradeCountMet ? "text-up" : "text-down"}>
+                            {liveGate.tradeCount}/30 {liveGate.tradeCountMet ? "✓" : "✗"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[10px] font-mono">
+                          <span className="text-muted">Win rate</span>
+                          <span className={liveGate.winRateMet ? "text-up" : "text-down"}>
+                            {(liveGate.winRate * 100).toFixed(1)}% / 40% {liveGate.winRateMet ? "✓" : "✗"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[10px] font-mono">
+                          <span className="text-muted">Clean days</span>
+                          <span className={liveGate.cleanDaysMet ? "text-up" : "text-down"}>
+                            {liveGate.cleanDays}/5 {liveGate.cleanDaysMet ? "✓" : "✗"}
+                          </span>
+                        </div>
+                        {!liveGate.passed && liveGate.blockingReason && (
+                          <div className="text-[9px] text-red-400/80 font-mono mt-1">
+                            {liveGate.blockingReason}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {modeSwitchError && (
+                      <div className="text-[9px] text-down font-mono">{modeSwitchError}</div>
+                    )}
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => void handleModeSwitch("live")}
+                        disabled={!liveGate?.passed || liveGateLoading}
+                        className="flex-1 text-[10px] px-2 py-1 rounded border border-red-600/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-mono disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        CONFIRM LIVE
+                      </button>
+                      <button
+                        onClick={() => { setShowLiveConfirm(false); setModeSwitchError(null); }}
+                        className="flex-1 text-[10px] px-2 py-1 rounded border border-border bg-surface text-muted hover:text-white font-mono"
+                      >
+                        CANCEL
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mode switch error outside dialog (live→paper errors) */}
+                {modeSwitchError && !showLiveConfirm && (
+                  <div className="text-[9px] text-down font-mono mt-1">{modeSwitchError}</div>
+                )}
               </div>
             )}
 

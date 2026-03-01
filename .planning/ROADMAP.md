@@ -15,6 +15,7 @@
 - [x] **Phase 4: Risk Management Enforcement** - Circuit breakers, PDT guard, position sizing, daily stat resets (completed 2026-03-01)
 - [x] **Phase 5: Frontend Bot Dashboard** - UI panel for bot status, live P&L, controls, and signal rejection log (completed 2026-03-01)
 - [x] **Phase 6: Live Trading Mode** - Gate-based live API unlock with mode-switch safeguards (completed 2026-03-01)
+- [x] **Phase 7: EOD Recap & Evaluation Framework** - Daily recap scoring, Recharts historical views, missed-opportunity tracker, and BotPanel Recap tab (completed 2026-03-01)
 
 ---
 
@@ -28,6 +29,7 @@
 | 4. Risk Management Enforcement | 4/4 | Complete   | 2026-03-01 |
 | 5. Frontend Bot Dashboard | 5/5 | Complete   | 2026-03-01 |
 | 6. Live Trading Mode | 3/3 | Complete   | 2026-03-01 |
+| 7. EOD Recap & Evaluation Framework | 5/5 | Complete   | 2026-03-01 |
 
 ---
 
@@ -256,16 +258,16 @@ Plans:
   5. BotPanel has a 5th Recap tab showing a summary card with hero P&L, score, stats, date picker, and "View full recap" link
   6. The /recap full page has Day, Week, and Month views with Recharts bar and line charts, expandable deep-dive sections (trade breakdown, signal rejections, catalyst performance, strategy adherence), and period-over-period comparisons
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans executed
 
 Plans:
-- [ ] 07-01-PLAN.md — Schema migration (DailyRecap model + BotSignalLog.postRejectPeakPct + BotTrade enrichment) + missedOpportunityTracker.ts + signalEngine/positionMonitor/tradeExecutor wiring
-- [ ] 07-02-PLAN.md — eodRecap.ts computation service (scoring, suggestions, benchmarks, catalysts, adherence) + REST endpoints + 4:01 PM cron
-- [ ] 07-03-PLAN.md — recapStore.ts + BotPanel 5th Recap tab (summary card, badge dot, date picker) + pageStore + useSocket recap_ready
-- [ ] 07-04-PLAN.md — RecapPage.tsx full-page view (Recharts charts, Day/Week/Month views, expandable deep-dive sections)
-- [ ] 07-05-PLAN.md — Automated verification suite + human visual approval
+- [x] 07-01-PLAN.md — Schema migration (DailyRecap model + BotSignalLog.postRejectPeakPct + BotTrade enrichment) + missedOpportunityTracker.ts + signalEngine/positionMonitor/tradeExecutor wiring
+- [x] 07-02-PLAN.md — eodRecap.ts computation service (scoring, suggestions, benchmarks, catalysts, adherence) + REST endpoints + 4:01 PM cron
+- [x] 07-03-PLAN.md — recapStore.ts + BotPanel 5th Recap tab (summary card, badge dot, date picker) + pageStore + useSocket recap_ready
+- [x] 07-04-PLAN.md — RecapPage.tsx full-page view (Recharts charts, Day/Week/Month views, expandable deep-dive sections)
+- [x] 07-05-PLAN.md — Automated verification suite (45/45 checks pass) + human visual approval
 
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-03-01 — Phase 7 planned (5 plans in 4 waves)*
+*Last updated: 2026-03-01 — Phase 7 COMPLETE — Milestone v1.0 COMPLETE (7/7 phases, 29/29 plans)*

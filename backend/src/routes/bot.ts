@@ -7,8 +7,10 @@ import {
   getBotConfig,
   isMarketOpen,
   updateConfig,
+  switchMode,
   type BotState,
 } from '../services/botController';
+import { evaluateGoLiveGate } from '../services/goLiveGate';
 
 const router = Router();
 
@@ -200,6 +202,59 @@ router.get('/signals', requireAuth, async (_req, res) => {
   } catch (err) {
     console.error('[BotRoute] /signals error:', err);
     res.status(500).json({ error: 'Failed to load bot signals' });
+  }
+});
+
+// ─── POST /mode ───────────────────────────────────────────────────────────────
+// Switches bot between paper and live mode.
+// paper→live requires go-live gate to be satisfied (LIVE-03).
+// Gate check is server-side — never trust client's gate assertion.
+// live→paper does NOT require gate re-check.
+// Both directions require no open positions (enforced by switchMode() service layer).
+router.post('/mode', requireAuth, async (req, res) => {
+  const { mode } = req.body as { mode: string };
+  if (mode !== 'paper' && mode !== 'live') {
+    res.status(400).json({ error: 'mode must be "paper" or "live"' });
+    return;
+  }
+  // Gate check is only required when switching TO live
+  if (mode === 'live') {
+    try {
+      const gate = await evaluateGoLiveGate();
+      if (!gate.passed) {
+        res.status(403).json({
+          error: gate.blockingReason ?? 'Go-live gate not satisfied',
+          gate,
+        });
+        return;
+      }
+    } catch (err) {
+      console.error('[BotRoute] /mode gate evaluation error:', err);
+      res.status(500).json({ error: 'Failed to evaluate go-live gate' });
+      return;
+    }
+  }
+  try {
+    await switchMode(mode as 'paper' | 'live');
+    // Frontend re-fetches GET /status after a successful switch to update the mode badge
+    res.json({ mode });
+  } catch (err) {
+    // switchMode throws if positions are open — surface as 400
+    const message = err instanceof Error ? err.message : 'Mode switch failed';
+    res.status(400).json({ error: message });
+  }
+});
+
+// ─── GET /gate ─────────────────────────────────────────────────────────────────
+// Returns the current go-live gate status for the UI to display.
+// Used by BotPanel to show gate progress before the user attempts to switch to live.
+router.get('/gate', requireAuth, async (_req, res) => {
+  try {
+    const gate = await evaluateGoLiveGate();
+    res.json(gate);
+  } catch (err) {
+    console.error('[BotRoute] /gate error:', err);
+    res.status(500).json({ error: 'Failed to evaluate go-live gate' });
   }
 });
 

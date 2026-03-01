@@ -173,6 +173,9 @@ model BotTrade {
   alpacaOrderId  String?
   entryAt        DateTime?
   exitAt         DateTime?
+  entryVwapDev    Float?    // VWAP deviation at entry time (from getVwapDev)
+  peakPrice       Float?    // Highest price reached during position hold
+  maxDrawdownPct  Float?    // Maximum drawdown % from entry price during hold
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -248,8 +251,39 @@ model BotSignalLog {
   relVolAtEval     Float?
   articleCreatedAt DateTime?
   evaluatedAt      DateTime  @default(now())
+  postRejectPeakPct Float?   // Missed-opportunity tracker: peak % move in 30 min after rejection
 
   @@index([symbol])
   @@index([outcome])
   @@index([evaluatedAt])
+}
+
+// DailyRecap — persisted end-of-day recap, one row per trading day
+// Summary scalars are columns (queryable); deep-dive sections stored as JSON
+model DailyRecap {
+  id              String   @id @default(cuid())
+  date            String   // "YYYY-MM-DD" ET — matches BotDailyStats.date format
+
+  // Summary card scalars
+  totalPnl        Float    @default(0)
+  tradeCount      Int      @default(0)
+  winCount        Int      @default(0)
+  lossCount       Int      @default(0)
+  winRate         Float    @default(0)
+  score           Int      @default(0)    // 0-100 composite score
+  signalCount     Int      @default(0)    // total evaluated
+  firedCount      Int      @default(0)    // fired (executed)
+  bestTradePnl    Float?
+  worstTradePnl   Float?
+  spyChangePct    Float?   // SPY daily % change for benchmark
+  qqqChangePct    Float?   // QQQ daily % change for benchmark
+
+  // Deep-dive sections stored as JSON
+  sectionsJson    Json     // { trades, signals, catalysts, adherence, suggestions }
+
+  computedAt      DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([date])
+  @@index([date])
 }

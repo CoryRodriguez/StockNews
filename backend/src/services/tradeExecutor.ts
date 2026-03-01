@@ -151,6 +151,37 @@ async function placeNotionalBuyOrder(
   }
 }
 
+// ─── Helpers: PDT guard (RISK-03 — live mode only) ────────────────────────────
+
+/**
+ * Checks Alpaca account daytrade_count. Returns true if the next trade would
+ * push the account to 4+ day trades in the 5-day window (PDT violation).
+ *
+ * Paper mode: always returns false (account is >$25k, PDT rule doesn't apply).
+ * Fail open: any API error or non-200 response returns false (allow trade).
+ * This prevents blocking all trades during Alpaca maintenance windows.
+ */
+async function checkPdtLimit(): Promise<boolean> {
+  const botCfg = getBotConfig();
+  if (botCfg.mode !== 'live') return false; // PDT only applies to live accounts under $25k
+
+  try {
+    const res = await fetch(`${getAlpacaBaseUrl()}/v2/account`, {
+      headers: getAlpacaHeaders(),
+    });
+    if (!res.ok) {
+      console.warn(`[TradeExecutor] PDT check: account fetch failed (${res.status}) — allowing trade`);
+      return false;
+    }
+    const account = await res.json() as { daytrade_count: number };
+    // daytrade_count >= 3 means placing this trade would be the 4th in the 5-day window
+    return account.daytrade_count >= 3;
+  } catch (err) {
+    console.warn('[TradeExecutor] PDT check error — allowing trade:', err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 // ─── Exported: Fill event handler (called by tradingWs.ts) ────────────────────
 
 /**
@@ -272,6 +303,23 @@ export async function executeTradeAsync(signal: TradeSignal): Promise<void> {
 
   // Step 3: Compute notional dollar amount from BotConfig
   const notional = getNotional(starRating);
+
+  // Step 3.5: PDT guard — live mode only (RISK-03)
+  // Paper mode is >$25k intentionally — no PDT applies (per CONTEXT.md locked decision)
+  if (await checkPdtLimit()) {
+    console.warn(`[TradeExecutor] PDT limit reached for ${symbol} — blocked (live mode)`);
+    await prisma.botTrade.create({
+      data: {
+        symbol,
+        status: 'rejected',
+        exitReason: 'pdt_limit',
+        catalystType: catalystCategory,
+        catalystTier,
+        entryAt: new Date(),
+      },
+    });
+    return;
+  }
 
   // Step 4: Place notional buy order
   const order = await placeNotionalBuyOrder(symbol, notional);

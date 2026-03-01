@@ -12,7 +12,7 @@
 - [x] **Phase 1: Bot Infrastructure Foundation** - Database schema, bot controller lifecycle, startup position reconciliation (completed 2026-02-28)
 - [x] **Phase 2: Signal Engine** - News evaluation pipeline in log-only mode with deduplication and staleness protection (completed 2026-02-28)
 - [x] **Phase 3: Trade Executor and Position Monitor** - Paper-mode order placement and automated exit state machine (completed 2026-02-28)
-- [ ] **Phase 4: Risk Management Enforcement** - Circuit breakers, PDT guard, position sizing, daily stat resets
+- [x] **Phase 4: Risk Management Enforcement** - Circuit breakers, PDT guard, position sizing, daily stat resets (completed 2026-03-01)
 - [ ] **Phase 5: Frontend Bot Dashboard** - UI panel for bot status, live P&L, controls, and signal rejection log
 - [ ] **Phase 6: Live Trading Mode** - Gate-based live API unlock with mode-switch safeguards
 
@@ -25,7 +25,7 @@
 | 1. Bot Infrastructure Foundation | 3/3 | Complete   | 2026-02-28 |
 | 2. Signal Engine | 4/4 | Complete   | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | 5/5 | Complete   | 2026-02-28 |
-| 4. Risk Management Enforcement | 3/4 | In Progress|  |
+| 4. Risk Management Enforcement | 4/4 | Complete   | 2026-03-01 |
 | 5. Frontend Bot Dashboard | 0/? | Not started | - |
 | 6. Live Trading Mode | 0/? | Not started | - |
 
@@ -127,10 +127,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Schema migration (trailingStopPct + trailingStopDollar) + BotConfigRecord update
-- [ ] 04-02-PLAN.md — Risk gates: RISK-02 (max-positions) + RISK-05 (already-holding) in signalEngine.ts; RISK-03 (PDT) in tradeExecutor.ts
-- [ ] 04-03-PLAN.md — Trailing stop (EXIT-02) + 4AM reset cron (RISK-04) + getOpenPositionCount/getOpenSymbols exports in positionMonitor.ts
-- [ ] 04-04-PLAN.md — Automated verification suite + human checkpoint
+- [x] 04-01-PLAN.md — Schema migration (trailingStopPct + trailingStopDollar) + BotConfigRecord update
+- [x] 04-02-PLAN.md — Risk gates: RISK-02 (max-positions) + RISK-05 (already-holding) in signalEngine.ts; RISK-03 (PDT) in tradeExecutor.ts
+- [x] 04-03-PLAN.md — Trailing stop (EXIT-02) + 4AM reset cron (RISK-04) + getOpenPositionCount/getOpenSymbols exports in positionMonitor.ts
+- [x] 04-04-PLAN.md — Automated verification suite + human checkpoint
 
 ---
 
@@ -231,4 +231,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 4 planned (4 plans); advancing to execution*
+*Last updated: 2026-03-01 — Phase 4 COMPLETE (4/4 plans); all risk gates verified; advancing to Phase 5*

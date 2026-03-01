@@ -71,9 +71,9 @@
 
 ### Live Trading
 
-- [ ] **LIVE-01**: Bot supports switching to Alpaca live trading API via a configuration change with no code changes
-- [ ] **LIVE-02**: Live mode switch requires explicit confirmation in the UI and is blocked if any positions are open
-- [ ] **LIVE-03**: System meets the go-live gate before live trading is enabled: 30+ completed paper trades, ≥40% win rate, 5 consecutive trading days without unhandled exceptions
+- [x] **LIVE-01**: Bot supports switching to Alpaca live trading API via a configuration change with no code changes
+- [x] **LIVE-02**: Live mode switch requires explicit confirmation in the UI and is blocked if any positions are open
+- [x] **LIVE-03**: System meets the go-live gate before live trading is enabled: 30+ completed paper trades, ≥40% win rate, 5 consecutive trading days without unhandled exceptions
 
 ---
 
@@ -163,9 +163,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-05 | Phase 5 | Complete |
 | UI-06 | Phase 5 | Complete |
 | UI-07 | Phase 5 | Complete |
-| LIVE-01 | Phase 6 | Pending |
-| LIVE-02 | Phase 6 | Pending |
-| LIVE-03 | Phase 6 | Pending |
+| LIVE-01 | Phase 6 | Complete |
+| LIVE-02 | Phase 6 | Complete |
+| LIVE-03 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 47 total

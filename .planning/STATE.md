@@ -173,19 +173,19 @@ progress:
 
 ## Current Position
 
-**Current Phase:** 05
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Current Phase:** 06-live-trading-mode
+**Current Plan:** 06-01 complete
+**Status:** Executing Phase 6
 
 ```
-Progress: █████████████████████  95%
+Progress: ██████████████████████  97%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
 Phase 3: Trade Executor + Position Mon  [5/5] COMPLETE
 Phase 4: Risk Management Enforcement   [4/4] COMPLETE
 Phase 5: Frontend Bot Dashboard         [5/5] COMPLETE
-Phase 6: Live Trading Mode              [ ] Not started
+Phase 6: Live Trading Mode              [1/3] In progress
 ```
 
 ---
@@ -199,7 +199,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 | 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | COMPLETE (5 plans) | 2026-02-28 |
 | 4. Risk Management Enforcement | RISK-01 to RISK-05, EXIT-02 (6) | COMPLETE (4 plans) | 2026-03-01 |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | COMPLETE (5/5 plans) | 2026-03-01 |
-| 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | Not started | - |
+| 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | In progress (1/3 plans) | - |
 
 ---
 
@@ -284,6 +284,10 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Graceful P&L degradation in PositionRow | watchlistStore.prices[symbol]?.price ?? entryPrice — avoids subscribeQuoteChannel complexity; $0 unrealized until ticker added to watchlist |
 | StatusBadge resolves market_closed when running but !marketOpen | Bot can be running while market is closed (weekend); badge shows distinct state |
 | pdtResetDay() uses America/New_York timezone | DST-correct next business day for PDT reset display in status tab |
+| goLiveGate evaluates tradeCount → winRate → cleanDays in priority order | First failing check sets blockingReason; all-pass sets passed=true |
+| POST /mode gate check is server-side only | Client gate display (GET /gate) is informational; server re-evaluates on every mode switch attempt |
+| live→paper switch unconditional (no gate re-check) | Downgrade to paper is always safe; only upgrade to live requires gate validation |
+| T12:00:00Z suffix on date strings in countConsecutiveBusinessDays | Avoids DST boundary issues when converting YYYY-MM-DD to Date for diff calculation |
 
 ### Architecture Notes
 
@@ -326,9 +330,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-03-01T09:29:00Z
-**Stopped at:** Completed 05-05-PLAN.md — Phase 5 COMPLETE
-**Next action:** Phase 6 — Live Trading Mode (LIVE-01, LIVE-02, LIVE-03)
+**Last session:** 2026-03-01T14:51:30Z
+**Stopped at:** Completed 06-01-PLAN.md
+**Next action:** Phase 6 Plan 06-02 — BotPanel live mode UI (GET /gate display, POST /mode switch button)
 
 ### Handoff Notes
 
@@ -388,5 +392,9 @@ Phase 5 COMPLETE — All 5 plans delivered:
 - **05-05** (DONE): Phase 5 automated verification suite (24/24 checks pass) + human visual approval confirmed — all UI-01 through UI-07 requirements satisfied
   - Commits: 3d08533 (phase05-checks.sh)
 
+Phase 6 in progress:
+- **06-01** (DONE): goLiveGate.ts (evaluateGoLiveGate + GoLiveGate interface) + POST /api/bot/mode + GET /api/bot/gate routes in bot.ts
+  - Commits: 569792d (goLiveGate.ts), 65b2634 (bot.ts routes)
+
 *State initialized: 2026-02-27*
-*Last updated: 2026-03-01 — Phase 5 Plan 03 COMPLETE; bot WS channel wired; reconnect fix applied; BotPanel stub registered in dashboard*
+*Last updated: 2026-03-01 — Phase 6 Plan 01 COMPLETE; go-live gate + mode switch routes delivered*

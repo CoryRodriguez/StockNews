@@ -27,7 +27,7 @@
 | 3. Trade Executor and Position Monitor | 5/5 | Complete   | 2026-02-28 |
 | 4. Risk Management Enforcement | 4/4 | Complete   | 2026-03-01 |
 | 5. Frontend Bot Dashboard | 5/5 | Complete   | 2026-03-01 |
-| 6. Live Trading Mode | 0/? | Not started | - |
+| 6. Live Trading Mode | 1/3 | In progress | - |
 
 ---
 
@@ -175,7 +175,12 @@ Plans:
   2. The UI presents an explicit confirmation dialog before switching to live mode, and the switch is blocked if any positions are currently open
   3. Live trading mode cannot be activated until the go-live gate is satisfied: at least 30 completed paper trades on record, a win rate at or above 40%, and at least 5 consecutive trading days in the system log with no unhandled exceptions
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [x] 06-01-PLAN.md — goLiveGate.ts service (evaluateGoLiveGate) + POST /api/bot/mode + GET /api/bot/gate routes
+- [ ] 06-02-PLAN.md — BotPanel live mode UI (gate progress display + mode switch confirmation dialog)
+- [ ] 06-03-PLAN.md — Live Alpaca credentials + deployment validation
 
 ---
 
@@ -238,4 +243,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-03-01 — Phase 5 COMPLETE (5/5 plans); Bot Dashboard live and human-verified; advancing to Phase 6*
+*Last updated: 2026-03-01 — Phase 6 Plan 01 COMPLETE; go-live gate service + mode switch routes delivered*

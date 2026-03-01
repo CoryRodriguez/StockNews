@@ -9,6 +9,7 @@ const DEFAULT_PANELS: GridPanel[] = [
   { id: "chart-1",     type: "chart",     symbol: "NASDAQ:AAPL",                       x: 6, y: 0,  w: 6, h: 16 },
   { id: "watchlist-1", type: "watchlist", title: "Watchlist",                          x: 6, y: 16, w: 6, h: 8  },
   { id: "trades-1",    type: "trades",    title: "Paper Trades",                       x: 6, y: 24, w: 6, h: 4  },
+  { id: "bot-1",       type: "bot",       title: "Bot",                                x: 0, y: 28, w: 6, h: 20 },
 ];
 
 interface DashboardState {

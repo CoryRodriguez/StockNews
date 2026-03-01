@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type Page = "dashboard" | "trades" | "newsfeeds";
+export type Page = "dashboard" | "trades" | "newsfeeds" | "recap";
 
 interface PageState {
   page: Page;

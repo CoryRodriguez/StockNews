@@ -5,6 +5,7 @@ import { useScannerStore } from "../store/scannerStore";
 import { useWatchlistStore } from "../store/watchlistStore";
 import { useTradesStore } from "../store/tradesStore";
 import { useBotStore } from "../store/botStore";
+import { useRecapStore } from "../store/recapStore";
 import { WsMessage, ScannerAlert } from "../types";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`;
@@ -86,6 +87,8 @@ export function useSocket() {
           prependBotTrade(msg.trade as Parameters<typeof prependBotTrade>[0]);
         } else if (msg.type === "bot_signal_evaluated") {
           prependBotSignal(msg.signal as Parameters<typeof prependBotSignal>[0]);
+        } else if (msg.type === "recap_ready") {
+          useRecapStore.getState().setRecapUnread(true);
         }
       } catch {
         // ignore

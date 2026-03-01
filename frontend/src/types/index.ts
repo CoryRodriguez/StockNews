@@ -114,4 +114,5 @@ export type WsMessage =
   | { type: "trade_update"; channel: string; trade: PaperTrade }
   | { type: "bot_status_update"; channel: string; status: { state: string; mode: string; openPositionCount: number; todayRealizedPnl: number; todayTradeCount: number; dayTradeCount: number; marketOpen: boolean } }
   | { type: "bot_trade_closed"; channel: string; trade: { id: string; symbol: string; entryPrice: number | null; exitPrice: number | null; shares: number | null; pnl: number | null; catalystType: string | null; exitReason: string | null; entryAt: string | null; exitAt: string | null } }
-  | { type: "bot_signal_evaluated"; channel: string; signal: { id: string; symbol: string; catalystCategory: string | null; catalystTier: number | null; rejectReason: string | null; evaluatedAt: string } };
+  | { type: "bot_signal_evaluated"; channel: string; signal: { id: string; symbol: string; catalystCategory: string | null; catalystTier: number | null; rejectReason: string | null; evaluatedAt: string } }
+  | { type: "recap_ready"; channel: string; date: string };

@@ -238,11 +238,11 @@ progress:
 ## Current Position
 
 **Current Phase:** 07-end-of-day-recap-evaluation-framework
-**Current Plan:** 07-03 complete
+**Current Plan:** 07-04 complete
 **Status:** Phase 7 executing
 
 ```
-Progress: ███████████████████████████ ~92%
+Progress: ████████████████████████████ ~96%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
@@ -250,7 +250,7 @@ Phase 3: Trade Executor + Position Mon  [5/5] COMPLETE
 Phase 4: Risk Management Enforcement   [4/4] COMPLETE
 Phase 5: Frontend Bot Dashboard         [5/5] COMPLETE
 Phase 6: Live Trading Mode              [3/3] COMPLETE
-Phase 7: EOD Recap & Evaluation        [3/5] In Progress
+Phase 7: EOD Recap & Evaluation        [4/5] In Progress
 ```
 
 ---
@@ -366,6 +366,10 @@ Phase 7: EOD Recap & Evaluation        [3/5] In Progress
 | strategyLookup prefers ALL/ALL-bucket StrategyRule | Simplest adherence lookup; per-cap/tod matching adds complexity for minimal value in recap context |
 | onTargetCount incremented when no recommendedHoldSec available | Unconfigured catalysts should not penalize adherence score; new catalyst types are expected during early operation |
 | recap_ready added to WsMessage union type in types/index.ts | TypeScript narrows exhaustively on discriminated unions; new variant required for handler to compile without TS2339 |
+| Recharts Tooltip formatter typed as (val: number \| undefined) | Recharts v3 Formatter generic passes undefined; plan examples assumed number-only which caused TS2322 |
+| prevPeriodRows fetched in parallel with current period | Enables period-over-period TrendIndicator without extra round-trips; Promise.all fetches both periods simultaneously |
+| normalizeRecapData() wraps persisted DailyRecap rows | Persisted rows lack sections; wrapper injects empty section scaffolding for type safety |
+| groupByWeek() uses UTC Monday alignment | Consistent week boundaries regardless of DST; T12:00:00Z suffix avoids date boundary edge cases |
 
 ### Architecture Notes
 
@@ -408,9 +412,9 @@ Phase 7: EOD Recap & Evaluation        [3/5] In Progress
 
 ## Session Continuity
 
-**Last session:** 2026-03-01T22:10:23.720Z
-**Stopped at:** Completed 07-03-PLAN.md
-**Next action:** Execute 07-04 (full /recap page UI) and 07-05 (verification) to complete the EOD recap and evaluation framework.
+**Last session:** 2026-03-01T22:15:48Z
+**Stopped at:** Completed 07-04-PLAN.md
+**Next action:** Execute 07-05 (verification suite) to complete the EOD recap and evaluation framework (Phase 7).
 
 ### Handoff Notes
 

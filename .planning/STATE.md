@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 06
-current_plan: Not started
-status: completed
-stopped_at: Phase 7 context gathered
-last_updated: "2026-03-01T20:56:14.660Z"
+current_phase: 07-end-of-day-recap-evaluation-framework
+current_plan: 07-01 complete
+status: executing
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-03-01T21:25:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 24
-  completed_plans: 24
+  total_plans: 29
+  completed_plans: 25
 ---
 
 ---
@@ -221,12 +221,12 @@ progress:
 
 ## Current Position
 
-**Current Phase:** 06
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Current Phase:** 07-end-of-day-recap-evaluation-framework
+**Current Plan:** 07-01 complete
+**Status:** Phase 7 executing
 
 ```
-Progress: ████████████████████████ 100%
+Progress: █████████████████████████ ~86%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
@@ -234,6 +234,7 @@ Phase 3: Trade Executor + Position Mon  [5/5] COMPLETE
 Phase 4: Risk Management Enforcement   [4/4] COMPLETE
 Phase 5: Frontend Bot Dashboard         [5/5] COMPLETE
 Phase 6: Live Trading Mode              [3/3] COMPLETE
+Phase 7: EOD Recap & Evaluation        [1/5] In Progress
 ```
 
 ---
@@ -248,6 +249,7 @@ Phase 6: Live Trading Mode              [3/3] COMPLETE
 | 4. Risk Management Enforcement | RISK-01 to RISK-05, EXIT-02 (6) | COMPLETE (4 plans) | 2026-03-01 |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | COMPLETE (5/5 plans) | 2026-03-01 |
 | 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | COMPLETE (3/3 plans) | 2026-03-01 |
+| 7. EOD Recap & Evaluation Framework | RECAP-SCHEMA, RECAP-MISSED-OPP, RECAP-ENRICHMENT, RECAP-ENGINE, RECAP-PERSIST, RECAP-API, RECAP-UI | IN PROGRESS (1/5 plans) | — |
 
 ---
 
@@ -340,6 +342,10 @@ Phase 6: Live Trading Mode              [3/3] COMPLETE
 | GoLiveGate interface defined locally in BotPanel.tsx | Mirrors backend interface; avoids cross-package import complexity in frontend component |
 | Mode switch section only visible when state === stopped | Prevents mode change while bot is actively managing positions or trades |
 | Re-fetch GET /api/bot/status after successful mode switch | Updates header mode badge to reflect new mode — avoids stale optimistic local mutation (Pitfall 3) |
+| Snapshot.ticker (not .symbol) for priceMap in missedOpportunityTracker | Actual Snapshot interface uses ticker field; plan interface comment was incorrect |
+| minPrice initialized to entryPrice in addPosition | Both reconciliation call sites in botController.ts required minPrice after TrackedPosition interface update |
+| startMissedOpportunityWatch passes priceAtRejection=0 for pre-price-fetch rejections | Tracker silently skips priceAtRejection <= 0; safe for Steps 3-9 where no snapshot yet |
+| entryVwapDev captured fire-and-forget with double .catch() | Non-fatal VWAP fetch failure must not affect trade lifecycle; two chains guard Prisma update separately |
 
 ### Architecture Notes
 
@@ -382,9 +388,9 @@ Phase 6: Live Trading Mode              [3/3] COMPLETE
 
 ## Session Continuity
 
-**Last session:** 2026-03-01T20:56:14.658Z
-**Stopped at:** Phase 7 context gathered
-**Next action:** None — all 6 phases delivered. Begin paper trading to accumulate history toward go-live gate.
+**Last session:** 2026-03-01T21:25:00.000Z
+**Stopped at:** Completed 07-01-PLAN.md
+**Next action:** Execute 07-02 through 07-05 plans to complete the EOD recap and evaluation framework.
 
 ### Handoff Notes
 
@@ -452,5 +458,9 @@ Phase 6 COMPLETE — All 3 plans delivered:
 - **06-03** (DONE): Phase 6 automated verification suite (28/28 checks pass) + human visual approval confirmed — all LIVE-01 through LIVE-03 requirements satisfied. Milestone v1.0 COMPLETE.
   - Commits: 5f936d2 (phase06-checks.sh)
 
+Phase 7 IN PROGRESS — 1/5 plans delivered:
+- **07-01** (DONE): DailyRecap Prisma model + BotSignalLog.postRejectPeakPct + BotTrade enrichment fields (entryVwapDev, peakPrice, maxDrawdownPct) + missedOpportunityTracker.ts + signalEngine.ts wiring + positionMonitor/tradeExecutor enrichment writes
+  - Commits: 7bbde45 (schema migration), dcb9e48 (services)
+
 *State initialized: 2026-02-27*
-*Last updated: 2026-03-01 — Phase 6 COMPLETE — Milestone v1.0 COMPLETE — All 6 phases, 24 plans, 47+ requirements delivered*
+*Last updated: 2026-03-01 — Phase 7 Plan 01 complete — data foundation for EOD recap framework delivered*

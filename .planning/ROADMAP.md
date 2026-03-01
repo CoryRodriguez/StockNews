@@ -240,7 +240,32 @@ Plans:
 **Mapped:** 47/47
 **Unmapped:** 0
 
+### Phase 7: End-of-Day Recap & Evaluation Framework
+
+**Goal:** Aggregate each trading day's activity into a layered recap with daily scoring, expandable deep-dive sections, multi-period historical views, missed-opportunity tracking, and actionable suggestions — accessible as a summary tab in BotPanel and a full-page /recap route with Recharts charts.
+
+**Depends on:** Phase 6
+
+**Requirements**: RECAP-SCHEMA, RECAP-MISSED-OPP, RECAP-ENRICHMENT, RECAP-COMPUTATION, RECAP-SCORING, RECAP-SUGGESTIONS, RECAP-BENCHMARKS, RECAP-ADHERENCE, RECAP-CATALYST, RECAP-PERSIST, RECAP-API, RECAP-BADGE, RECAP-TAB, RECAP-NAV, RECAP-BADGE-DOT, RECAP-WS, RECAP-FULL-PAGE, RECAP-CHARTS, RECAP-HISTORICAL, RECAP-DEEP-DIVE, RECAP-VERIFY
+
+**Success Criteria** (what must be TRUE):
+  1. After a signal is rejected, the bot watches the stock's price for 30 minutes and flags it as a missed opportunity if the stock moved +5%+
+  2. BotTrade records include enrichment data (VWAP deviation at entry, peak price, max drawdown) for the trade-by-trade breakdown
+  3. A daily recap is computed from BotTrade, BotSignalLog, BotDailyStats, and StrategyRule data and includes a 0-100 composite score, 1-3 actionable suggestions, SPY/QQQ benchmarks, and 5d/30d self-average comparisons
+  4. At 4:01 PM ET each weekday, the recap is persisted to the DailyRecap table and a badge notification appears on the Recap tab
+  5. BotPanel has a 5th Recap tab showing a summary card with hero P&L, score, stats, date picker, and "View full recap" link
+  6. The /recap full page has Day, Week, and Month views with Recharts bar and line charts, expandable deep-dive sections (trade breakdown, signal rejections, catalyst performance, strategy adherence), and period-over-period comparisons
+
+**Plans:** 5 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Schema migration (DailyRecap model + BotSignalLog.postRejectPeakPct + BotTrade enrichment) + missedOpportunityTracker.ts + signalEngine/positionMonitor/tradeExecutor wiring
+- [ ] 07-02-PLAN.md — eodRecap.ts computation service (scoring, suggestions, benchmarks, catalysts, adherence) + REST endpoints + 4:01 PM cron
+- [ ] 07-03-PLAN.md — recapStore.ts + BotPanel 5th Recap tab (summary card, badge dot, date picker) + pageStore + useSocket recap_ready
+- [ ] 07-04-PLAN.md — RecapPage.tsx full-page view (Recharts charts, Day/Week/Month views, expandable deep-dive sections)
+- [ ] 07-05-PLAN.md — Automated verification suite + human visual approval
+
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-03-01 — MILESTONE v1.0 COMPLETE — All 6 phases, 24 plans, 47 requirements delivered*
+*Last updated: 2026-03-01 — Phase 7 planned (5 plans in 4 waves)*

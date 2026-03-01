@@ -337,7 +337,7 @@ export function NewsFeedsPage() {
 
       {/* Feed filter bar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-panel shrink-0 overflow-x-auto">
-        <span className="text-[10px] text-muted uppercase tracking-wide">Feeds</span>
+        <span className="text-[10px] text-muted uppercase tracking-wide shrink-0">Feeds</span>
         {FEEDS.map((f) => {
           const count = articlesByFeed.get(f.id)?.length ?? 0;
           const label = f.connected ? "live" : "demo";
@@ -345,7 +345,7 @@ export function NewsFeedsPage() {
             <button
               key={f.id}
               onClick={() => toggleFeed(f.id)}
-              className={`flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded border transition-colors ${
+              className={`shrink-0 flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded border transition-colors ${
                 selectedFeeds.has(f.id)
                   ? `${f.color} border-current bg-current/10`
                   : "text-muted border-border hover:text-white"
@@ -356,13 +356,32 @@ export function NewsFeedsPage() {
             </button>
           );
         })}
-        <div className="w-px bg-border mx-1 self-stretch" />
+        <div className="w-px bg-border mx-1 self-stretch shrink-0" />
+        <span className="text-[10px] text-yellow-400 uppercase tracking-wide shrink-0">Ticker</span>
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="text"
+            value={tickerFilter}
+            onChange={(e) => setTickerFilter(e.target.value.toUpperCase())}
+            placeholder="e.g. AAPL"
+            className="text-[11px] px-2 py-0.5 rounded border border-yellow-500/50 bg-yellow-400/10 text-yellow-300 placeholder:text-yellow-600/60 w-24 font-mono focus:border-yellow-400/70 focus:outline-none"
+          />
+          {tickerFilter && (
+            <button
+              onClick={() => setTickerFilter("")}
+              className="text-[10px] text-yellow-600 hover:text-yellow-300 leading-none"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        <div className="w-px bg-border mx-1 self-stretch shrink-0" />
         <span className="text-[10px] text-muted uppercase tracking-wide shrink-0">Stars</span>
         {[1, 2, 3, 4, 5].map((s) => (
           <button
             key={s}
             onClick={() => setMinStars(minStars === s && s > 1 ? 1 : s)}
-            className={`text-[11px] px-1.5 py-0.5 rounded border transition-colors ${
+            className={`shrink-0 text-[11px] px-1.5 py-0.5 rounded border transition-colors ${
               minStars === s && s > 1
                 ? "text-yellow-400 border-yellow-500/50 bg-yellow-400/10"
                 : s <= minStars && minStars > 1
@@ -373,23 +392,6 @@ export function NewsFeedsPage() {
             {"★".repeat(s)}{s < 5 ? "+" : ""}
           </button>
         ))}
-        <div className="w-px bg-border mx-1 self-stretch" />
-        <span className="text-[10px] text-muted uppercase tracking-wide shrink-0">Ticker</span>
-        <input
-          type="text"
-          value={tickerFilter}
-          onChange={(e) => setTickerFilter(e.target.value.toUpperCase())}
-          placeholder="e.g. AAPL"
-          className="text-[11px] px-2 py-0.5 rounded border border-border bg-surface text-white placeholder:text-muted w-24 font-mono focus:border-white/40 focus:outline-none"
-        />
-        {tickerFilter && (
-          <button
-            onClick={() => setTickerFilter("")}
-            className="text-[10px] text-muted hover:text-white leading-none"
-          >
-            ✕
-          </button>
-        )}
       </div>
 
       {/* Main content */}

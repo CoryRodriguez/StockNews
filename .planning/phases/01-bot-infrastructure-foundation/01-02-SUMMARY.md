@@ -190,6 +190,16 @@ None - no external service configuration required.
 - Phase 5 (Frontend Dashboard) will call `switchMode()` and `updateConfig()` via REST routes
 - Phase 6 (Live Trading) uses `config.alpacaLiveUrl` via `getAlpacaBaseUrl()` — no code changes needed at that point
 
+## Self-Check: PASSED
+
+- FOUND: `backend/src/services/botController.ts`
+- FOUND: `backend/src/config.ts` (with alpacaLiveUrl)
+- FOUND: `.planning/phases/01-bot-infrastructure-foundation/01-02-SUMMARY.md`
+- FOUND: commit `04cae2f` (feat: config.ts alpacaLiveUrl)
+- FOUND: commit `270c70f` (feat: botController.ts)
+- FOUND: commit `d075aae` (docs: plan metadata)
+- tsc --noEmit: zero errors
+
 ---
 *Phase: 01-bot-infrastructure-foundation*
 *Completed: 2026-02-28*

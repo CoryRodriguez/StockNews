@@ -49,6 +49,14 @@ export function getScannerDefinitions() {
   return SCANNERS.map(({ id, name }) => ({ id, name }));
 }
 
+export function getCurrentAlerts(): Record<string, Snapshot[]> {
+  const result: Record<string, Snapshot[]> = {};
+  for (const [scannerId, snapMap] of alertState) {
+    result[scannerId] = [...snapMap.values()];
+  }
+  return result;
+}
+
 /** Returns the IDs of scanners that currently have this ticker on alert */
 export function getActiveScannersForTicker(ticker: string): string[] {
   const result: string[] = [];
@@ -59,8 +67,8 @@ export function getActiveScannersForTicker(ticker: string): string[] {
 }
 
 // Track current alert state per scanner to avoid duplicate emissions
-const alertState = new Map<string, Set<string>>(); // scannerId → Set<ticker>
-for (const s of SCANNERS) alertState.set(s.id, new Set());
+const alertState = new Map<string, Map<string, Snapshot>>(); // scannerId → Map<ticker, Snapshot>
+for (const s of SCANNERS) alertState.set(s.id, new Map());
 
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -82,11 +90,11 @@ async function runScan() {
 
     for (const scanner of SCANNERS) {
       const current = alertState.get(scanner.id)!;
-      const nowMatching = new Set<string>();
+      const nowMatching = new Map<string, Snapshot>();
 
       for (const snap of snapshots) {
         if (scanner.filter(snap)) {
-          nowMatching.add(snap.ticker);
+          nowMatching.set(snap.ticker, snap);
 
           // Only emit if this is a new alert for this scanner
           if (!current.has(snap.ticker)) {
@@ -100,7 +108,7 @@ async function runScan() {
       }
 
       // Emit clear events for tickers that fell off the scanner
-      for (const ticker of current) {
+      for (const [ticker] of current) {
         if (!nowMatching.has(ticker)) {
           broadcast(`scanner:${scanner.id}`, {
             type: "scanner_clear",

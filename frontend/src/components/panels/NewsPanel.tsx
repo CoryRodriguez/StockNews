@@ -4,6 +4,7 @@ import { useWatchlistStore } from "../../store/watchlistStore";
 import { useTradesStore } from "../../store/tradesStore";
 import { useAuthStore } from "../../store/authStore";
 import { useAudioAlert } from "../../hooks/useAudioAlert";
+import { useHourlyChanges } from "../../hooks/useHourlyChanges";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NewsArticle } from "../../types";
 import { deriveStars, fmtTime, highlightKeywords } from "../../utils/newsUtils";
@@ -44,10 +45,12 @@ function NewsItem({
   article,
   onTickerClick,
   tradeStatus,
+  hourChangePct,
 }: {
   article: NewsArticle;
   onTickerClick: () => void;
   tradeStatus: "open" | "closed" | null;
+  hourChangePct?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const token = useAuthStore((s) => s.token);
@@ -96,13 +99,24 @@ function NewsItem({
             TRADED
           </span>
         )}
-        <button
-          onClick={handleAddToWatchlist}
-          className="ml-auto shrink-0 text-accent text-sm font-bold leading-none hover:text-white transition-colors"
-          title={`Add ${article.ticker} to watchlist`}
-        >
-          +
-        </button>
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {hourChangePct !== undefined && Math.abs(hourChangePct) >= 0.01 && (
+            <span
+              className={`text-[10px] font-mono font-semibold ${
+                hourChangePct > 0 ? "text-up" : "text-down"
+              }`}
+            >
+              {hourChangePct > 0 ? "+" : ""}{hourChangePct.toFixed(2)}%
+            </span>
+          )}
+          <button
+            onClick={handleAddToWatchlist}
+            className="shrink-0 text-accent text-sm font-bold leading-none hover:text-white transition-colors"
+            title={`Add ${article.ticker} to watchlist`}
+          >
+            +
+          </button>
+        </div>
       </div>
 
       {/* Row 2: news snippet with keyword highlights */}
@@ -129,12 +143,16 @@ interface Props {
 
 export function NewsPanel({ newsMode, title }: Props) {
   const { filteredArticles, setFilterTicker, filterTicker } = useNewsStore();
+  const allArticles = useNewsStore((s) => s.articles);
   const setActiveTicker = useDashboardStore((s) => s.setActiveTicker);
   const { alertNews } = useAudioAlert();
   const trades = useTradesStore((s) => s.trades);
   const prevCountRef = useRef(0);
 
-  const articles = newsMode === "linked" ? filteredArticles() : useNewsStore.getState().articles;
+  const articles = newsMode === "linked" ? filteredArticles() : allArticles;
+
+  const tickers = useMemo(() => [...new Set(articles.map((a) => a.ticker))], [articles]);
+  const hourlyChanges = useHourlyChanges(tickers);
 
   // Build a map of ticker -> trade status for badge display
   const tradedTickers = useMemo(() => {
@@ -195,6 +213,7 @@ export function NewsPanel({ newsMode, title }: Props) {
             article={article}
             onTickerClick={() => handleTickerClick(article.ticker)}
             tradeStatus={tradedTickers.get(article.ticker) ?? null}
+            hourChangePct={hourlyChanges[article.ticker]}
           />
         ))}
       </div>

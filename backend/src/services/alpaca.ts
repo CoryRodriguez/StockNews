@@ -150,6 +150,48 @@ export async function getSnapshots(symbols: string[]): Promise<Snapshot[]> {
   });
 }
 
+// ── 1-hour % change ──────────────────────────────────────────────────────────
+
+const hourlyChangeCache = new Map<string, { pct: number; ts: number }>();
+const HOURLY_CHANGE_TTL = 60_000; // 60 seconds
+
+/** Returns % change from previous day's close to latest price. */
+export async function getHourlyChanges(symbols: string[]): Promise<Record<string, number>> {
+  if (!symbols.length) return {};
+  const now = Date.now();
+
+  const fresh: Record<string, number> = {};
+  const stale: string[] = [];
+
+  for (const sym of symbols) {
+    const cached = hourlyChangeCache.get(sym);
+    if (cached && now - cached.ts < HOURLY_CHANGE_TTL) {
+      fresh[sym] = cached.pct;
+    } else {
+      stale.push(sym);
+    }
+  }
+
+  if (stale.length === 0) return fresh;
+
+  const snapData = await fetchJson<AlpacaSnapshotResponse>(
+    `/v2/stocks/snapshots?symbols=${encodeURIComponent(stale.join(","))}&feed=iex`
+  );
+  for (const sym of stale) {
+    const snap = snapData?.[sym];
+    const price = snap?.latestTrade?.p ?? snap?.dailyBar?.c ?? 0;
+    const prevClose = snap?.prevDailyBar?.c ?? 0;
+    if (price > 0 && prevClose > 0) {
+      const pct = ((price - prevClose) / prevClose) * 100;
+      fresh[sym] = pct;
+      hourlyChangeCache.set(sym, { pct, ts: now });
+    }
+    // If no data, skip — don't cache so it retries next poll
+  }
+
+  return fresh;
+}
+
 // ── Intraday VWAP ────────────────────────────────────────────────────────────
 
 interface MinuteBar {

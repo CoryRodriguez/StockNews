@@ -61,13 +61,13 @@
 
 ### Bot Dashboard (Frontend)
 
-- [ ] **UI-01**: Dashboard includes a Bot Panel displaying current bot status (running, paused, stopped, market closed)
-- [ ] **UI-02**: Bot Panel displays all currently open positions with live P&L updating in real time
-- [ ] **UI-03**: Bot Panel displays a log of recent bot trades (entry price, exit price, P&L, exit reason, catalyst type)
-- [ ] **UI-04**: Bot Panel provides pause, resume, and emergency stop controls
-- [ ] **UI-05**: Bot Panel provides a configuration UI for: enabled catalyst tiers, position size (USD), confidence multipliers (high/med/low), max concurrent positions, daily loss limit, min win rate threshold, hard stop loss %, max hold duration, 5 Pillars thresholds (max float, max price, min relative volume)
-- [ ] **UI-06**: Bot Panel displays the current PDT day-trade counter and remaining day trades
-- [ ] **UI-07**: Bot Panel displays a signal rejection log showing evaluated-but-rejected signals with rejection reasons
+- [x] **UI-01**: Dashboard includes a Bot Panel displaying current bot status (running, paused, stopped, market closed)
+- [x] **UI-02**: Bot Panel displays all currently open positions with live P&L updating in real time
+- [x] **UI-03**: Bot Panel displays a log of recent bot trades (entry price, exit price, P&L, exit reason, catalyst type)
+- [x] **UI-04**: Bot Panel provides pause, resume, and emergency stop controls
+- [x] **UI-05**: Bot Panel provides a configuration UI for: enabled catalyst tiers, position size (USD), confidence multipliers (high/med/low), max concurrent positions, daily loss limit, min win rate threshold, hard stop loss %, max hold duration, 5 Pillars thresholds (max float, max price, min relative volume)
+- [x] **UI-06**: Bot Panel displays the current PDT day-trade counter and remaining day trades
+- [x] **UI-07**: Bot Panel displays a signal rejection log showing evaluated-but-rejected signals with rejection reasons
 
 ### Live Trading
 
@@ -156,13 +156,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RISK-03 | Phase 4 | Complete |
 | RISK-04 | Phase 4 | Complete |
 | RISK-05 | Phase 4 | Complete |
-| UI-01 | Phase 5 | Pending |
-| UI-02 | Phase 5 | Pending |
-| UI-03 | Phase 5 | Pending |
-| UI-04 | Phase 5 | Pending |
-| UI-05 | Phase 5 | Pending |
-| UI-06 | Phase 5 | Pending |
-| UI-07 | Phase 5 | Pending |
+| UI-01 | Phase 5 | Complete |
+| UI-02 | Phase 5 | Complete |
+| UI-03 | Phase 5 | Complete |
+| UI-04 | Phase 5 | Complete |
+| UI-05 | Phase 5 | Complete |
+| UI-06 | Phase 5 | Complete |
+| UI-07 | Phase 5 | Complete |
 | LIVE-01 | Phase 6 | Pending |
 | LIVE-02 | Phase 6 | Pending |
 | LIVE-03 | Phase 6 | Pending |

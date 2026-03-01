@@ -222,11 +222,11 @@ progress:
 ## Current Position
 
 **Current Phase:** 07-end-of-day-recap-evaluation-framework
-**Current Plan:** 07-01 complete
+**Current Plan:** 07-02 complete
 **Status:** Phase 7 executing
 
 ```
-Progress: █████████████████████████ ~86%
+Progress: ██████████████████████████ ~89%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
@@ -234,7 +234,7 @@ Phase 3: Trade Executor + Position Mon  [5/5] COMPLETE
 Phase 4: Risk Management Enforcement   [4/4] COMPLETE
 Phase 5: Frontend Bot Dashboard         [5/5] COMPLETE
 Phase 6: Live Trading Mode              [3/3] COMPLETE
-Phase 7: EOD Recap & Evaluation        [1/5] In Progress
+Phase 7: EOD Recap & Evaluation        [2/5] In Progress
 ```
 
 ---
@@ -249,7 +249,7 @@ Phase 7: EOD Recap & Evaluation        [1/5] In Progress
 | 4. Risk Management Enforcement | RISK-01 to RISK-05, EXIT-02 (6) | COMPLETE (4 plans) | 2026-03-01 |
 | 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | COMPLETE (5/5 plans) | 2026-03-01 |
 | 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | COMPLETE (3/3 plans) | 2026-03-01 |
-| 7. EOD Recap & Evaluation Framework | RECAP-SCHEMA, RECAP-MISSED-OPP, RECAP-ENRICHMENT, RECAP-ENGINE, RECAP-PERSIST, RECAP-API, RECAP-UI | IN PROGRESS (1/5 plans) | — |
+| 7. EOD Recap & Evaluation Framework | RECAP-SCHEMA, RECAP-MISSED-OPP, RECAP-ENRICHMENT, RECAP-ENGINE, RECAP-PERSIST, RECAP-API, RECAP-UI | IN PROGRESS (2/5 plans) | — |
 
 ---
 
@@ -346,6 +346,9 @@ Phase 7: EOD Recap & Evaluation        [1/5] In Progress
 | minPrice initialized to entryPrice in addPosition | Both reconciliation call sites in botController.ts required minPrice after TrackedPosition interface update |
 | startMissedOpportunityWatch passes priceAtRejection=0 for pre-price-fetch rejections | Tracker silently skips priceAtRejection <= 0; safe for Steps 3-9 where no snapshot yet |
 | entryVwapDev captured fire-and-forget with double .catch() | Non-fatal VWAP fetch failure must not affect trade lifecycle; two chains guard Prisma update separately |
+| computeRecap filters closed trades by exitAt not createdAt | Trades that opened one day and closed the next must appear in the correct day's recap |
+| strategyLookup prefers ALL/ALL-bucket StrategyRule | Simplest adherence lookup; per-cap/tod matching adds complexity for minimal value in recap context |
+| onTargetCount incremented when no recommendedHoldSec available | Unconfigured catalysts should not penalize adherence score; new catalyst types are expected during early operation |
 
 ### Architecture Notes
 
@@ -388,9 +391,9 @@ Phase 7: EOD Recap & Evaluation        [1/5] In Progress
 
 ## Session Continuity
 
-**Last session:** 2026-03-01T21:25:00.000Z
-**Stopped at:** Completed 07-01-PLAN.md
-**Next action:** Execute 07-02 through 07-05 plans to complete the EOD recap and evaluation framework.
+**Last session:** 2026-03-01T21:28:00.000Z
+**Stopped at:** Completed 07-02-PLAN.md
+**Next action:** Execute 07-03 through 07-05 plans to complete the EOD recap and evaluation framework.
 
 ### Handoff Notes
 
@@ -458,9 +461,11 @@ Phase 6 COMPLETE — All 3 plans delivered:
 - **06-03** (DONE): Phase 6 automated verification suite (28/28 checks pass) + human visual approval confirmed — all LIVE-01 through LIVE-03 requirements satisfied. Milestone v1.0 COMPLETE.
   - Commits: 5f936d2 (phase06-checks.sh)
 
-Phase 7 IN PROGRESS — 1/5 plans delivered:
+Phase 7 IN PROGRESS — 2/5 plans delivered:
 - **07-01** (DONE): DailyRecap Prisma model + BotSignalLog.postRejectPeakPct + BotTrade enrichment fields (entryVwapDev, peakPrice, maxDrawdownPct) + missedOpportunityTracker.ts + signalEngine.ts wiring + positionMonitor/tradeExecutor enrichment writes
   - Commits: 7bbde45 (schema migration), dcb9e48 (services)
+- **07-02** (DONE): eodRecap.ts computation service (computeRecap, persistRecap, scheduleRecapCron) + GET /api/bot/recap + GET /api/bot/recap/history REST endpoints + 4:01 PM ET cron wired in index.ts
+  - Commits: 7ac07d9 (eodRecap.ts), 95ea4e8 (REST routes + index.ts wiring)
 
 *State initialized: 2026-02-27*
-*Last updated: 2026-03-01 — Phase 7 Plan 01 complete — data foundation for EOD recap framework delivered*
+*Last updated: 2026-03-01 — Phase 7 Plan 02 complete — EOD recap computation service and REST endpoints delivered*

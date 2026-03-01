@@ -306,11 +306,13 @@ Phase 3 complete — all 5 plans delivered:
 
 ---
 
-Phase 4 in progress — Plans 04-01 and 04-02 delivered:
+Phase 4 in progress — Plans 04-01, 04-02, 04-03 delivered:
 - **04-01** (DONE): Added trailingStopPct + trailingStopDollar to BotConfig schema.prisma, BotConfigRecord interface, initBot() defaults, and migration SQL 20260228000003
   - Commits: 3a52fb6 (schema + interface), b6d157b (migration SQL)
 - **04-02** (DONE): RISK-02 (max positions), RISK-05 (per-symbol), RISK-03 (PDT) gates added to signalEngine.ts and tradeExecutor.ts; positionMonitor.ts exports getOpenPositionCount/getOpenSymbols
   - Commits: c4c93de (signalEngine.ts + positionMonitor.ts stubs), 9b95639 (tradeExecutor.ts PDT guard)
+- **04-03** (DONE): positionMonitor.ts EXIT-02 trailing stop wired into checkExitConditions() (pct/dollar precedence); RISK-04 4AM daily reset cron; cronsScheduled duplicate guard; tsc passes
+  - Commits: b9f98e1 (positionMonitor.ts)
 
 *State initialized: 2026-02-27*
-*Last updated: 2026-02-28 — Phase 4 Plan 02 complete; signal-layer and executor-layer risk gates implemented; RISK-02, RISK-03, RISK-05 satisfied*
+*Last updated: 2026-02-28 — Phase 4 Plans 01-03 complete; EXIT-02 trailing stop active; RISK-04 daily reset cron scheduled; tsc passes*

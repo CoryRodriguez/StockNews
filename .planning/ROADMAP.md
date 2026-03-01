@@ -256,7 +256,7 @@ Plans:
   5. BotPanel has a 5th Recap tab showing a summary card with hero P&L, score, stats, date picker, and "View full recap" link
   6. The /recap full page has Day, Week, and Month views with Recharts bar and line charts, expandable deep-dive sections (trade breakdown, signal rejections, catalyst performance, strategy adherence), and period-over-period comparisons
 
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 - [ ] 07-01-PLAN.md — Schema migration (DailyRecap model + BotSignalLog.postRejectPeakPct + BotTrade enrichment) + missedOpportunityTracker.ts + signalEngine/positionMonitor/tradeExecutor wiring

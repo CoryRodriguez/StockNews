@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 04
-current_plan: Not started
-status: completed
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-01T09:21:03.613Z"
+current_phase: 05-frontend-bot-dashboard
+current_plan: 05-04 complete
+status: executing
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-03-01T09:24:28Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 4
-  total_plans: 21
-  completed_plans: 19
+  total_plans: 22
+  completed_plans: 20
 ---
 
 ---
@@ -157,18 +157,18 @@ progress:
 
 ## Current Position
 
-**Current Phase:** 04
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Current Phase:** 05-frontend-bot-dashboard
+**Current Plan:** 05-04 complete
+**Status:** Phase 5 In Progress — Plan 05-04 Complete
 
 ```
-Progress: ████████████████████  83%
+Progress: ████████████████████  91%
 
 Phase 1: Bot Infrastructure Foundation  [3/3] COMPLETE
 Phase 2: Signal Engine                  [4/4] COMPLETE
 Phase 3: Trade Executor + Position Mon  [5/5] COMPLETE
 Phase 4: Risk Management Enforcement   [4/4] COMPLETE
-Phase 5: Frontend Bot Dashboard         [ ] Not started
+Phase 5: Frontend Bot Dashboard         [4/5] In Progress
 Phase 6: Live Trading Mode              [ ] Not started
 ```
 
@@ -182,7 +182,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 | 2. Signal Engine | SIG-01 to SIG-11 (11) | COMPLETE (4 plans) | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | EXEC-01 to EXEC-07, EXIT-01 to EXIT-06 (13) | COMPLETE (5 plans) | 2026-02-28 |
 | 4. Risk Management Enforcement | RISK-01 to RISK-05, EXIT-02 (6) | COMPLETE (4 plans) | 2026-03-01 |
-| 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | Not started | - |
+| 5. Frontend Bot Dashboard | UI-01 to UI-07 (7) | In Progress (4/5 plans) | - |
 | 6. Live Trading Mode | LIVE-01 to LIVE-03 (3) | Not started | - |
 
 ---
@@ -265,6 +265,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 | BotPanel.tsx stub created in 05-03 (not deferred to 05-04) | tsc passes immediately; stub is preferred per plan; 05-04 replaces with full component |
 | subscribedRef.current.clear() on 'connected' message | Pre-existing bug: channels did not re-subscribe after WebSocket reconnect because set was never cleared; fix in 05-03 |
 | bot-1 panel at x:0 y:28 w:6 h:20 | Left column below both scanner panels; gives bot dashboard prominent vertical space |
+| Graceful P&L degradation in PositionRow | watchlistStore.prices[symbol]?.price ?? entryPrice — avoids subscribeQuoteChannel complexity; $0 unrealized until ticker added to watchlist |
+| StatusBadge resolves market_closed when running but !marketOpen | Bot can be running while market is closed (weekend); badge shows distinct state |
+| pdtResetDay() uses America/New_York timezone | DST-correct next business day for PDT reset display in status tab |
 
 ### Architecture Notes
 
@@ -307,9 +310,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-03-01T09:21:03.611Z
-**Stopped at:** Completed 05-03-PLAN.md
-**Next action:** Phase 5 — Plan 05-04 (Frontend Bot Dashboard — BotPanel full implementation)
+**Last session:** 2026-03-01T09:24:28Z
+**Stopped at:** Completed 05-04-PLAN.md
+**Next action:** Phase 5 — Plan 05-05 (Frontend Bot Dashboard — final plan)
 
 ### Handoff Notes
 
@@ -364,6 +367,8 @@ Phase 5 In Progress:
   - Commits: (see 05-02-SUMMARY.md)
 - **05-03** (DONE): useSocket.ts wired to 'bot' channel with bot_status_update/bot_trade_closed/bot_signal_evaluated handlers; subscribedRef reconnect bug fixed; BotPanel stub + Dashboard.tsx case "bot" + DEFAULT_PANELS bot-1 entry
   - Commits: c422a7f (useSocket.ts), da9c76f (BotPanel stub + Dashboard + dashboardStore)
+- **05-04** (DONE): BotPanel full implementation — four tabs (status/history/signals/config), 19 BotConfig fields, control buttons, PDT counter, live P&L via watchlistStore.prices, Promise.all hydration
+  - Commits: 43fdc8c (BotPanel.tsx full implementation)
 
 *State initialized: 2026-02-27*
 *Last updated: 2026-03-01 — Phase 5 Plan 03 COMPLETE; bot WS channel wired; reconnect fix applied; BotPanel stub registered in dashboard*

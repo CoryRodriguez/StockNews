@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 04
 current_plan: Not started
 status: completed
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-01T09:13:09.410Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-01T09:17:21.906Z"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 21
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 ---
@@ -189,6 +189,7 @@ Phase 6: Live Trading Mode              [ ] Not started
 | Phase 04 P03 | 7 | 2 tasks | 1 files |
 | Phase 04 P04 | 3 | 2 tasks | 1 file |
 | Phase 05 P02 | 5 | 2 tasks | 2 files |
+| Phase 05-frontend-bot-dashboard P05-01 | 4 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -242,6 +243,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 | checkPdtLimit fails open on API error | Alpaca maintenance windows must not freeze all trades; logging covers the gap |
 | PDT check skipped in paper mode | Paper account is >$25k by design; PDT rule doesn't apply (CONTEXT.md locked decision) |
 | already-holding check moved from tradeExecutor to signalEngine | BotSignalLog captures full article context (headline, source, catalystCategory) at upstream rejection point |
+| writeSignalLog() returns created record (not void) | Enables id-based WS broadcasts without a second DB read; null return on error keeps call sites clean |
+| broadcastRejectedSignal() no-op on null input | Guards against DB write failures at all 11 rejection sites without try/catch per-call |
+| setBotState broadcast sends lightweight snapshot (zeros) | Full status requires async DB queries incompatible with post-update sync flow; frontend hydrates via GET /status on mount |
 
 ### Architecture Notes
 
@@ -284,9 +288,9 @@ Phase 6: Live Trading Mode              [ ] Not started
 
 ## Session Continuity
 
-**Last session:** 2026-03-01T09:13:09.408Z
-**Stopped at:** Completed 05-02-PLAN.md
-**Next action:** Phase 5 — Plan 05-01 (Frontend Bot Dashboard)
+**Last session:** 2026-03-01T09:17:21.904Z
+**Stopped at:** Completed 05-01-PLAN.md
+**Next action:** Phase 5 — Plan 05-02 (Frontend Bot Dashboard — Bot Data Layer)
 
 ### Handoff Notes
 

@@ -2,6 +2,7 @@ import prisma from '../db/client';
 import { config } from '../config';
 import { addPosition } from './positionMonitor';
 import { restartTradingWs } from './tradingWs';
+import { broadcast } from '../ws/clientHub';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -244,6 +245,21 @@ export async function setBotState(newState: BotState): Promise<void> {
   await prisma.botConfig.update({
     where: { id: 'singleton' },
     data: { state: newState },
+  });
+  // Notify all subscribed frontend clients of the state change.
+  // Sends a lightweight snapshot — full status (P&L, dayTradeCount) requires async DB
+  // queries that setBotState cannot await. The frontend hydrates full status on mount.
+  broadcast('bot', {
+    type: 'bot_status_update',
+    status: {
+      state: newState,
+      mode: botConfig?.mode ?? 'paper',
+      openPositionCount: 0,  // frontend reconciles with GET /positions
+      todayRealizedPnl: 0,
+      todayTradeCount: 0,
+      dayTradeCount: 0,
+      marketOpen: isMarketOpen(),
+    },
   });
 }
 

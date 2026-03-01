@@ -26,6 +26,7 @@ import { executeTradeAsync } from "./tradeExecutor";
 // Plan 04-02: risk gate helpers — exports added to positionMonitor.ts in this plan
 // (Plan 04-03 may also touch these exports; both plans run in Wave 2 in parallel)
 import { getOpenPositionCount, getOpenSymbols } from "./positionMonitor";
+import { broadcast } from "../ws/clientHub";
 
 // ── Module-level state ─────────────────────────────────────────────────────
 
@@ -112,17 +113,43 @@ function isOpeningAuction(): boolean {
 
 /**
  * Writes a BotSignalLog record to the database.
+ * Returns the created record (including id) so callers can broadcast.
  * Errors are logged with a [SignalEngine] prefix and never re-thrown.
+ * Returns null on error (callers must handle gracefully).
  */
 async function writeSignalLog(
   data: Parameters<typeof prisma.botSignalLog.create>[0]["data"]
-): Promise<void> {
-  await prisma.botSignalLog.create({ data }).catch((err) =>
+): Promise<{ id: string; symbol: string; catalystCategory: string | null; catalystTier: number | null; rejectReason: string | null; evaluatedAt: Date; headline: string | null; source: string | null } | null> {
+  try {
+    return await prisma.botSignalLog.create({ data });
+  } catch (err) {
     console.error(
       "[SignalEngine] DB write error:",
       err instanceof Error ? err.message : err
-    )
-  );
+    );
+    return null;
+  }
+}
+
+/**
+ * Broadcasts a bot_signal_evaluated event for a rejected signal log entry.
+ * No-op if logRecord is null (DB write failed).
+ */
+function broadcastRejectedSignal(
+  logRecord: { id: string; symbol: string; catalystCategory: string | null; catalystTier: number | null; rejectReason: string | null; evaluatedAt: Date } | null
+): void {
+  if (!logRecord) return;
+  broadcast('bot', {
+    type: 'bot_signal_evaluated',
+    signal: {
+      id: logRecord.id,
+      symbol: logRecord.symbol,
+      catalystCategory: logRecord.catalystCategory,
+      catalystTier: logRecord.catalystTier,
+      rejectReason: logRecord.rejectReason,
+      evaluatedAt: logRecord.evaluatedAt.toISOString(),
+    },
+  });
 }
 
 // ── AI evaluation ─────────────────────────────────────────────────────────
@@ -219,7 +246,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
 
     // ── Step 3: Reconnect cooldown ────────────────────────────────────────
     if (isReconnectSuppressed(article.source)) {
-      await writeSignalLog({
+      const log3 = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -236,13 +263,14 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: null,
         articleCreatedAt: article.createdAt ? new Date(article.createdAt) : null,
       });
+      broadcastRejectedSignal(log3);
       return;
     }
 
     // ── Step 4: Staleness check (> 90 seconds) ────────────────────────────
     const articleAge = Date.now() - new Date(article.createdAt).getTime();
     if (articleAge > MAX_ARTICLE_AGE_MS) {
-      await writeSignalLog({
+      const log4 = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -259,6 +287,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: null,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log4);
       return;
     }
 
@@ -271,7 +300,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
 
     if (classification === null) {
       // Danger pattern detected
-      await writeSignalLog({
+      const log6a = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -288,12 +317,13 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: null,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log6a);
       return;
     }
 
     if (classification.tier >= 5) {
       // OTHER tier — always disabled
-      await writeSignalLog({
+      const log6b = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -310,13 +340,14 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: null,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log6b);
       return;
     }
 
     // ── Step 7: Enabled tier gate ─────────────────────────────────────────
     const enabledTiers = config.enabledCatalystTiers.split(",").map(Number);
     if (!enabledTiers.includes(classification.tier)) {
-      await writeSignalLog({
+      const log7 = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -333,12 +364,13 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: null,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log7);
       return;
     }
 
     // ── Step 8: Opening auction window (9:30–9:45 AM ET) ─────────────────
     if (isOpeningAuction()) {
-      await writeSignalLog({
+      const log8 = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -355,6 +387,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: null,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log8);
       return;
     }
 
@@ -362,7 +395,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
     // Bypass when sampleSize === 0 (no data yet — log winRateAtEval: null).
     const strategy = getStrategy(classification.category, null, new Date());
     if (strategy.sampleSize > 0 && strategy.winRate < config.minWinRate) {
-      await writeSignalLog({
+      const log9 = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -379,6 +412,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: null,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log9);
       return;
     }
 
@@ -390,7 +424,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
 
     // If snapshot is unavailable, treat as failed price pillar
     if (snaps.length === 0) {
-      await writeSignalLog({
+      const log10a = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -407,6 +441,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: null,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log10a);
       return;
     }
 
@@ -414,7 +449,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
 
     // Pillar 1: Price must be ≤ maxSharePrice
     if (snap.price > config.maxSharePrice) {
-      await writeSignalLog({
+      const log10b = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -431,12 +466,13 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: snap.relativeVolume,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log10b);
       return;
     }
 
     // Pillar 2: Relative volume must be ≥ minRelativeVolume
     if (snap.relativeVolume < config.minRelativeVolume) {
-      await writeSignalLog({
+      const log10c = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -453,13 +489,14 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: snap.relativeVolume,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log10c);
       return;
     }
 
     // ── Step 10.5: Max concurrent positions check (RISK-02) ───────────────
     const openCount = getOpenPositionCount();
     if (openCount >= config.maxConcurrentPositions) {
-      await writeSignalLog({
+      const log105 = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -476,6 +513,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: snap.relativeVolume,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log105);
       return;
     }
 
@@ -483,7 +521,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
     // Moves the silent skip from tradeExecutor.ts step 2 into the signal engine
     // so the BotSignalLog has full article context (headline, source, catalystCategory).
     if (getOpenSymbols().has(symbol)) {
-      await writeSignalLog({
+      const log106 = await writeSignalLog({
         symbol,
         source: article.source,
         headline: article.title,
@@ -500,6 +538,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         relVolAtEval: snap.relativeVolume,
         articleCreatedAt: new Date(article.createdAt),
       });
+      broadcastRejectedSignal(log106);
       return;
     }
 
@@ -554,7 +593,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         // null = either key absent OR timeout/error
         const reason =
           getAnthropicClient() === null ? "ai-unavailable" : "ai-timeout";
-        await writeSignalLog({
+        const log11a = await writeSignalLog({
           symbol,
           source: article.source,
           headline: article.title,
@@ -571,11 +610,12 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
           relVolAtEval,
           articleCreatedAt: new Date(article.createdAt),
         });
+        broadcastRejectedSignal(log11a);
         return;
       }
 
       if (!aiResult.proceed) {
-        await writeSignalLog({
+        const log11b = await writeSignalLog({
           symbol,
           source: article.source,
           headline: article.title,
@@ -592,6 +632,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
           relVolAtEval,
           articleCreatedAt: new Date(article.createdAt),
         });
+        broadcastRejectedSignal(log11b);
         return;
       }
 

@@ -17,6 +17,7 @@ import prisma from '../db/client';
 import { config } from '../config';
 import { getSnapshots } from './alpaca';
 import { getBotConfig, getAlpacaBaseUrl } from './botController';
+import { broadcast } from '../ws/clientHub';
 
 // ── In-memory position map ────────────────────────────────────────────────────
 
@@ -126,6 +127,8 @@ async function closePosition(pos: TrackedPosition, exitPrice: number | null, rea
     // Calculate P&L
     const pnl = exitPrice != null ? (exitPrice - pos.entryPrice) * pos.shares : null;
 
+    const exitAt = new Date();
+
     // Update BotTrade in DB
     await prisma.botTrade.update({
       where: { id: pos.tradeId },
@@ -133,8 +136,25 @@ async function closePosition(pos: TrackedPosition, exitPrice: number | null, rea
         status: 'closed',
         exitReason: reason,
         exitPrice: exitPrice ?? undefined,
-        exitAt: new Date(),
+        exitAt,
         pnl: pnl ?? undefined,
+      },
+    });
+
+    // Notify subscribed frontend clients that a position was closed
+    broadcast('bot', {
+      type: 'bot_trade_closed',
+      trade: {
+        id: pos.tradeId,
+        symbol: pos.symbol,
+        entryPrice: pos.entryPrice,
+        exitPrice,
+        shares: pos.shares,
+        pnl,
+        catalystType: pos.catalystCategory,
+        exitReason: reason,
+        entryAt: pos.entryAt.toISOString(),
+        exitAt: exitAt.toISOString(),
       },
     });
 

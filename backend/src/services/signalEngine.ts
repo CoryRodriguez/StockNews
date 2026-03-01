@@ -27,6 +27,8 @@ import { executeTradeAsync } from "./tradeExecutor";
 // (Plan 04-03 may also touch these exports; both plans run in Wave 2 in parallel)
 import { getOpenPositionCount, getOpenSymbols } from "./positionMonitor";
 import { broadcast } from "../ws/clientHub";
+// Phase 7: missed-opportunity tracker — watches rejected signals for 30 min
+import { startMissedOpportunityWatch } from "./missedOpportunityTracker";
 
 // ── Module-level state ─────────────────────────────────────────────────────
 
@@ -264,6 +266,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: article.createdAt ? new Date(article.createdAt) : null,
       });
       broadcastRejectedSignal(log3);
+      if (log3) startMissedOpportunityWatch(log3.id, symbol, 0); // price unavailable at this step
       return;
     }
 
@@ -288,6 +291,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log4);
+      if (log4) startMissedOpportunityWatch(log4.id, symbol, 0); // price unavailable at this step
       return;
     }
 
@@ -318,6 +322,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log6a);
+      if (log6a) startMissedOpportunityWatch(log6a.id, symbol, 0); // price unavailable at this step
       return;
     }
 
@@ -341,6 +346,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log6b);
+      if (log6b) startMissedOpportunityWatch(log6b.id, symbol, 0); // price unavailable at this step
       return;
     }
 
@@ -365,6 +371,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log7);
+      if (log7) startMissedOpportunityWatch(log7.id, symbol, 0); // price unavailable at this step
       return;
     }
 
@@ -388,6 +395,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log8);
+      if (log8) startMissedOpportunityWatch(log8.id, symbol, 0); // price unavailable at this step
       return;
     }
 
@@ -413,6 +421,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log9);
+      if (log9) startMissedOpportunityWatch(log9.id, symbol, 0); // price unavailable at this step
       return;
     }
 
@@ -442,6 +451,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log10a);
+      if (log10a) startMissedOpportunityWatch(log10a.id, symbol, 0); // no price from snapshot
       return;
     }
 
@@ -467,6 +477,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log10b);
+      if (log10b) startMissedOpportunityWatch(log10b.id, symbol, snap.price);
       return;
     }
 
@@ -490,6 +501,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log10c);
+      if (log10c) startMissedOpportunityWatch(log10c.id, symbol, snap.price);
       return;
     }
 
@@ -514,6 +526,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log105);
+      if (log105) startMissedOpportunityWatch(log105.id, symbol, snap.price);
       return;
     }
 
@@ -539,6 +552,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
         articleCreatedAt: new Date(article.createdAt),
       });
       broadcastRejectedSignal(log106);
+      if (log106) startMissedOpportunityWatch(log106.id, symbol, snap.price);
       return;
     }
 
@@ -611,6 +625,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
           articleCreatedAt: new Date(article.createdAt),
         });
         broadcastRejectedSignal(log11a);
+        if (log11a) startMissedOpportunityWatch(log11a.id, symbol, priceAtEval);
         return;
       }
 
@@ -633,6 +648,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
           articleCreatedAt: new Date(article.createdAt),
         });
         broadcastRejectedSignal(log11b);
+        if (log11b) startMissedOpportunityWatch(log11b.id, symbol, priceAtEval);
         return;
       }
 

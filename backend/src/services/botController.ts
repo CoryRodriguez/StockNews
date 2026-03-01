@@ -100,6 +100,7 @@ async function reconcilePositions(): Promise<void> {
           entryPrice: trade.entryPrice ?? 0,
           entryAt: trade.entryAt ?? new Date(),
           peakPrice: trade.entryPrice ?? 0,
+          minPrice: trade.entryPrice ?? 0,
           shares: trade.shares ?? 0,
           catalystCategory: trade.catalystType ?? 'unknown',
         });
@@ -129,6 +130,7 @@ async function reconcilePositions(): Promise<void> {
           entryPrice: parseFloat(livePos.avg_entry_price),
           entryAt: new Date(),
           peakPrice: parseFloat(livePos.avg_entry_price),
+          minPrice: parseFloat(livePos.avg_entry_price),
           shares: parseFloat(livePos.qty),
           catalystCategory: 'unknown',
         });

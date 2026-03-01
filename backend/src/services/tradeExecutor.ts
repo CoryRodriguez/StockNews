@@ -17,6 +17,7 @@
 import prisma from '../db/client';
 import { config } from '../config';
 import { getAlpacaBaseUrl, getBotConfig } from './botController';
+import { getVwapDev } from './alpaca';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -328,7 +329,7 @@ export async function executeTradeAsync(signal: TradeSignal): Promise<void> {
   }
 
   // Step 5: Create BotTrade record — entryPrice and shares are null until fill event
-  await prisma.botTrade.create({
+  const trade = await prisma.botTrade.create({
     data: {
       symbol,
       status: 'open',
@@ -339,6 +340,18 @@ export async function executeTradeAsync(signal: TradeSignal): Promise<void> {
       // entryPrice and shares filled by onFillEvent() via tradingWs.ts callbacks
     },
   });
+
+  // Step 5.5: Capture VWAP deviation at entry (non-blocking — fire and forget)
+  // priceAtSignal is the price from the snapshot captured in signalEngine.ts
+  const priceAtSignal = signal.priceAtSignal;
+  getVwapDev(symbol, priceAtSignal).then(vwapDev => {
+    if (vwapDev != null) {
+      prisma.botTrade.update({
+        where: { id: trade.id },
+        data: { entryVwapDev: vwapDev },
+      }).catch(() => {}); // non-fatal — missing VWAP data does not affect trade lifecycle
+    }
+  }).catch(() => {}); // non-fatal — VWAP fetch failure should not affect trade lifecycle
 
   console.log(`[TradeExecutor] Order placed: ${symbol} notional=$${notional} stars=${starRating} orderId=${order.id}`);
 }

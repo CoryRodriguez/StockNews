@@ -27,6 +27,7 @@ interface TrackedPosition {
   entryPrice: number;
   entryAt: Date;
   peakPrice: number;    // tracked for EXIT-02 trailing stop — updated on every poll cycle
+  minPrice: number;     // tracked for maxDrawdownPct enrichment — updated on every poll cycle
   shares: number;       // authoritative qty — updated after partial_fill
   catalystCategory: string;
   sold: boolean;        // race condition guard — set true BEFORE any sell
@@ -41,8 +42,9 @@ let cronsScheduled = false; // guard against duplicate cron registration on mult
 async function checkExitConditions(pos: TrackedPosition, currentPrice: number): Promise<void> {
   if (pos.sold) return;
 
-  // Update peak price — used by EXIT-02 trailing stop below
+  // Update peak and min price — peakPrice used by EXIT-02 trailing stop; minPrice for maxDrawdownPct
   if (currentPrice > pos.peakPrice) pos.peakPrice = currentPrice;
+  if (currentPrice < pos.minPrice) pos.minPrice = currentPrice;
 
   const cfg = getBotConfig();
   const pctChange = (currentPrice - pos.entryPrice) / pos.entryPrice * 100;
@@ -129,7 +131,7 @@ async function closePosition(pos: TrackedPosition, exitPrice: number | null, rea
 
     const exitAt = new Date();
 
-    // Update BotTrade in DB
+    // Update BotTrade in DB with close data and Phase 7 enrichment fields
     await prisma.botTrade.update({
       where: { id: pos.tradeId },
       data: {
@@ -138,6 +140,10 @@ async function closePosition(pos: TrackedPosition, exitPrice: number | null, rea
         exitPrice: exitPrice ?? undefined,
         exitAt,
         pnl: pnl ?? undefined,
+        peakPrice: pos.peakPrice,
+        maxDrawdownPct: pos.minPrice < pos.entryPrice
+          ? ((pos.entryPrice - pos.minPrice) / pos.entryPrice) * 100
+          : 0,
       },
     });
 

@@ -53,6 +53,29 @@ async function checkExitConditions(pos: TrackedPosition, currentPrice: number): 
     await closePosition(pos, currentPrice, 'hard_stop');
     return;
   }
+  // EXIT-02: Trailing stop — fires when price falls below peak by configured amount
+  // Hard stop (EXIT-01) runs first — provides absolute floor for fast crashes.
+  // Trailing stop is secondary protection that locks in gains as price rises.
+  // pct takes precedence over dollar when both are configured > 0 (CONTEXT.md Claude's Discretion).
+  // Note: after server restart, peakPrice is reset to entryPrice (known limitation — hard stop still protects).
+  const trailPct    = cfg.trailingStopPct;    // 0 = disabled
+  const trailDollar = cfg.trailingStopDollar; // 0 = disabled
+
+  if (trailPct > 0) {
+    // Percentage trailing stop takes precedence
+    const stopPrice = pos.peakPrice * (1 - trailPct / 100);
+    if (currentPrice <= stopPrice) {
+      await closePosition(pos, currentPrice, 'trailing_stop');
+      return;
+    }
+  } else if (trailDollar > 0) {
+    // Dollar trailing stop — only when pct is not configured (= 0)
+    const stopPrice = pos.peakPrice - trailDollar;
+    if (currentPrice <= stopPrice) {
+      await closePosition(pos, currentPrice, 'trailing_stop');
+      return;
+    }
+  }
   // EXIT-03: Profit target
   if (pctChange >= cfg.profitTargetPct) {
     await closePosition(pos, currentPrice, 'profit_target');
@@ -63,8 +86,6 @@ async function checkExitConditions(pos: TrackedPosition, currentPrice: number): 
     await closePosition(pos, currentPrice, 'time_exit');
     return;
   }
-  // EXIT-02: Trailing stop — DEFERRED TO PHASE 4 per user decision
-  // peakPrice is tracked above as groundwork only — no exit logic here
 }
 
 // ── Close position — sell logic with sold guard ───────────────────────────────
@@ -160,16 +181,34 @@ function scheduleEodForceClose(): void {
   console.log('[PositionMonitor] EOD force-close cron scheduled (3:45 PM ET, Mon-Fri)');
 }
 
+// ── 4AM daily reset cron (RISK-04) ───────────────────────────────────────────
+
+function scheduleDailyReset(): void {
+  cron.schedule('0 4 * * 1-5', async () => {
+    console.log('[PositionMonitor] 4AM daily reset — clearing in-memory daily state');
+    // No circuit breaker to clear (RISK-01 removed per user decision).
+    // BotDailyStats rows are date-keyed: a new upsert on the first trade of the day
+    // creates a fresh row automatically — no explicit zeroing needed here.
+    // This cron exists to: (1) log the day boundary for debugging, (2) clear any
+    // future in-memory counters without requiring a server restart.
+    console.log('[PositionMonitor] Daily reset complete');
+  }, { timezone: 'America/New_York' });
+  console.log('[PositionMonitor] Daily reset cron scheduled (4:00 AM ET, Mon-Fri)');
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Initializes the position monitor: schedules the EOD force-close cron.
+ * Initializes the position monitor: schedules the EOD force-close cron and 4AM daily reset cron.
  * The 5-second poll loop is always active once this module is imported.
  * Called once from botController.ts / server startup (Plan 03-04).
  */
 export function startPositionMonitor(): void {
+  if (cronsScheduled) return; // guard: prevent duplicate cron registration
+  cronsScheduled = true;
   scheduleEodForceClose();
-  console.log('[PositionMonitor] Started — polling every 5s, EOD close at 3:45 PM ET');
+  scheduleDailyReset();
+  console.log('[PositionMonitor] Started — polling every 5s, EOD close at 3:45 PM ET, daily reset at 4:00 AM ET');
 }
 
 /**
@@ -191,8 +230,8 @@ export function removePosition(tradeId: string): void {
 }
 
 // ── Risk gate helpers (RISK-02 and RISK-05 — consumed by signalEngine.ts) ─────
-// Added in Plan 04-02 alongside signalEngine.ts changes. Plan 04-03 may also
-// export these — these stubs ensure tsc passes regardless of wave completion order.
+// Exported for signalEngine.ts (Plan 04-02) to enforce max concurrent positions (RISK-02)
+// and per-symbol concentration (RISK-05) without a circular dependency.
 
 /**
  * Returns the number of currently open tracked positions.

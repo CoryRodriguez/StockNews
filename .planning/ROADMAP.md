@@ -13,7 +13,7 @@
 - [x] **Phase 2: Signal Engine** - News evaluation pipeline in log-only mode with deduplication and staleness protection (completed 2026-02-28)
 - [x] **Phase 3: Trade Executor and Position Monitor** - Paper-mode order placement and automated exit state machine (completed 2026-02-28)
 - [x] **Phase 4: Risk Management Enforcement** - Circuit breakers, PDT guard, position sizing, daily stat resets (completed 2026-03-01)
-- [ ] **Phase 5: Frontend Bot Dashboard** - UI panel for bot status, live P&L, controls, and signal rejection log
+- [x] **Phase 5: Frontend Bot Dashboard** - UI panel for bot status, live P&L, controls, and signal rejection log (completed 2026-03-01)
 - [ ] **Phase 6: Live Trading Mode** - Gate-based live API unlock with mode-switch safeguards
 
 ---
@@ -26,7 +26,7 @@
 | 2. Signal Engine | 4/4 | Complete   | 2026-02-28 |
 | 3. Trade Executor and Position Monitor | 5/5 | Complete   | 2026-02-28 |
 | 4. Risk Management Enforcement | 4/4 | Complete   | 2026-03-01 |
-| 5. Frontend Bot Dashboard | 4/5 | In Progress|  |
+| 5. Frontend Bot Dashboard | 5/5 | Complete   | 2026-03-01 |
 | 6. Live Trading Mode | 0/? | Not started | - |
 
 ---
@@ -151,7 +151,14 @@ Plans:
   6. The PDT day-trade counter and remaining day trades for the current 5-day window are visible in the panel at all times
   7. The signal rejection log shows evaluated-but-rejected signals with ticker, catalyst type, timestamp, and rejection reason so the user can see what the bot declined to trade
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [x] 05-01-PLAN.md — Backend bot API extension (5 REST endpoints + 3 WS broadcasts)
+- [x] 05-02-PLAN.md — botStore.ts Zustand store + WsMessage bot type variants
+- [x] 05-03-PLAN.md — useSocket.ts bot channel wiring + BotPanel stub + Dashboard registration
+- [x] 05-04-PLAN.md — BotPanel full implementation (four tabs, 19 config fields, control buttons)
+- [x] 05-05-PLAN.md — Automated verification suite (24/24) + human visual approval
 
 ---
 
@@ -231,4 +238,4 @@ Plans:
 ---
 
 *Roadmap created: 2026-02-27*
-*Last updated: 2026-03-01 — Phase 4 COMPLETE (4/4 plans); all risk gates verified; advancing to Phase 5*
+*Last updated: 2026-03-01 — Phase 5 COMPLETE (5/5 plans); Bot Dashboard live and human-verified; advancing to Phase 6*

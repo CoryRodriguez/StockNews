@@ -8,9 +8,11 @@ import {
   isMarketOpen,
   updateConfig,
   switchMode,
+  getTodayDateET,
   type BotState,
 } from '../services/botController';
 import { evaluateGoLiveGate } from '../services/goLiveGate';
+import { computeRecap } from '../services/eodRecap';
 
 const router = Router();
 
@@ -255,6 +257,75 @@ router.get('/gate', requireAuth, async (_req, res) => {
   } catch (err) {
     console.error('[BotRoute] /gate error:', err);
     res.status(500).json({ error: 'Failed to evaluate go-live gate' });
+  }
+});
+
+// ─── Recap date helpers ───────────────────────────────────────────────────────
+
+function getWeekDates(anchor: string): string[] {
+  const d = new Date(`${anchor}T12:00:00Z`);
+  const day = d.getUTCDay(); // 0=Sun
+  const monday = new Date(d);
+  monday.setUTCDate(d.getUTCDate() - ((day + 6) % 7)); // go back to Monday
+  const dates: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const cur = new Date(monday);
+    cur.setUTCDate(monday.getUTCDate() + i);
+    dates.push(cur.toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+function getMonthDates(anchor: string): string[] {
+  const [year, month] = anchor.split('-').map(Number);
+  const dates: string[] = [];
+  const daysInMonth = new Date(year, month, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    // Only include weekdays (Mon-Fri)
+    const dayOfWeek = new Date(`${dateStr}T12:00:00Z`).getUTCDay();
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) dates.push(dateStr);
+  }
+  return dates;
+}
+
+// ─── GET /recap/history — MUST be registered before /recap ───────────────────
+// Returns an array of DailyRecap rows for the specified week or month.
+// GET /api/bot/recap/history?mode=week|month&anchor=YYYY-MM-DD
+router.get('/recap/history', requireAuth, async (req, res) => {
+  try {
+    const mode = (req.query.mode as string) ?? 'week';
+    const anchor = (req.query.anchor as string) ?? getTodayDateET();
+    const dates = mode === 'month' ? getMonthDates(anchor) : getWeekDates(anchor);
+    const rows = await prisma.dailyRecap.findMany({
+      where: { date: { in: dates } },
+      orderBy: { date: 'asc' },
+    });
+    res.json(rows);
+  } catch (err) {
+    console.error('[BotRoute] /recap/history error:', err);
+    res.status(500).json({ error: 'Failed to load recap history' });
+  }
+});
+
+// ─── GET /recap ───────────────────────────────────────────────────────────────
+// Returns full recap for a single day. Tries persisted first (fast); falls back
+// to on-demand computation if not yet persisted.
+// GET /api/bot/recap?date=YYYY-MM-DD
+router.get('/recap', requireAuth, async (req, res) => {
+  try {
+    const dateET = (req.query.date as string) ?? getTodayDateET();
+
+    // Try persisted first (fast path)
+    const persisted = await prisma.dailyRecap.findUnique({ where: { date: dateET } });
+    if (persisted) { res.json(persisted); return; }
+
+    // Fall back to on-demand computation (slower path)
+    const data = await computeRecap(dateET);
+    res.json(data);
+  } catch (err) {
+    console.error('[BotRoute] /recap error:', err);
+    res.status(500).json({ error: 'Failed to load recap' });
   }
 });
 

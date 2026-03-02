@@ -14,7 +14,7 @@
  * Do NOT add those hooks here.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import prisma from "../db/client";
 import { config as appConfig } from "../config";
 import { getBotState, getBotConfig, isMarketOpen } from "./botController";
@@ -57,19 +57,19 @@ setInterval(() => {
 /** Maximum age of an article before it is considered stale (90 seconds). */
 const MAX_ARTICLE_AGE_MS = 90_000;
 
-// ── Anthropic client (lazy init) ───────────────────────────────────────────
+// ── OpenAI client (lazy init) ──────────────────────────────────────────────
 
-let anthropicClient: Anthropic | null = null;
+let openaiClient: OpenAI | null = null;
 
-function getAnthropicClient(): Anthropic | null {
-  if (!appConfig.anthropicApiKey) return null; // key absent — no crash
-  if (!anthropicClient) {
-    anthropicClient = new Anthropic({
-      apiKey: appConfig.anthropicApiKey,
+function getOpenAIClient(): OpenAI | null {
+  if (!appConfig.openaiApiKey) return null; // key absent — no crash
+  if (!openaiClient) {
+    openaiClient = new OpenAI({
+      apiKey: appConfig.openaiApiKey,
       timeout: 2000,
     });
   }
-  return anthropicClient;
+  return openaiClient;
 }
 
 // ── Private helpers ────────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ interface AiEvaluation {
 }
 
 /**
- * Calls Claude API to evaluate whether a tier 3-4 article warrants a trade.
+ * Calls OpenAI API to evaluate whether a tier 3-4 article warrants a trade.
  * Returns null if the key is absent (ai-unavailable) or on any error/timeout (ai-timeout).
  */
 async function evaluateWithAI(
@@ -173,17 +173,20 @@ async function evaluateWithAI(
   priceAtEval: number,
   relVolAtEval: number
 ): Promise<AiEvaluation | null> {
-  const client = getAnthropicClient();
+  const client = getOpenAIClient();
   if (!client) return null; // signals "ai-unavailable" to caller
 
   try {
-    const response = await client.messages.create({
-      model: appConfig.claudeSignalModel,
+    const response = await client.chat.completions.create({
+      model: appConfig.openaiSignalModel,
       max_tokens: 150,
-      system: `You are a day-trading signal evaluator. Evaluate if a news headline warrants a momentum buy.
+      messages: [
+        {
+          role: "system",
+          content: `You are a day-trading signal evaluator. Evaluate if a news headline warrants a momentum buy.
 Respond with JSON only: {"proceed": true|false, "confidence": "high"|"medium"|"low", "reasoning": "one sentence"}.
 Rules: proceed=true only for clear positive catalysts with strong momentum potential. Decline vague, speculative, or negative news.`,
-      messages: [
+        },
         {
           role: "user",
           content: `Symbol: ${symbol}\nHeadline: ${headline}\nBody: ${body.slice(0, 300)}\nPrice: $${priceAtEval.toFixed(2)}, RelVol: ${relVolAtEval.toFixed(1)}x`,
@@ -191,8 +194,7 @@ Rules: proceed=true only for clear positive catalysts with strong momentum poten
       ],
     });
 
-    const text =
-      response.content[0]?.type === "text" ? response.content[0].text : "";
+    const text = response.choices[0]?.message?.content ?? "";
     return JSON.parse(text) as AiEvaluation;
   } catch (err) {
     console.warn(
@@ -606,7 +608,7 @@ export async function evaluateBotSignal(article: RtprArticle): Promise<void> {
       if (aiResult === null) {
         // null = either key absent OR timeout/error
         const reason =
-          getAnthropicClient() === null ? "ai-unavailable" : "ai-timeout";
+          getOpenAIClient() === null ? "ai-unavailable" : "ai-timeout";
         const log11a = await writeSignalLog({
           symbol,
           source: article.source,

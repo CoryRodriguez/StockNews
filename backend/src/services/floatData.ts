@@ -16,7 +16,7 @@ export interface FloatData {
 const cache = new Map<string, FloatData>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-const FMP_BASE = "https://financialmodelingprep.com";
+const FMP_BASE = "https://financialmodelingprep.com/stable";
 
 /**
  * Enrich a list of tickers with float/market data from FMP.
@@ -43,7 +43,7 @@ export async function enrichWithFloat(
     for (let i = 0; i < misses.length; i += 50) {
       const batch = misses.slice(i, i + 50);
       try {
-        const url = `${FMP_BASE}/api/v3/profile/${batch.join(",")}?apikey=${config.fmpApiKey}`;
+        const url = `${FMP_BASE}/profile?symbol=${batch.join(",")}&apikey=${config.fmpApiKey}`;
         const resp = await fetch(url);
         if (!resp.ok) {
           console.warn(`[FloatData] FMP profile returned ${resp.status}`);
@@ -52,9 +52,9 @@ export async function enrichWithFloat(
         const profiles = (await resp.json()) as FmpProfile[];
         for (const p of profiles) {
           const data: FloatData = {
-            float: p.sharesOutstanding ?? null,
+            float: null,
             shortInterest: null,
-            marketCap: p.mktCap ?? null,
+            marketCap: p.marketCap ?? null,
             sector: p.sector ?? null,
             ts: now,
           };
@@ -79,8 +79,7 @@ export async function enrichWithFloat(
 
 interface FmpProfile {
   symbol: string;
-  mktCap?: number;
-  sharesOutstanding?: number;
+  marketCap?: number;
   sector?: string;
   industry?: string;
 }

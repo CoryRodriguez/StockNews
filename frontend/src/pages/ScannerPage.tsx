@@ -4,6 +4,7 @@ import { useScreenerStore, selectFilteredRows } from "../store/screenerStore";
 import { useDashboardStore } from "../store/dashboardStore";
 import { useNewsStore } from "../store/newsStore";
 import { useAuthStore } from "../store/authStore";
+import { ChartPanel } from "../components/panels/ChartPanel";
 import { ScreenerRow } from "../types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -176,8 +177,11 @@ export function ScannerPage() {
   const store = useScreenerStore();
   const { setRows, sortKey, sortDir, setSort } = store;
   const filtered = selectFilteredRows(store);
+  const activeTicker = useDashboardStore((s) => s.activeTicker);
   const setActiveTicker = useDashboardStore((s) => s.setActiveTicker);
   const setFilterTicker = useNewsStore((s) => s.setFilterTicker);
+
+  const chartSymbol = activeTicker || "AMEX:SPY";
 
   // Hydrate on mount
   useEffect(() => {
@@ -201,63 +205,71 @@ export function ScannerPage() {
       <TopNav />
       <FilterBar total={store.rows.length} showing={filtered.length} />
 
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-[11px]">
-          <thead className="sticky top-0 bg-panel z-10">
-            <tr className="border-b border-border">
-              {COLUMNS.map((col) => (
-                <th
-                  key={col.key}
-                  onClick={() => setSort(col.key)}
-                  className={`text-[10px] text-muted uppercase px-2 py-1.5 cursor-pointer hover:text-white select-none whitespace-nowrap ${
-                    col.align === "right" ? "text-right" : "text-left"
-                  } ${col.width ?? ""}`}
-                >
-                  {col.label}
-                  {sortKey === col.key && (
-                    <span className="ml-0.5 text-blue-400">
-                      {sortDir === "asc" ? "\u25B2" : "\u25BC"}
-                    </span>
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((row) => (
-              <tr
-                key={row.ticker}
-                onClick={() => handleRowClick(row.ticker)}
-                className="border-b border-border/50 hover:bg-panel cursor-pointer transition-colors"
-              >
+      <div className="flex-1 flex gap-2 p-2 overflow-hidden min-h-0">
+        {/* Left: data table */}
+        <div className="flex-[3] min-w-0 overflow-auto border border-border rounded">
+          <table className="w-full text-[11px]">
+            <thead className="sticky top-0 bg-panel z-10">
+              <tr className="border-b border-border">
                 {COLUMNS.map((col) => (
-                  <td
+                  <th
                     key={col.key}
-                    className={`px-2 py-1 whitespace-nowrap ${
+                    onClick={() => setSort(col.key)}
+                    className={`text-[10px] text-muted uppercase px-2 py-1.5 cursor-pointer hover:text-white select-none whitespace-nowrap ${
                       col.align === "right" ? "text-right" : "text-left"
-                    } ${col.width ?? ""} ${
-                      col.key === "hasNews" ? "max-w-[200px] truncate" : ""
-                    }`}
+                    } ${col.width ?? ""}`}
                   >
-                    {col.render(row)}
-                  </td>
+                    {col.label}
+                    {sortKey === col.key && (
+                      <span className="ml-0.5 text-blue-400">
+                        {sortDir === "asc" ? "\u25B2" : "\u25BC"}
+                      </span>
+                    )}
+                  </th>
                 ))}
               </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan={COLUMNS.length}
-                  className="text-center text-muted py-8"
+            </thead>
+            <tbody>
+              {filtered.map((row) => (
+                <tr
+                  key={row.ticker}
+                  onClick={() => handleRowClick(row.ticker)}
+                  className="border-b border-border/50 hover:bg-panel cursor-pointer transition-colors"
                 >
-                  {store.rows.length === 0
-                    ? "Waiting for screener data..."
-                    : "No stocks match filters"}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  {COLUMNS.map((col) => (
+                    <td
+                      key={col.key}
+                      className={`px-2 py-1 whitespace-nowrap ${
+                        col.align === "right" ? "text-right" : "text-left"
+                      } ${col.width ?? ""} ${
+                        col.key === "hasNews" ? "max-w-[200px] truncate" : ""
+                      }`}
+                    >
+                      {col.render(row)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={COLUMNS.length}
+                    className="text-center text-muted py-8"
+                  >
+                    {store.rows.length === 0
+                      ? "Waiting for screener data..."
+                      : "No stocks match filters"}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Right: TradingView chart */}
+        <div className="flex-[2] min-w-0 border border-border rounded overflow-hidden">
+          <ChartPanel panelId="scanner-chart" symbol={chartSymbol} />
+        </div>
       </div>
     </div>
   );

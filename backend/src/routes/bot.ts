@@ -182,25 +182,32 @@ router.get('/trades', requireAuth, async (_req, res) => {
 });
 
 // ─── GET /signals ─────────────────────────────────────────────────────────────
-// Returns last 100 rejected BotSignalLog rows with selected fields
-router.get('/signals', requireAuth, async (_req, res) => {
+// Returns last 200 BotSignalLog rows (all outcomes) with full fields + left-joined HeadlineLabel
+// Optional filter: ?outcome=fired|rejected|skipped
+router.get('/signals', requireAuth, async (req, res) => {
   try {
+    const outcomeFilter = req.query.outcome as string | undefined;
+    const where = outcomeFilter ? { outcome: outcomeFilter } : {};
+
     const signals = await prisma.botSignalLog.findMany({
-      where: { outcome: 'rejected' },
+      where,
       orderBy: { evaluatedAt: 'desc' },
-      take: 100,
-      select: {
-        id: true,
-        symbol: true,
-        catalystCategory: true,
-        catalystTier: true,
-        rejectReason: true,
-        evaluatedAt: true,
-        headline: true,
-        source: true,
-      },
+      take: 200,
     });
-    res.json(signals);
+
+    // Batch-fetch labels for returned signal IDs
+    const signalIds = signals.map((s) => s.id);
+    const labels = await prisma.headlineLabel.findMany({
+      where: { signalId: { in: signalIds } },
+    });
+    const labelMap = new Map(labels.map((l) => [l.signalId, l]));
+
+    const result = signals.map((s) => ({
+      ...s,
+      label: labelMap.get(s.id) ?? null,
+    }));
+
+    res.json(result);
   } catch (err) {
     console.error('[BotRoute] /signals error:', err);
     res.status(500).json({ error: 'Failed to load bot signals' });

@@ -19,6 +19,7 @@ import layoutsRouter from "./routes/layouts";
 import tradesRouter from "./routes/trades";
 import analyticsRouter from "./routes/analytics";
 import botRouter from "./routes/bot";
+import labelsRouter from "./routes/labels";
 import { requireAuth } from "./middleware/auth";
 import { initBot } from "./services/botController";
 import { loadStrategiesFromDb, recomputeStrategies } from "./services/strategyEngine";
@@ -37,6 +38,7 @@ app.use("/api/layouts", layoutsRouter);
 app.use("/api/trades", tradesRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/bot", botRouter);
+app.use("/api/labels", labelsRouter);
 
 // Scanner definitions (no auth needed — public metadata)
 app.get("/api/scanners", (_req, res) => {

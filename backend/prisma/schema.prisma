@@ -258,6 +258,23 @@ model BotSignalLog {
   @@index([evaluatedAt])
 }
 
+// HeadlineLabel — human/AI override labels for signal classification training data
+// One label per signal (signalId is @unique), separate from immutable BotSignalLog
+model HeadlineLabel {
+  id                String   @id @default(cuid())
+  signalId          String   @unique
+  overrideCategory  String?
+  overrideTier      Int?
+  notes             String?  @db.Text
+  aiReclassCategory String?
+  aiReclassTier     Int?
+  aiReclassReason   String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([signalId])
+}
+
 // DailyRecap — persisted end-of-day recap, one row per trading day
 // Summary scalars are columns (queryable); deep-dive sections stored as JSON
 model DailyRecap {

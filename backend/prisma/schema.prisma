@@ -212,6 +212,13 @@ model BotConfig {
   profitTargetPct          Float    @default(10)
   trailingStopPct          Float    @default(0)   // EXIT-02: % trail from peak; 0 = disabled
   trailingStopDollar       Float    @default(0)   // EXIT-02: $ trail from peak; 0 = disabled; pct takes precedence when both > 0
+  // Scanner trading config
+  scannerTradingEnabled    Boolean  @default(false)
+  scannerMinRvol           Float    @default(2.0)
+  scannerMaxFloat          Float    @default(20000000) // 20M shares
+  scannerMinGapPct         Float    @default(5.0)
+  scannerTradeSize         Float    @default(75)       // notional $ per scanner trade
+  scannerCooldownMin       Int      @default(30)       // minutes before same ticker can re-enter
   updatedAt                DateTime @updatedAt
 }
 

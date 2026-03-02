@@ -745,6 +745,31 @@ export function BotPanel() {
                 <ConfigRow label="Stars 5 size ($)" value={draft.tradeSizeStars5} step={10} min={0}
                   onChange={(v) => setDraft({ ...draft, tradeSizeStars5: parseFloat(v) || 0 })} />
 
+                {/* Scanner Trading section */}
+                <div className="px-2 py-1.5 mt-2 border-t border-b border-border flex items-center justify-between">
+                  <span className="text-[9px] text-muted font-mono uppercase tracking-wide">Scanner Trading</span>
+                  <button
+                    onClick={() => setDraft({ ...draft, scannerTradingEnabled: !draft.scannerTradingEnabled })}
+                    className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
+                      draft.scannerTradingEnabled
+                        ? "border-up/50 bg-up/10 text-up"
+                        : "border-muted/30 bg-muted/5 text-muted"
+                    }`}
+                  >
+                    {draft.scannerTradingEnabled ? "ENABLED" : "DISABLED"}
+                  </button>
+                </div>
+                <ConfigRow label="Min Relative Volume" value={draft.scannerMinRvol} step={0.5} min={0}
+                  onChange={(v) => setDraft({ ...draft, scannerMinRvol: parseFloat(v) || 0 })} />
+                <ConfigRow label="Max Float (shares)" value={draft.scannerMaxFloat} step={1000000} min={0}
+                  onChange={(v) => setDraft({ ...draft, scannerMaxFloat: parseInt(v) || 0 })} />
+                <ConfigRow label="Min Gap (%)" value={draft.scannerMinGapPct} step={0.5} min={0}
+                  onChange={(v) => setDraft({ ...draft, scannerMinGapPct: parseFloat(v) || 0 })} />
+                <ConfigRow label="Scanner Trade Size ($)" value={draft.scannerTradeSize} step={10} min={1}
+                  onChange={(v) => setDraft({ ...draft, scannerTradeSize: parseFloat(v) || 0 })} />
+                <ConfigRow label="Cooldown (min)" value={draft.scannerCooldownMin} step={5} min={1}
+                  onChange={(v) => setDraft({ ...draft, scannerCooldownMin: parseInt(v) || 30 })} />
+
                 {saveError && (
                   <div className="px-2 py-1 text-[10px] text-down font-mono">{saveError}</div>
                 )}

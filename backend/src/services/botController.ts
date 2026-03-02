@@ -33,6 +33,12 @@ export interface BotConfigRecord {
   profitTargetPct: number;
   trailingStopPct: number;
   trailingStopDollar: number;
+  scannerTradingEnabled: boolean;
+  scannerMinRvol: number;
+  scannerMaxFloat: number;
+  scannerMinGapPct: number;
+  scannerTradeSize: number;
+  scannerCooldownMin: number;
   updatedAt: Date;
 }
 
@@ -219,6 +225,12 @@ export async function initBot(): Promise<void> {
       profitTargetPct: 10,
       trailingStopPct: 0,
       trailingStopDollar: 0,
+      scannerTradingEnabled: false,
+      scannerMinRvol: 2.0,
+      scannerMaxFloat: 20000000,
+      scannerMinGapPct: 5.0,
+      scannerTradeSize: 75,
+      scannerCooldownMin: 30,
     },
   });
 

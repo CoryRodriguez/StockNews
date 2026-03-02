@@ -67,6 +67,12 @@ export interface BotConfig {
   profitTargetPct: number;
   trailingStopPct: number;
   trailingStopDollar: number;
+  scannerTradingEnabled: boolean;
+  scannerMinRvol: number;
+  scannerMaxFloat: number;
+  scannerMinGapPct: number;
+  scannerTradeSize: number;
+  scannerCooldownMin: number;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────

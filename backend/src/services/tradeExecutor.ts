@@ -18,6 +18,7 @@ import prisma from '../db/client';
 import { config } from '../config';
 import { getAlpacaBaseUrl, getBotConfig, isRegularHours } from './botController';
 import { getVwapDev } from './alpaca';
+import { addPosition } from './positionMonitor';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -244,6 +245,25 @@ export async function onFillEvent(update: {
       },
     });
 
+    // Register with position monitor for exit condition tracking
+    if (entryPrice !== null) {
+      const trade = await prisma.botTrade.findFirst({
+        where: { alpacaOrderId: orderId, status: 'open' },
+      });
+      if (trade) {
+        addPosition({
+          tradeId: trade.id,
+          symbol: trade.symbol,
+          entryPrice,
+          entryAt: trade.entryAt ?? new Date(),
+          peakPrice: entryPrice,
+          minPrice: entryPrice,
+          shares,
+          catalystCategory: trade.catalystType ?? 'UNKNOWN',
+        });
+      }
+    }
+
     console.log(`[TradeExecutor] Fill confirmed: ${symbol} orderId=${orderId} shares=${shares} avgPrice=${entryPrice}`);
   } else {
     // partial_fill — reconcile with GET /v2/positions/{symbol} for authoritative qty (EXEC-03)
@@ -384,4 +404,67 @@ export async function executeTradeAsync(signal: TradeSignal): Promise<void> {
   }).catch(() => {}); // non-fatal — VWAP fetch failure should not affect trade lifecycle
 
   console.log(`[TradeExecutor] Order placed: ${symbol} notional=$${notional} stars=${starRating} orderId=${order.id}`);
+}
+
+// ─── Scanner trade types ──────────────────────────────────────────────────────
+
+export interface ScannerTradeSignal {
+  symbol: string;
+  priceAtSignal: number;
+  gapPct: number;
+  relativeVolume: number;
+  float: number | null;
+}
+
+// ─── Exported: Scanner trade entry point ──────────────────────────────────────
+
+/**
+ * Entry point for scanner-triggered trades. Similar to executeTradeAsync but:
+ * - No star rating (uses flat scannerTradeSize from config)
+ * - catalystType = 'SCANNER', catalystTier = null
+ * - No article or AI evaluation required
+ */
+export async function executeScannerTradeAsync(signal: ScannerTradeSignal): Promise<void> {
+  const { symbol, priceAtSignal } = signal;
+
+  // Step 1: Duplicate position guard
+  if (await hasOpenPosition(symbol)) return;
+
+  // Step 2: PDT guard (live mode only)
+  if (await checkPdtLimit()) {
+    console.warn(`[TradeExecutor] PDT limit reached for scanner trade ${symbol}`);
+    return;
+  }
+
+  // Step 3: Get notional from scanner-specific config
+  const cfg = getBotConfig();
+  const notional = cfg.scannerTradeSize;
+
+  // Step 4: Place buy order
+  const order = await placeBuyOrder(symbol, notional, priceAtSignal);
+  if (order === null) return;
+
+  // Step 5: Create BotTrade record
+  const trade = await prisma.botTrade.create({
+    data: {
+      symbol,
+      status: 'open',
+      alpacaOrderId: order.id,
+      catalystType: 'SCANNER',
+      catalystTier: null,
+      entryAt: new Date(),
+    },
+  });
+
+  // Step 6: VWAP deviation (non-blocking)
+  getVwapDev(symbol, priceAtSignal).then(vwapDev => {
+    if (vwapDev != null) {
+      prisma.botTrade.update({
+        where: { id: trade.id },
+        data: { entryVwapDev: vwapDev },
+      }).catch(() => {});
+    }
+  }).catch(() => {});
+
+  console.log(`[TradeExecutor] Scanner order placed: ${symbol} notional=$${notional} orderId=${order.id}`);
 }

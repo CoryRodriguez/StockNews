@@ -7,6 +7,7 @@ import { getSnapshots, getMostActives, Snapshot } from "./alpaca";
 import { broadcast } from "../ws/clientHub";
 import { enrichWithFloat, FloatData } from "./floatData";
 import { recentArticles } from "./rtpr";
+import { evaluateScannerRows } from "./scannerTrader";
 
 export { Snapshot };
 
@@ -152,6 +153,11 @@ async function runScan() {
     const floatMap = await enrichWithFloat(actives);
     screenerRows = buildScreenerRows(snapshots, floatMap);
     broadcast("screener", { type: "screener_update", rows: screenerRows });
+
+    // Evaluate scanner trading criteria (fire-and-forget, never blocks scan loop)
+    void evaluateScannerRows(screenerRows).catch(err =>
+      console.error('[Scanner] Scanner trader evaluation error:', err)
+    );
 
     for (const scanner of SCANNERS) {
       const current = alertState.get(scanner.id)!;

@@ -51,7 +51,7 @@ export function ChartPanel({ panelId, symbol }: Props) {
     script.innerHTML = JSON.stringify({
       autosize: true,
       symbol,
-      interval: "240",
+      interval: "15",
       timezone: "America/New_York",
       theme: "dark",
       style: "1",

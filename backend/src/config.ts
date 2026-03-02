@@ -22,4 +22,6 @@ export const config = {
   paperTradeQty: parseInt(process.env.PAPER_TRADE_QTY ?? "10"),
   paperTradeSellDelaySec: parseInt(process.env.PAPER_TRADE_SELL_DELAY_SEC ?? "60"),
   paperTradeCooldownMin: parseInt(process.env.PAPER_TRADE_COOLDOWN_MIN ?? "5"),
+  // Financial Modeling Prep
+  fmpApiKey: process.env.FMP_API_KEY ?? "",
 } as const;

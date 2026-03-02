@@ -5,6 +5,10 @@
  */
 import { getSnapshots, getMostActives, Snapshot } from "./alpaca";
 import { broadcast } from "../ws/clientHub";
+import { enrichWithFloat, FloatData } from "./floatData";
+import { recentArticles } from "./rtpr";
+
+export { Snapshot };
 
 export interface ScannerDefinition {
   id: string;
@@ -70,6 +74,62 @@ export function getActiveScannersForTicker(ticker: string): string[] {
 const alertState = new Map<string, Map<string, Snapshot>>(); // scannerId → Map<ticker, Snapshot>
 for (const s of SCANNERS) alertState.set(s.id, new Map());
 
+// ── Screener universe (full snapshot set, pre-filter) ────────────────────
+
+export interface ScreenerRow {
+  ticker: string;
+  price: number;
+  prevClose: number;
+  open: number;
+  changePct: number;
+  gapPct: number;
+  volume: number;
+  avgVolume30d: number;
+  relativeVolume: number;
+  high: number;
+  low: number;
+  hasNews: boolean;
+  float: number | null;
+  shortInterest: number | null;
+  marketCap: number | null;
+  sector: string | null;
+  newsHeadline: string | null;
+}
+
+let screenerRows: ScreenerRow[] = [];
+
+/** Returns the full screener universe enriched with float data */
+export function getScreenerRows(): ScreenerRow[] {
+  return screenerRows;
+}
+
+function buildScreenerRows(snapshots: Snapshot[], floatMap: Map<string, FloatData>): ScreenerRow[] {
+  return snapshots.map((s) => {
+    const fd = floatMap.get(s.ticker);
+    // Find latest headline for this ticker
+    const article = recentArticles.find((a) => a.ticker === s.ticker);
+    return {
+      ticker: s.ticker,
+      price: s.price,
+      prevClose: s.prevClose,
+      open: s.open,
+      changePct: s.changePct,
+      gapPct: s.gapPct,
+      volume: s.volume,
+      avgVolume30d: s.avgVolume30d,
+      relativeVolume: s.relativeVolume,
+      high: s.high,
+      low: s.low,
+      hasNews: s.hasNews,
+      float: fd?.float ?? null,
+      shortInterest: fd?.shortInterest ?? null,
+      marketCap: fd?.marketCap ?? null,
+      sector: fd?.sector ?? null,
+      newsHeadline: article?.title ?? null,
+    };
+  });
+}
+
 let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 export function startScanner() {
@@ -87,6 +147,11 @@ async function runScan() {
     if (!actives.length) return;
 
     const snapshots = await getSnapshots(actives);
+
+    // Enrich with float data and build screener universe
+    const floatMap = await enrichWithFloat(actives);
+    screenerRows = buildScreenerRows(snapshots, floatMap);
+    broadcast("screener", { type: "screener_update", rows: screenerRows });
 
     for (const scanner of SCANNERS) {
       const current = alertState.get(scanner.id)!;

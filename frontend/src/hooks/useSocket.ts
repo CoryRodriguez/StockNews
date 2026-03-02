@@ -6,6 +6,7 @@ import { useWatchlistStore } from "../store/watchlistStore";
 import { useTradesStore } from "../store/tradesStore";
 import { useBotStore } from "../store/botStore";
 import { useRecapStore } from "../store/recapStore";
+import { useScreenerStore } from "../store/screenerStore";
 import { WsMessage, ScannerAlert } from "../types";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`;
@@ -41,6 +42,7 @@ export function useSocket() {
   const setBotStatus = useBotStore((s) => s.setStatus);
   const prependBotTrade = useBotStore((s) => s.prependTrade);
   const prependBotSignal = useBotStore((s) => s.prependSignal);
+  const setScreenerRows = useScreenerStore((s) => s.setRows);
   const subscribedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export function useSocket() {
         "news",
         "trades",
         "bot",
+        "screener",
         "scanner:news_flow",
         ...Array.from(activeScanners).map((id) => `scanner:${id}`),
       ];
@@ -89,6 +92,8 @@ export function useSocket() {
           prependBotSignal(msg.signal as Parameters<typeof prependBotSignal>[0]);
         } else if (msg.type === "recap_ready") {
           useRecapStore.getState().setRecapUnread(true);
+        } else if (msg.type === "screener_update") {
+          setScreenerRows(msg.rows);
         }
       } catch {
         // ignore
@@ -98,7 +103,7 @@ export function useSocket() {
     ws.addEventListener("message", handleMessage);
     return () => ws.removeEventListener("message", handleMessage);
   }, [token, activeScanners, addArticle, addAlert, clearAlert, updatePrice, upsertTrade,
-      setBotStatus, prependBotTrade, prependBotSignal]);
+      setBotStatus, prependBotTrade, prependBotSignal, setScreenerRows]);
 
   // Seed scanner store with current server-side alert state on mount
   useEffect(() => {

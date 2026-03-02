@@ -9,7 +9,7 @@ import { startRtpr } from "./services/rtpr";
 import { startBenzinga } from "./services/benzinga";
 import { startAlpacaWs } from "./services/alpaca";
 import { startAlpacaNews } from "./services/alpacaNews";
-import { startScanner, getScannerDefinitions, getCurrentAlerts } from "./services/scanner";
+import { startScanner, getScannerDefinitions, getCurrentAlerts, getScreenerRows } from "./services/scanner";
 import { recentArticles, loadArticlesFromDb } from "./services/rtpr";
 import { getSnapshots, getHourlyChanges } from "./services/alpaca";
 import prisma from "./db/client";
@@ -48,6 +48,11 @@ app.get("/api/scanners", (_req, res) => {
 // Current scanner alert state (for hydrating clients on connect)
 app.get("/api/scanner-alerts", requireAuth, (_req, res) => {
   res.json(getCurrentAlerts());
+});
+
+// Screener universe — full most-actives list enriched with float data
+app.get("/api/screener", requireAuth, (_req, res) => {
+  res.json({ rows: getScreenerRows() });
 });
 
 // Return today's news from DB (for persistence across restarts)

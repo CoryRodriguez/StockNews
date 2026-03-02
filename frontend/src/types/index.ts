@@ -20,6 +20,28 @@ export interface ScannerDefinition {
   name: string;
 }
 
+// ── Screener ──────────────────────────────────────────────────────────────
+
+export interface ScreenerRow {
+  ticker: string;
+  price: number;
+  prevClose: number;
+  open: number;
+  changePct: number;
+  gapPct: number;
+  volume: number;
+  avgVolume30d: number;
+  relativeVolume: number;
+  high: number;
+  low: number;
+  hasNews: boolean;
+  float: number | null;
+  shortInterest: number | null;
+  marketCap: number | null;
+  sector: string | null;
+  newsHeadline: string | null;
+}
+
 // ── News ───────────────────────────────────────────────────────────────────
 
 export interface NewsArticle {
@@ -115,4 +137,5 @@ export type WsMessage =
   | { type: "bot_status_update"; channel: string; status: { state: string; mode: string; openPositionCount: number; todayRealizedPnl: number; todayTradeCount: number; dayTradeCount: number; marketOpen: boolean } }
   | { type: "bot_trade_closed"; channel: string; trade: { id: string; symbol: string; entryPrice: number | null; exitPrice: number | null; shares: number | null; pnl: number | null; catalystType: string | null; exitReason: string | null; entryAt: string | null; exitAt: string | null } }
   | { type: "bot_signal_evaluated"; channel: string; signal: { id: string; symbol: string; catalystCategory: string | null; catalystTier: number | null; rejectReason: string | null; evaluatedAt: string } }
-  | { type: "recap_ready"; channel: string; date: string };
+  | { type: "recap_ready"; channel: string; date: string }
+  | { type: "screener_update"; channel: string; rows: ScreenerRow[] };

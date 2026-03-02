@@ -32,6 +32,7 @@ export function TopNav() {
       {/* Page navigation tabs */}
       <div className="flex items-center gap-0.5 border-r border-border pr-3">
         {navBtn("dashboard", "Dashboard")}
+        {navBtn("scanner", "Scanner")}
         {navBtn("trades", "Trades")}
         {navBtn("newsfeeds", "News Feeds")}
         {navBtn("bot", "Bot")}

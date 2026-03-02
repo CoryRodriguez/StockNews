@@ -36,6 +36,7 @@ interface BenzingaArticle {
 
 // Unix timestamp (seconds) — how far back to fetch on the first poll (6 hours)
 let lastUpdatedSince = Math.floor((Date.now() - 6 * 60 * 60 * 1000) / 1000);
+let initialBackfillDone = false;
 
 export function startBenzinga() {
   if (!config.benzingaApiKey) {
@@ -43,8 +44,54 @@ export function startBenzinga() {
     return;
   }
   console.log("[Benzinga] Starting — polling every 15s");
-  poll();
-  setInterval(poll, POLL_INTERVAL_MS);
+  backfill().then(() => {
+    initialBackfillDone = true;
+    setInterval(poll, POLL_INTERVAL_MS);
+  });
+}
+
+/** Initial backfill: paginate through all articles since lastUpdatedSince */
+async function backfill() {
+  let page = 0;
+  let total = 0;
+  const backfillSince = lastUpdatedSince;
+
+  while (true) {
+    const params = new URLSearchParams({
+      token: config.benzingaApiKey,
+      pageSize: "50",
+      displayOutput: "full",
+      updatedSince: String(backfillSince),
+      sort: "created:desc",
+      page: String(page),
+    });
+
+    try {
+      const resp = await fetch(`${BASE_URL}?${params}`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!resp.ok) {
+        console.error(`[Benzinga] Backfill page ${page}: HTTP ${resp.status}`);
+        break;
+      }
+      const articles = (await resp.json()) as BenzingaArticle[];
+      if (!Array.isArray(articles) || articles.length === 0) break;
+
+      processArticles(articles);
+      total += articles.length;
+
+      if (articles.length < 50) break; // last page
+      page++;
+      if (page > 20) break; // safety cap: 1000 articles max
+    } catch (err: unknown) {
+      console.error("[Benzinga] Backfill error:", err instanceof Error ? err.message : err);
+      break;
+    }
+  }
+
+  console.log(`[Benzinga] Backfill complete: ${total} article(s) across ${page + 1} page(s)`);
+  lastUpdatedSince = Math.floor(Date.now() / 1000);
 }
 
 async function poll() {
@@ -69,69 +116,71 @@ async function poll() {
 
     const articles = (await resp.json()) as BenzingaArticle[];
     if (!Array.isArray(articles) || articles.length === 0) {
-      console.log("[Benzinga] Poll: 0 new articles");
       return;
     }
     console.log(`[Benzinga] Poll: ${articles.length} article(s)`);
 
     // Advance the cursor so next poll only fetches new articles
     lastUpdatedSince = Math.floor(Date.now() / 1000);
-
-    for (const bz of articles) {
-      if (!bz.id || seenIds.has(bz.id)) continue;
-      seenIds.add(bz.id);
-
-      const tickers = (bz.stocks ?? []).map((s) => s.name).filter(Boolean);
-      if (tickers.length === 0) continue; // skip non-equity / macro items
-
-      const createdAt = bz.created
-        ? new Date(bz.created).toISOString()
-        : new Date().toISOString();
-      const receivedAt = new Date().toISOString();
-
-      for (const ticker of tickers) {
-        const article: RtprArticle = {
-          ticker,
-          title: bz.title,
-          body: bz.body || bz.teaser || "",
-          author: bz.author || "Benzinga",
-          source: "benzinga",
-          createdAt,
-          receivedAt,
-        };
-
-        // Persist + push to in-memory ring buffer
-        pushArticle(article);
-
-        // Mark ticker as having recent news (drives scanner news dots)
-        markNewsTicker(ticker);
-
-        // Fan out to all connected WebSocket clients
-        broadcast("news", { type: "news_article", article });
-        broadcast("scanner:news_flow", {
-          type: "scanner_alert",
-          scannerId: "news_flow",
-          ticker,
-          title: bz.title,
-          receivedAt,
-        });
-
-        // Trigger paper trade if this ticker has active scanner alerts
-        const activeScanners = getActiveScannersForTicker(ticker);
-        if (activeScanners.length > 0) {
-          executePaperTrade(article, activeScanners).catch((err) =>
-            console.error("[Benzinga] PaperTrader error:", err)
-          );
-        }
-
-        // Signal engine evaluation — unconditional, fire-and-forget
-        evaluateBotSignal(article).catch((err) =>
-          console.error("[Benzinga] SignalEngine error:", err instanceof Error ? err.message : err)
-        );
-      }
-    }
+    processArticles(articles);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[Benzinga] Poll error:", msg);
+  }
+}
+
+function processArticles(articles: BenzingaArticle[]) {
+  for (const bz of articles) {
+    if (!bz.id || seenIds.has(bz.id)) continue;
+    seenIds.add(bz.id);
+
+    const tickers = (bz.stocks ?? []).map((s) => s.name).filter(Boolean);
+    if (tickers.length === 0) continue; // skip non-equity / macro items
+
+    const createdAt = bz.created
+      ? new Date(bz.created).toISOString()
+      : new Date().toISOString();
+    const receivedAt = new Date().toISOString();
+
+    for (const ticker of tickers) {
+      const article: RtprArticle = {
+        ticker,
+        title: bz.title,
+        body: bz.body || bz.teaser || "",
+        author: bz.author || "Benzinga",
+        source: "benzinga",
+        createdAt,
+        receivedAt,
+      };
+
+      // Persist + push to in-memory ring buffer
+      pushArticle(article);
+
+      // Mark ticker as having recent news (drives scanner news dots)
+      markNewsTicker(ticker);
+
+      // Fan out to all connected WebSocket clients
+      broadcast("news", { type: "news_article", article });
+      broadcast("scanner:news_flow", {
+        type: "scanner_alert",
+        scannerId: "news_flow",
+        ticker,
+        title: bz.title,
+        receivedAt,
+      });
+
+      // Trigger paper trade if this ticker has active scanner alerts
+      const activeScanners = getActiveScannersForTicker(ticker);
+      if (activeScanners.length > 0) {
+        executePaperTrade(article, activeScanners).catch((err) =>
+          console.error("[Benzinga] PaperTrader error:", err)
+        );
+      }
+
+      // Signal engine evaluation — unconditional, fire-and-forget
+      evaluateBotSignal(article).catch((err) =>
+        console.error("[Benzinga] SignalEngine error:", err instanceof Error ? err.message : err)
+      );
+    }
   }
 }

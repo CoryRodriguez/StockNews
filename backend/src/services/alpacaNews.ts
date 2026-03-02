@@ -16,6 +16,18 @@ import { evaluateBotSignal, notifyReconnect } from "./signalEngine";
 const WS_URL = "wss://stream.data.alpaca.markets/v1beta1/news";
 const seenIds = new Set<string>();
 
+/** Decode common HTML entities that Alpaca sends in headlines/summaries. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, "/");
+}
+
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let hasConnectedOnce = false;
@@ -95,14 +107,16 @@ function handleMessage(msg: AlpacaNewsMessage) {
     const tickers = msg.symbols ?? [];
     if (tickers.length === 0) return; // skip macro / non-equity news
 
+    const headline = decodeEntities(msg.headline);
+    const summary = msg.summary ? decodeEntities(msg.summary) : "";
     const createdAt = msg.created_at ?? new Date().toISOString();
     const receivedAt = new Date().toISOString();
 
     for (const ticker of tickers) {
       const article: RtprArticle = {
         ticker,
-        title: msg.headline,
-        body: msg.summary ?? "",
+        title: headline,
+        body: summary,
         author: msg.author ?? "Alpaca",
         source: "alpaca",
         createdAt,
@@ -121,7 +135,7 @@ function handleMessage(msg: AlpacaNewsMessage) {
         type: "scanner_alert",
         scannerId: "news_flow",
         ticker,
-        title: msg.headline,
+        title: headline,
         receivedAt,
       });
 

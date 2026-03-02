@@ -12,7 +12,7 @@ import {
   Cell,
   ReferenceDot,
 } from "recharts";
-import { usePageStore } from "../store/pageStore";
+import { TopNav } from "../components/layout/TopNav";
 import type { RecapData } from "../store/recapStore";
 
 // ---- Constants ----
@@ -896,7 +896,6 @@ function MonthView({
 // ---- Main RecapPage ----
 
 export default function RecapPage() {
-  const { setPage } = usePageStore();
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [anchorDate, setAnchorDate] = useState(getTodayET());
   const [dayRecap, setDayRecap] = useState<RecapData | null>(null);
@@ -986,15 +985,10 @@ export default function RecapPage() {
   }, [viewMode, anchorDate]);
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="h-screen w-screen flex flex-col bg-bg overflow-hidden font-mono">
+      <TopNav />
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-bg-secondary shrink-0">
-        <button
-          onClick={() => setPage("dashboard")}
-          className="text-muted hover:text-fg text-sm"
-        >
-          ← Dashboard
-        </button>
         <h1 className="text-lg font-bold text-fg">Daily Recap</h1>
         <div className="ml-auto flex items-center gap-2">
           <input

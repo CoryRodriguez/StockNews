@@ -158,13 +158,27 @@ export function getAlpacaBaseUrl(): string {
 // ─── Exported: Market hours ────────────────────────────────────────────────────
 
 /**
- * Returns true if US equities market is currently open (9:30 AM – 4:00 PM ET, weekdays).
+ * Returns true if US equities trading is available (4:00 AM – 8:00 PM ET, weekdays).
+ * Covers premarket (4:00–9:30), regular hours (9:30–16:00), and after-hours (16:00–20:00).
  * Does not account for market holidays.
  */
 export function isMarketOpen(): boolean {
   const now = new Date();
   const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const day = etTime.getDay(); // 0=Sun, 6=Sat
+  if (day === 0 || day === 6) return false;
+  const totalMinutes = etTime.getHours() * 60 + etTime.getMinutes();
+  return totalMinutes >= 4 * 60 && totalMinutes < 20 * 60;
+}
+
+/**
+ * Returns true if within regular market hours (9:30 AM – 4:00 PM ET, weekdays).
+ * Used to decide between market orders (regular) and limit orders (extended hours).
+ */
+export function isRegularHours(): boolean {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etTime.getDay();
   if (day === 0 || day === 6) return false;
   const totalMinutes = etTime.getHours() * 60 + etTime.getMinutes();
   return totalMinutes >= 9 * 60 + 30 && totalMinutes < 16 * 60;

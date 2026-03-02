@@ -7,6 +7,7 @@ import { TradesPage } from "./pages/TradesPage";
 import { NewsFeedsPage } from "./pages/NewsFeedsPage";
 import RecapPage from "./pages/RecapPage";
 import { BotPage } from "./pages/BotPage";
+import { HistoryPage } from "./pages/HistoryPage";
 
 export default function App() {
   const { token, needsSetup, setNeedsSetup } = useAuthStore();
@@ -38,6 +39,7 @@ export default function App() {
   if (page === "trades") return <TradesPage />;
   if (page === "newsfeeds") return <NewsFeedsPage />;
   if (page === "recap") return <RecapPage />;
+  if (page === "history") return <HistoryPage />;
   if (page === "bot") return <BotPage />;
   return <Dashboard />;
 }

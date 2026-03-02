@@ -35,6 +35,8 @@ export function TopNav() {
         {navBtn("trades", "Trades")}
         {navBtn("newsfeeds", "News Feeds")}
         {navBtn("bot", "Bot")}
+        {navBtn("recap", "Recap")}
+        {navBtn("history", "History")}
       </div>
 
       {/* Saved layouts (dashboard only) */}

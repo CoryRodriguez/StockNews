@@ -16,7 +16,7 @@ import cron from 'node-cron';
 import prisma from '../db/client';
 import { config } from '../config';
 import { getSnapshots } from './alpaca';
-import { getBotConfig, getAlpacaBaseUrl } from './botController';
+import { getBotConfig, getAlpacaBaseUrl, isRegularHours } from './botController';
 import { broadcast } from '../ws/clientHub';
 
 // ── In-memory position map ────────────────────────────────────────────────────
@@ -100,7 +100,21 @@ async function closePosition(pos: TrackedPosition, exitPrice: number | null, rea
 
   try {
     if (pos.shares > 0 && exitPrice !== null) {
-      // Place market sell (use qty, not notional — selling shares we hold)
+      // Place sell order — market during regular hours, limit during extended hours
+      const orderBody: Record<string, unknown> = {
+        symbol: pos.symbol,
+        qty: String(pos.shares),
+        side: 'sell',
+        time_in_force: 'day',
+      };
+      if (isRegularHours()) {
+        orderBody.type = 'market';
+      } else {
+        // Extended hours: Alpaca requires limit orders
+        orderBody.type = 'limit';
+        orderBody.limit_price = (exitPrice * 0.995).toFixed(2); // 0.5% below to ensure fill
+        orderBody.extended_hours = true;
+      }
       const res = await fetch(`${getAlpacaBaseUrl()}/v2/orders`, {
         method: 'POST',
         headers: {
@@ -108,13 +122,7 @@ async function closePosition(pos: TrackedPosition, exitPrice: number | null, rea
           'APCA-API-Secret-Key': config.alpacaApiSecret,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          symbol: pos.symbol,
-          qty: String(pos.shares),
-          side: 'sell',
-          type: 'market',
-          time_in_force: 'day',
-        }),
+        body: JSON.stringify(orderBody),
       });
       if (!res.ok) {
         const text = await res.text();

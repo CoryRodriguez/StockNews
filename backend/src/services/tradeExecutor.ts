@@ -16,7 +16,7 @@
 
 import prisma from '../db/client';
 import { config } from '../config';
-import { getAlpacaBaseUrl, getBotConfig } from './botController';
+import { getAlpacaBaseUrl, getBotConfig, isRegularHours } from './botController';
 import { getVwapDev } from './alpaca';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -34,10 +34,13 @@ export interface TradeSignal {
 // Alpaca REST API response shapes
 interface AlpacaOrderRequest {
   symbol: string;
-  notional: number;
   side: 'buy' | 'sell';
-  type: 'market';
+  type: 'market' | 'limit';
   time_in_force: 'day';
+  notional?: number;
+  qty?: string;
+  limit_price?: string;
+  extended_hours?: boolean;
 }
 
 interface AlpacaOrderResponse {
@@ -114,23 +117,50 @@ function getAlpacaHeaders(): Record<string, string> {
 // ─── Helpers: Alpaca order placement ──────────────────────────────────────────
 
 /**
- * Places a notional market buy order via Alpaca REST API.
- * Uses `notional` (dollar amount) NOT `qty` (shares) — EXEC-05.
+ * Places a buy order via Alpaca REST API.
+ * - Regular hours: market order with notional (dollar amount)
+ * - Extended hours (premarket/after-hours): limit order with qty and extended_hours flag
+ *   (Alpaca requires limit orders for extended hours — no market/notional orders allowed)
  *
  * Returns the order response on success, null on failure.
  * On failure: logs error with status code and body — does NOT throw (EXEC-04).
  */
-async function placeNotionalBuyOrder(
+async function placeBuyOrder(
   symbol: string,
-  notional: number
+  notional: number,
+  priceAtSignal: number
 ): Promise<AlpacaOrderResponse | null> {
-  const body: AlpacaOrderRequest = {
-    symbol,
-    notional,
-    side: 'buy',
-    type: 'market',
-    time_in_force: 'day',
-  };
+  let body: AlpacaOrderRequest;
+
+  if (isRegularHours()) {
+    // Regular hours: market order with notional dollar amount
+    body = {
+      symbol,
+      notional,
+      side: 'buy',
+      type: 'market',
+      time_in_force: 'day',
+    };
+  } else {
+    // Extended hours: limit order with qty (Alpaca requires limit for extended hours)
+    const qty = Math.floor(notional / priceAtSignal);
+    if (qty < 1) {
+      console.warn(`[TradeExecutor] Extended hours: notional=$${notional} / price=$${priceAtSignal} = 0 shares, skipping ${symbol}`);
+      return null;
+    }
+    // Set limit price slightly above current price (0.5% buffer) to increase fill probability
+    const limitPrice = (priceAtSignal * 1.005).toFixed(2);
+    body = {
+      symbol,
+      qty: String(qty),
+      side: 'buy',
+      type: 'limit',
+      time_in_force: 'day',
+      limit_price: limitPrice,
+      extended_hours: true,
+    };
+    console.log(`[TradeExecutor] Extended hours order: ${symbol} qty=${qty} limit=$${limitPrice}`);
+  }
 
   try {
     const res = await fetch(`${getAlpacaBaseUrl()}/v2/orders`, {
@@ -322,8 +352,8 @@ export async function executeTradeAsync(signal: TradeSignal): Promise<void> {
     return;
   }
 
-  // Step 4: Place notional buy order
-  const order = await placeNotionalBuyOrder(symbol, notional);
+  // Step 4: Place buy order (market during regular hours, limit during extended hours)
+  const order = await placeBuyOrder(symbol, notional, signal.priceAtSignal);
   if (order === null) {
     return; // error already logged in placeNotionalBuyOrder
   }

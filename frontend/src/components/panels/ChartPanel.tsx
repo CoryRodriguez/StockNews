@@ -21,8 +21,7 @@ export function ChartPanel({ panelId, symbol }: Props) {
   // When the dashboard's active ticker changes, update this chart's symbol
   useEffect(() => {
     if (activeTicker) {
-      // Resolve to a formatted TV symbol — default to NASDAQ prefix
-      const tvSymbol = activeTicker.includes(":") ? activeTicker : `NASDAQ:${activeTicker}`;
+      const tvSymbol = activeTicker;
       updatePanelSymbol(panelId, tvSymbol);
     }
   }, [activeTicker, panelId, updatePanelSymbol]);

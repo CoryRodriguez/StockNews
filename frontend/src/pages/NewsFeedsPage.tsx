@@ -267,9 +267,7 @@ export function NewsFeedsPage() {
   const [minStars, setMinStars] = useState(1);
   const [tickerFilter, setTickerFilter] = useState("");
 
-  const chartSymbol = activeTicker
-    ? (activeTicker.includes(":") ? activeTicker : `NASDAQ:${activeTicker}`)
-    : "AMEX:SPY";
+  const chartSymbol = activeTicker || "AMEX:SPY";
 
   const handleArticleClick = (ticker: string) => setActiveTicker(ticker);
 

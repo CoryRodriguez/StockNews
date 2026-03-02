@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "./store/authStore";
 import { usePageStore } from "./store/pageStore";
 import { LoginPage } from "./components/auth/LoginPage";
-import { Dashboard } from "./pages/Dashboard";
 import { TradesPage } from "./pages/TradesPage";
 import { NewsFeedsPage } from "./pages/NewsFeedsPage";
 import RecapPage from "./pages/RecapPage";
@@ -39,9 +38,8 @@ export default function App() {
 
   if (page === "scanner") return <ScannerPage />;
   if (page === "trades") return <TradesPage />;
-  if (page === "newsfeeds") return <NewsFeedsPage />;
   if (page === "recap") return <RecapPage />;
   if (page === "history") return <HistoryPage />;
   if (page === "bot") return <BotPage />;
-  return <Dashboard />;
+  return <NewsFeedsPage />;
 }

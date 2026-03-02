@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { ScreenerRow } from "../types";
 
 export interface ScreenerFilters {
@@ -30,21 +31,33 @@ const DEFAULT_FILTERS: ScreenerFilters = {
   minRvol: null,
 };
 
-export const useScreenerStore = create<ScreenerState>((set) => ({
-  rows: [],
-  filters: { ...DEFAULT_FILTERS },
-  sortKey: "changePct" as SortKey,
-  sortDir: "desc",
-  setRows: (rows) => set({ rows }),
-  setFilter: (key, value) =>
-    set((s) => ({ filters: { ...s.filters, [key]: value } })),
-  resetFilters: () => set({ filters: { ...DEFAULT_FILTERS } }),
-  setSort: (key) =>
-    set((s) => ({
-      sortKey: key,
-      sortDir: s.sortKey === key && s.sortDir === "desc" ? "asc" : "desc",
-    })),
-}));
+export const useScreenerStore = create<ScreenerState>()(
+  persist(
+    (set) => ({
+      rows: [],
+      filters: { ...DEFAULT_FILTERS },
+      sortKey: "changePct" as SortKey,
+      sortDir: "desc",
+      setRows: (rows) => set({ rows }),
+      setFilter: (key, value) =>
+        set((s) => ({ filters: { ...s.filters, [key]: value } })),
+      resetFilters: () => set({ filters: { ...DEFAULT_FILTERS } }),
+      setSort: (key) =>
+        set((s) => ({
+          sortKey: key,
+          sortDir: s.sortKey === key && s.sortDir === "desc" ? "asc" : "desc",
+        })),
+    }),
+    {
+      name: "dtdash-screener",
+      partialize: (s) => ({
+        filters: s.filters,
+        sortKey: s.sortKey,
+        sortDir: s.sortDir,
+      }),
+    },
+  ),
+);
 
 /** Derive filtered + sorted rows (call inside component) */
 export function selectFilteredRows(state: ScreenerState): ScreenerRow[] {

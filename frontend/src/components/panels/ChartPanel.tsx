@@ -7,9 +7,9 @@ interface Props {
 }
 
 // TradingView timeframe buttons
-const TIMEFRAMES = ["10S", "30S", "1", "5", "15", "60", "D"];
+const TIMEFRAMES = ["10S", "30S", "1", "5", "15", "60", "240", "D"];
 const TF_LABELS: Record<string, string> = {
-  "10S": "10s", "30S": "30s", "1": "1m", "5": "5m", "15": "15m", "60": "1h", "D": "1D",
+  "10S": "10s", "30S": "30s", "1": "1m", "5": "5m", "15": "15m", "60": "1h", "240": "4h", "D": "1D",
 };
 
 export function ChartPanel({ panelId, symbol }: Props) {
@@ -51,7 +51,7 @@ export function ChartPanel({ panelId, symbol }: Props) {
     script.innerHTML = JSON.stringify({
       autosize: true,
       symbol,
-      interval: "60",
+      interval: "240",
       timezone: "America/New_York",
       theme: "dark",
       style: "1",
@@ -63,6 +63,7 @@ export function ChartPanel({ panelId, symbol }: Props) {
       allow_symbol_change: true,
       save_image: false,
       calendar: false,
+      extended_hours: true,
       studies: ["STD;VWAP", "STD;EMA@tv-basicstudies", "STD;Volume"],
       support_host: "https://www.tradingview.com",
     });

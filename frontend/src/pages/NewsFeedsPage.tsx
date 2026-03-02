@@ -2,7 +2,6 @@
  * News Feeds Page
  *
  * Side-by-side view of multiple news feed providers.
- * Disconnected feeds show demo articles for evaluation.
  */
 import { useEffect, useMemo, useState } from "react";
 import { TopNav } from "../components/layout/TopNav";
@@ -14,7 +13,6 @@ import { ChartPanel } from "../components/panels/ChartPanel";
 import { TradesPanel } from "../components/panels/TradesPanel";
 import { ScannerPanel } from "../components/panels/ScannerPanel";
 import { useSocket } from "../hooks/useSocket";
-import { useDummyData } from "../hooks/useDummyData";
 import { useHourlyChanges } from "../hooks/useHourlyChanges";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -33,8 +31,6 @@ interface FeedConfig {
   name: string;
   shortName: string;
   description: string;
-  connected: boolean;
-  configKey?: string;
   color: string;
   dotColor: string;
 }
@@ -46,8 +42,7 @@ const FEEDS: FeedConfig[] = [
     id: "rtpr",
     name: "RTPR.io",
     shortName: "RTPR",
-    description: "Real-time press release aggregation — no API key configured.",
-    connected: false,
+    description: "Real-time press release aggregation via WebSocket.",
     color: "text-emerald-400",
     dotColor: "bg-emerald-400",
   },
@@ -56,7 +51,6 @@ const FEEDS: FeedConfig[] = [
     name: "Benzinga",
     shortName: "BZG",
     description: "Financial news REST feed — polled every 15s.",
-    connected: true,
     color: "text-blue-400",
     dotColor: "bg-blue-400",
   },
@@ -65,42 +59,10 @@ const FEEDS: FeedConfig[] = [
     name: "Alpaca News",
     shortName: "APN",
     description: "Alpaca Markets news feed — via data API.",
-    connected: true,
     color: "text-yellow-400",
     dotColor: "bg-yellow-400",
   },
 ];
-
-// ── Demo articles ──────────────────────────────────────────────────────────
-
-const STORY_BASE: { ticker: string; title: string }[] = [
-  { ticker: "AAPL",  title: "Apple Announces Strategic Partnership with OpenAI for On-Device Models" },
-  { ticker: "NVDA",  title: "NVIDIA Reports Record Q4 Revenue of $39.3B, Beats Estimates by 12%" },
-  { ticker: "TSLA",  title: "Tesla Receives NHTSA Approval for Full Self-Driving in 12 States" },
-  { ticker: "AMZN",  title: "Amazon Secures $4.7B DoD Contract, Expanding AWS GovCloud" },
-  { ticker: "META",  title: "Meta Platforms Q4 EPS $8.02 vs $6.77 Est; Revenue Up 21% YoY" },
-  { ticker: "BIIB",  title: "Biogen FDA Accelerated Approval Granted for ALZ-303 Alzheimer Treatment" },
-  { ticker: "MRNA",  title: "Moderna Phase 3 mRNA-4157 Cancer Vaccine Shows 44% Reduction in Recurrence" },
-  { ticker: "GOOGL", title: "Alphabet to Acquire Cloud Security Firm Wiz for $23B — WSJ" },
-  { ticker: "MSFT",  title: "Microsoft Raises Quarterly Dividend 10% to $0.88/Share" },
-  { ticker: "JPM",   title: "JPMorgan Q4 Net Interest Income $24.1B, Topping $22.8B Consensus" },
-  { ticker: "SMCI",  title: "Super Micro Raises FY2026 Revenue Guidance to $26-30B vs $22B Est" },
-  { ticker: "GME",   title: "GameStop Announces $1B Bitcoin Treasury Reserve Strategy" },
-];
-
-const _now = Date.now();
-const ago = (ms: number) => new Date(_now - ms).toISOString();
-
-function buildDemoArticles(feedId: string): FeedArticle[] {
-  return STORY_BASE.map((s, i) => ({
-    id: `${feedId}-${i}`,
-    ticker: s.ticker,
-    title: s.title,
-    receivedAt: ago((STORY_BASE.length - i) * 5 * 60_000),
-    source: feedId,
-    storyIdx: i,
-  }));
-}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -210,32 +172,23 @@ function FeedColumn({
       <div className="px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center justify-between mb-0.5">
           <div className="flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${feed.connected ? feed.dotColor : "bg-muted"}`} />
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${feed.dotColor}`} />
             <span className={`text-xs font-semibold ${feed.color}`}>{feed.name}</span>
           </div>
           <div className="flex items-center gap-1.5">
             {displayCount > 0 && (
               <span className="text-[10px] text-muted">
-                {displayCount} {feed.connected ? "live" : "articles"}
+                {displayCount} live
               </span>
             )}
             <span
-              className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                feed.connected
-                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-600/30"
-                  : "bg-surface text-muted border-border"
-              }`}
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded border bg-emerald-500/10 text-emerald-400 border-emerald-600/30"
             >
-              {feed.connected ? "LIVE" : "DEMO"}
+              LIVE
             </span>
           </div>
         </div>
         <p className="text-[10px] text-muted truncate mt-0.5">{feed.description}</p>
-        {!feed.connected && feed.configKey && (
-          <span className="inline-block mt-1 text-[9px] text-muted font-mono bg-surface px-1 py-0.5 rounded border border-border">
-            {feed.configKey}
-          </span>
-        )}
       </div>
 
       {/* Articles */}
@@ -255,7 +208,6 @@ function FeedColumn({
 
 export function NewsFeedsPage() {
   useSocket();
-  useDummyData();
   const allArticles = useNewsStore((s) => s.articles);
   const addArticle = useNewsStore((s) => s.addArticle);
   const token = useAuthStore((s) => s.token);
@@ -293,26 +245,20 @@ export function NewsFeedsPage() {
     });
   };
 
-  // Connected feeds: filter live articles by source. Disconnected: show demo.
   const articlesByFeed = useMemo(() => {
     const map = new Map<string, FeedArticle[]>();
     const tickerUpper = tickerFilter.trim().toUpperCase();
     for (const feed of FEEDS) {
-      let articles: FeedArticle[];
-      if (feed.connected) {
-        articles = allArticles
-          .filter((a) => a.source === feed.id && deriveStars(a.title) >= minStars)
-          .map((a, i): FeedArticle => ({
-            id: `${a.ticker}-${a.receivedAt}-${i}`,
-            ticker: a.ticker,
-            title: a.title,
-            receivedAt: a.receivedAt,
-            source: feed.id,
-            storyIdx: i,
-          }));
-      } else {
-        articles = buildDemoArticles(feed.id);
-      }
+      let articles = allArticles
+        .filter((a) => a.source === feed.id && deriveStars(a.title) >= minStars)
+        .map((a, i): FeedArticle => ({
+          id: `${a.ticker}-${a.receivedAt}-${i}`,
+          ticker: a.ticker,
+          title: a.title,
+          receivedAt: a.receivedAt,
+          source: feed.id,
+          storyIdx: i,
+        }));
       if (tickerUpper) {
         articles = articles.filter((a) => a.ticker.includes(tickerUpper));
       }
@@ -338,7 +284,6 @@ export function NewsFeedsPage() {
         <span className="text-[10px] text-muted uppercase tracking-wide shrink-0">Feeds</span>
         {FEEDS.map((f) => {
           const count = articlesByFeed.get(f.id)?.length ?? 0;
-          const label = f.connected ? "live" : "demo";
           return (
             <button
               key={f.id}
@@ -349,8 +294,8 @@ export function NewsFeedsPage() {
                   : "text-muted border-border hover:text-white"
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${f.connected ? f.dotColor : "bg-muted"}`} />
-              {f.shortName} {count} {label}
+              <span className={`w-1.5 h-1.5 rounded-full ${f.dotColor}`} />
+              {f.shortName} {count} live
             </button>
           );
         })}

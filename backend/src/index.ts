@@ -55,13 +55,19 @@ app.use(
 );
 
 // CORS: explicit origin whitelist instead of wildcard
+// In production with a reverse proxy, same-origin requests have no Origin header
+// so we allow those. Cross-origin requests are checked against the whitelist.
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (server-to-server, curl, mobile apps)
+      // No origin = same-origin request (via reverse proxy), curl, or server-to-server
       if (!origin) return callback(null, true);
-      if (config.corsOrigins.includes(origin)) return callback(null, true);
-      callback(new Error("CORS not allowed"));
+      // Check against whitelist
+      if (config.corsOrigins.length === 0 || config.corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // Reject but don't throw — return false so cors middleware sends proper headers
+      callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],

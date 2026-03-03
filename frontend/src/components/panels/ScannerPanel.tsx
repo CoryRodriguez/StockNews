@@ -57,7 +57,7 @@ function AlertRow({ alert, onClick }: { alert: ScannerAlert; onClick: () => void
   return (
     <div
       onClick={onClick}
-      className="grid grid-cols-[56px_1fr_1fr_1fr_1fr] gap-x-1 px-2 py-1 hover:bg-surface cursor-pointer border-b border-border text-xs font-mono"
+      className="grid grid-cols-[56px_1fr_1fr_1fr_1fr] gap-x-1 px-2 py-1 hover:bg-raised cursor-pointer border-b border-border text-xs font-mono"
     >
       <div className="flex items-center gap-1 min-w-0">
         <span className="text-white font-semibold truncate">{alert.ticker}</span>

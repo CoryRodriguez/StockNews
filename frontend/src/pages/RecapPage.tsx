@@ -18,23 +18,23 @@ import type { RecapData } from "../store/recapStore";
 // ---- Constants ----
 
 const CHART_COLORS = {
-  profit: "#22c55e",
-  loss: "#ef4444",
-  grid: "#2d2d2d",
-  axis: "#6b7280",
-  entry: "#60a5fa",
-  exit: "#f59e0b",
+  profit: "#2ea043",
+  loss: "#da3633",
+  grid: "#1b2130",
+  axis: "#636e7b",
+  entry: "#4c8dca",
+  exit: "#c79316",
 };
 
 const DARK_TOOLTIP_STYLE = {
   contentStyle: {
-    background: "#1a1a1a",
-    border: "1px solid #333",
+    background: "#151b23",
+    border: "1px solid #252d3a",
     fontSize: 10,
   },
 };
 
-const AXIS_TICK = { fill: "#6b7280", fontSize: 10 };
+const AXIS_TICK = { fill: "#636e7b", fontSize: 10 };
 
 // ---- Types ----
 
@@ -63,7 +63,7 @@ function getTodayET(): string {
 
 function pnlClass(val: number | null): string {
   if (val == null) return "text-muted";
-  return val >= 0 ? "text-green-400" : "text-red-400";
+  return val >= 0 ? "text-up" : "text-down";
 }
 
 function fmtPnl(val: number | null): string {
@@ -119,7 +119,7 @@ function TrendIndicator({ current, previous, label, format = "dollar" }: TrendIn
   const pctDelta = previous !== 0 ? (delta / Math.abs(previous)) * 100 : 0;
   const isUp = delta >= 0;
   const arrow = isUp ? "▲" : "▼";
-  const colorClass = isUp ? "text-green-400" : "text-red-400";
+  const colorClass = isUp ? "text-up" : "text-down";
   const displayVal =
     format === "pct"
       ? `${Math.abs(pctDelta).toFixed(0)}%`
@@ -142,7 +142,7 @@ function SectionHeader({ title, sectionKey, expanded, onToggle }: SectionHeaderP
   return (
     <button
       onClick={() => onToggle(sectionKey)}
-      className="w-full flex items-center justify-between px-4 py-2 bg-bg-secondary border border-border rounded text-sm font-semibold text-fg hover:bg-bg text-left"
+      className="w-full flex items-center justify-between px-4 py-2 bg-panel border border-border rounded text-sm font-semibold text-white hover:bg-surface text-left"
     >
       <span>{title}</span>
       <span className="text-muted text-xs">{expanded ? "▲ Collapse" : "▼ Expand"}</span>
@@ -173,9 +173,9 @@ function EmptyState({ message }: { message: string }) {
 function SummaryCard({ recap }: { recap: RecapData }) {
   const s = recap.summary;
   const scoreColor =
-    s.score >= 80 ? "text-green-400" : s.score >= 50 ? "text-yellow-400" : "text-red-400";
+    s.score >= 80 ? "text-up" : s.score >= 50 ? "text-yellow-400" : "text-down";
   return (
-    <div className="bg-bg-secondary border border-border rounded p-4">
+    <div className="bg-panel border border-border rounded p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
           <div className={`text-3xl font-bold font-mono ${pnlClass(s.totalPnl)}`}>
@@ -191,11 +191,11 @@ function SummaryCard({ recap }: { recap: RecapData }) {
       <div className="grid grid-cols-4 gap-3 text-center">
         <div>
           <div className="text-xs text-muted">Trades</div>
-          <div className="text-sm font-semibold text-fg">{s.tradeCount}</div>
+          <div className="text-sm font-semibold text-white">{s.tradeCount}</div>
         </div>
         <div>
           <div className="text-xs text-muted">Win Rate</div>
-          <div className="text-sm font-semibold text-fg">{fmtPct(s.winRate)}</div>
+          <div className="text-sm font-semibold text-white">{fmtPct(s.winRate)}</div>
         </div>
         <div>
           <div className="text-xs text-muted">Best</div>
@@ -218,7 +218,7 @@ function BenchmarksCard({ recap }: { recap: RecapData }) {
   const b = recap.benchmarks;
   const s = recap.summary;
   return (
-    <div className="bg-bg-secondary border border-border rounded p-4">
+    <div className="bg-panel border border-border rounded p-4">
       <div className="text-xs font-semibold text-muted mb-2">Benchmarks</div>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -278,7 +278,7 @@ function IntradayChart({ recap }: { recap: RecapData }) {
   }
 
   return (
-    <div className="bg-bg-secondary border border-border rounded p-4">
+    <div className="bg-panel border border-border rounded p-4">
       <div className="text-xs font-semibold text-muted mb-2">Intraday P&amp;L Timeline</div>
       <div className="w-full h-40">
         <ResponsiveContainer width="100%" height="100%">
@@ -343,8 +343,8 @@ function TradeBreakdownSection({ recap }: { recap: RecapData }) {
         </thead>
         <tbody>
           {trades.map((t, i) => (
-            <tr key={i} className="border-b border-border/30 hover:bg-bg/30">
-              <td className="py-1 pr-3 font-semibold text-fg">{t.symbol}</td>
+            <tr key={i} className="border-b border-border/30 hover:bg-surface/30">
+              <td className="py-1 pr-3 font-semibold text-white">{t.symbol}</td>
               <td className="py-1 pr-3 text-muted">{t.catalystType ?? "—"}</td>
               <td className="py-1 pr-3 text-right">{t.entryPrice != null ? `$${t.entryPrice.toFixed(2)}` : "—"}</td>
               <td className="py-1 pr-3 text-right">{t.exitPrice != null ? `$${t.exitPrice.toFixed(2)}` : "—"}</td>
@@ -353,7 +353,7 @@ function TradeBreakdownSection({ recap }: { recap: RecapData }) {
               <td className="py-1 pr-3 text-right">{t.holdMinutes != null ? t.holdMinutes.toFixed(1) : "—"}</td>
               <td className="py-1 pr-3 text-right">{t.entryVwapDev != null ? `${t.entryVwapDev.toFixed(2)}%` : "—"}</td>
               <td className="py-1 pr-3 text-right">{t.peakPrice != null ? `$${t.peakPrice.toFixed(2)}` : "—"}</td>
-              <td className={`py-1 text-right ${t.maxDrawdownPct != null ? "text-red-400" : "text-muted"}`}>
+              <td className={`py-1 text-right ${t.maxDrawdownPct != null ? "text-down" : "text-muted"}`}>
                 {t.maxDrawdownPct != null ? `${t.maxDrawdownPct.toFixed(2)}%` : "—"}
               </td>
             </tr>
@@ -375,15 +375,15 @@ function SignalRejectionSection({ recap }: { recap: RecapData }) {
       <div className="grid grid-cols-3 gap-3 text-center">
         <div>
           <div className="text-xs text-muted">Evaluated</div>
-          <div className="text-sm font-semibold text-fg">{signals.totalEvaluated}</div>
+          <div className="text-sm font-semibold text-white">{signals.totalEvaluated}</div>
         </div>
         <div>
           <div className="text-xs text-muted">Fired</div>
-          <div className="text-sm font-semibold text-green-400">{signals.totalFired}</div>
+          <div className="text-sm font-semibold text-up">{signals.totalFired}</div>
         </div>
         <div>
           <div className="text-xs text-muted">Rejected</div>
-          <div className="text-sm font-semibold text-red-400">{signals.totalRejected}</div>
+          <div className="text-sm font-semibold text-down">{signals.totalRejected}</div>
         </div>
       </div>
 
@@ -440,11 +440,11 @@ function SignalRejectionSection({ recap }: { recap: RecapData }) {
             </thead>
             <tbody>
               {signals.missedOpportunities.map((mo, i) => (
-                <tr key={i} className="border-b border-border/30 hover:bg-bg/30">
-                  <td className="py-1 pr-3 font-semibold text-fg">{mo.symbol}</td>
+                <tr key={i} className="border-b border-border/30 hover:bg-surface/30">
+                  <td className="py-1 pr-3 font-semibold text-white">{mo.symbol}</td>
                   <td className="py-1 pr-3 text-muted max-w-xs truncate">{mo.headline}</td>
                   <td className="py-1 pr-3 text-muted">{mo.rejectReason}</td>
-                  <td className="py-1 text-right text-green-400">
+                  <td className="py-1 text-right text-up">
                     +{(mo.postRejectPeakPct * 100).toFixed(1)}%
                   </td>
                 </tr>
@@ -479,12 +479,12 @@ function CatalystPerformanceSection({ recap }: { recap: RecapData }) {
           return (
             <tr
               key={i}
-              className={`border-b border-border/30 hover:bg-bg/30 ${isAllWin ? "bg-green-900/10" : ""}`}
+              className={`border-b border-border/30 hover:bg-surface/30 ${isAllWin ? "bg-green-900/10" : ""}`}
             >
-              <td className="py-1 pr-3 text-fg font-semibold">{c.category}</td>
+              <td className="py-1 pr-3 text-white font-semibold">{c.category}</td>
               <td className="py-1 pr-3 text-right">{c.tradeCount}</td>
               <td className="py-1 pr-3 text-right">{c.winCount}</td>
-              <td className={`py-1 pr-3 text-right ${isAllWin ? "text-green-400" : "text-fg"}`}>
+              <td className={`py-1 pr-3 text-right ${isAllWin ? "text-up" : "text-white"}`}>
                 {fmtPct(c.winRate)}
               </td>
               <td className={`py-1 text-right ${pnlClass(c.totalPnl)}`}>{fmtPnl(c.totalPnl)}</td>
@@ -504,16 +504,16 @@ function StrategyAdherenceSection({ recap }: { recap: RecapData }) {
   const totalExits = distEntries.reduce((sum, [, v]) => sum + v, 0) || 1;
 
   function adherenceLabelClass(label: string): string {
-    if (label === "on-target") return "text-green-400";
+    if (label === "on-target") return "text-up";
     if (label === "early-exit") return "text-yellow-400";
-    if (label === "overhold") return "text-red-400";
+    if (label === "overhold") return "text-down";
     return "text-muted";
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-fg">
+        <span className="text-sm font-semibold text-white">
           Adherence: {adherence.adherencePct.toFixed(0)}%
         </span>
         <span className="text-xs text-muted">exits matched recommended strategy</span>
@@ -526,13 +526,13 @@ function StrategyAdherenceSection({ recap }: { recap: RecapData }) {
             {distEntries.map(([reason, count]) => (
               <div key={reason} className="flex items-center gap-2 text-xs">
                 <span className="text-muted w-28 shrink-0 truncate">{reason}</span>
-                <div className="flex-1 bg-bg rounded h-3 overflow-hidden">
+                <div className="flex-1 bg-surface rounded h-3 overflow-hidden">
                   <div
-                    className="h-3 bg-blue-600 rounded"
+                    className="h-3 bg-accent rounded"
                     style={{ width: `${(count / totalExits) * 100}%` }}
                   />
                 </div>
-                <span className="text-fg w-8 text-right">{count}</span>
+                <span className="text-white w-8 text-right">{count}</span>
               </div>
             ))}
           </div>
@@ -552,8 +552,8 @@ function StrategyAdherenceSection({ recap }: { recap: RecapData }) {
           </thead>
           <tbody>
             {adherence.trades.map((t, i) => (
-              <tr key={i} className="border-b border-border/30 hover:bg-bg/30">
-                <td className="py-1 pr-3 text-fg font-semibold">{t.symbol}</td>
+              <tr key={i} className="border-b border-border/30 hover:bg-surface/30">
+                <td className="py-1 pr-3 text-white font-semibold">{t.symbol}</td>
                 <td className="py-1 pr-3 text-muted">{t.catalystType ?? "—"}</td>
                 <td className="py-1 pr-3 text-right">
                   {t.recommendedHoldSec != null ? (t.recommendedHoldSec / 60).toFixed(1) : "—"}
@@ -576,12 +576,12 @@ function StrategyAdherenceSection({ recap }: { recap: RecapData }) {
 function SuggestionsCard({ suggestions }: { suggestions: string[] }) {
   if (!suggestions || suggestions.length === 0) return null;
   return (
-    <div className="bg-bg-secondary border border-border rounded p-4">
+    <div className="bg-panel border border-border rounded p-4">
       <div className="text-xs font-semibold text-muted mb-2">Suggestions</div>
       <ul className="space-y-1">
         {suggestions.map((s, i) => (
-          <li key={i} className="text-sm text-fg flex items-start gap-2">
-            <span className="text-blue-400 shrink-0">•</span>
+          <li key={i} className="text-sm text-white flex items-start gap-2">
+            <span className="text-accent shrink-0">•</span>
             <span>{s}</span>
           </li>
         ))}
@@ -624,7 +624,7 @@ function DayView({ recap, loading }: { recap: RecapData | null; loading: boolean
           onToggle={toggleSection}
         />
         {expandedSections.has("trades") && (
-          <div className="bg-bg-secondary border border-border rounded p-4">
+          <div className="bg-panel border border-border rounded p-4">
             <TradeBreakdownSection recap={recap} />
           </div>
         )}
@@ -636,7 +636,7 @@ function DayView({ recap, loading }: { recap: RecapData | null; loading: boolean
           onToggle={toggleSection}
         />
         {expandedSections.has("signals") && (
-          <div className="bg-bg-secondary border border-border rounded p-4">
+          <div className="bg-panel border border-border rounded p-4">
             <SignalRejectionSection recap={recap} />
           </div>
         )}
@@ -648,7 +648,7 @@ function DayView({ recap, loading }: { recap: RecapData | null; loading: boolean
           onToggle={toggleSection}
         />
         {expandedSections.has("catalysts") && (
-          <div className="bg-bg-secondary border border-border rounded p-4">
+          <div className="bg-panel border border-border rounded p-4">
             <CatalystPerformanceSection recap={recap} />
           </div>
         )}
@@ -660,7 +660,7 @@ function DayView({ recap, loading }: { recap: RecapData | null; loading: boolean
           onToggle={toggleSection}
         />
         {expandedSections.has("adherence") && (
-          <div className="bg-bg-secondary border border-border rounded p-4">
+          <div className="bg-panel border border-border rounded p-4">
             <StrategyAdherenceSection recap={recap} />
           </div>
         )}
@@ -697,7 +697,7 @@ function WeekView({
 
   return (
     <div className="space-y-4">
-      <div className="bg-bg-secondary border border-border rounded p-4">
+      <div className="bg-panel border border-border rounded p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-muted">Weekly P&amp;L</span>
           <TrendIndicator current={weekTotal} previous={prevWeekTotal} label="week" />
@@ -730,7 +730,7 @@ function WeekView({
         </div>
       </div>
 
-      <div className="bg-bg-secondary border border-border rounded p-4">
+      <div className="bg-panel border border-border rounded p-4">
         <table className="w-full text-xs font-mono">
           <thead>
             <tr className="border-b border-border text-muted">
@@ -743,20 +743,20 @@ function WeekView({
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="border-b border-border/30 hover:bg-bg/30">
-                <td className="py-1 pr-3 text-fg">
+              <tr key={i} className="border-b border-border/30 hover:bg-surface/30">
+                <td className="py-1 pr-3 text-white">
                   {dayLabel(r.date)} {r.date}
                 </td>
                 <td className={`py-1 pr-3 text-right ${pnlClass(r.totalPnl)}`}>{fmtPnl(r.totalPnl)}</td>
-                <td className="py-1 pr-3 text-right text-fg">{r.tradeCount}</td>
-                <td className="py-1 pr-3 text-right text-fg">{fmtPct(r.winRate)}</td>
-                <td className="py-1 text-right text-fg">{r.score}</td>
+                <td className="py-1 pr-3 text-right text-white">{r.tradeCount}</td>
+                <td className="py-1 pr-3 text-right text-white">{fmtPct(r.winRate)}</td>
+                <td className="py-1 text-right text-white">{r.score}</td>
               </tr>
             ))}
             <tr className="border-t border-border font-semibold">
               <td className="py-1 pr-3 text-muted">Week Total</td>
               <td className={`py-1 pr-3 text-right ${pnlClass(weekTotal)}`}>{fmtPnl(weekTotal)}</td>
-              <td className="py-1 pr-3 text-right text-fg">{weekTradeCount}</td>
+              <td className="py-1 pr-3 text-right text-white">{weekTradeCount}</td>
               <td className="py-1 pr-3 text-right text-muted">—</td>
               <td className="py-1 text-right text-muted">—</td>
             </tr>
@@ -828,7 +828,7 @@ function MonthView({
 
   return (
     <div className="space-y-4">
-      <div className="bg-bg-secondary border border-border rounded p-4">
+      <div className="bg-panel border border-border rounded p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-muted">Monthly P&amp;L by Week</span>
           <TrendIndicator current={monthTotal} previous={prevMonthTotal} label="month" />
@@ -861,7 +861,7 @@ function MonthView({
         </div>
       </div>
 
-      <div className="bg-bg-secondary border border-border rounded p-4">
+      <div className="bg-panel border border-border rounded p-4">
         <table className="w-full text-xs font-mono">
           <thead>
             <tr className="border-b border-border text-muted">
@@ -873,17 +873,17 @@ function MonthView({
           </thead>
           <tbody>
             {weeks.map((w, i) => (
-              <tr key={i} className="border-b border-border/30 hover:bg-bg/30">
-                <td className="py-1 pr-3 text-fg">{w.label}</td>
+              <tr key={i} className="border-b border-border/30 hover:bg-surface/30">
+                <td className="py-1 pr-3 text-white">{w.label}</td>
                 <td className={`py-1 pr-3 text-right ${pnlClass(w.totalPnl)}`}>{fmtPnl(w.totalPnl)}</td>
-                <td className="py-1 pr-3 text-right text-fg">{w.tradeCount}</td>
-                <td className="py-1 text-right text-fg">{fmtPct(w.avgWinRate)}</td>
+                <td className="py-1 pr-3 text-right text-white">{w.tradeCount}</td>
+                <td className="py-1 text-right text-white">{fmtPct(w.avgWinRate)}</td>
               </tr>
             ))}
             <tr className="border-t border-border font-semibold">
               <td className="py-1 pr-3 text-muted">Month Total</td>
               <td className={`py-1 pr-3 text-right ${pnlClass(monthTotal)}`}>{fmtPnl(monthTotal)}</td>
-              <td className="py-1 pr-3 text-right text-fg">{monthTradeCount}</td>
+              <td className="py-1 pr-3 text-right text-white">{monthTradeCount}</td>
               <td className="py-1 text-right text-muted">—</td>
             </tr>
           </tbody>
@@ -985,17 +985,17 @@ export default function RecapPage() {
   }, [viewMode, anchorDate]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-bg overflow-hidden font-mono">
+    <div className="h-screen w-screen flex flex-col bg-base overflow-hidden">
       <TopNav />
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-bg-secondary shrink-0">
-        <h1 className="text-lg font-bold text-fg">Daily Recap</h1>
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-panel shrink-0">
+        <h1 className="text-lg font-bold text-white">Daily Recap</h1>
         <div className="ml-auto flex items-center gap-2">
           <input
             type="date"
             value={anchorDate}
             onChange={(e) => setAnchorDate(e.target.value)}
-            className="bg-bg border border-border rounded px-2 py-1 text-sm text-fg"
+            className="bg-surface border border-border rounded px-2 py-1 text-sm text-white"
           />
           <div className="flex gap-1">
             {(["day", "week", "month"] as ViewMode[]).map((m) => (
@@ -1004,8 +1004,8 @@ export default function RecapPage() {
                 onClick={() => setViewMode(m)}
                 className={`px-2 py-1 text-xs rounded ${
                   viewMode === m
-                    ? "bg-blue-600 text-white"
-                    : "bg-bg text-muted hover:text-fg"
+                    ? "bg-accent text-white"
+                    : "bg-surface text-muted hover:text-white"
                 }`}
               >
                 {m.charAt(0).toUpperCase() + m.slice(1)}

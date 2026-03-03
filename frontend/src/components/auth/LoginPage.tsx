@@ -33,28 +33,37 @@ export function LoginPage({ isSetup }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center font-mono">
+    <div className="min-h-screen bg-base flex items-center justify-center">
       <div className="w-80 bg-panel border border-border rounded-lg p-8">
-        <h1 className="text-white text-xl font-semibold mb-1">Day Trade Dashboard</h1>
-        <p className="text-muted text-sm mb-6">
-          {isSetup ? "Create your dashboard password" : "Enter your password"}
+        <h1 className="text-white text-lg font-bold mb-0.5 tracking-tight">DTDash</h1>
+        <p className="text-muted text-xs mb-6">
+          {isSetup ? "Create your dashboard password" : "Enter your password to continue"}
         </p>
         <form onSubmit={submit} className="space-y-4">
-          <input
-            type="password"
-            placeholder={isSetup ? "Choose a password (min 8 chars)" : "Password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-surface border border-border text-white rounded px-3 py-2 text-sm focus:outline-none focus:border-accent"
-            autoFocus
-          />
-          {error && <p className="text-down text-xs">{error}</p>}
+          <div>
+            <label className="text-[9px] font-semibold uppercase tracking-wider text-muted block mb-1.5">
+              Password
+            </label>
+            <input
+              type="password"
+              placeholder={isSetup ? "Choose a password (min 8 chars)" : "Password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-surface border border-border text-white font-mono rounded px-3 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-all"
+              autoFocus
+            />
+          </div>
+          {error && (
+            <p className="text-down text-xs bg-red-soft border border-down/20 rounded px-2.5 py-1.5">
+              {error}
+            </p>
+          )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-accent text-surface font-semibold rounded py-2 text-sm hover:opacity-90 disabled:opacity-50"
+            className="w-full bg-accent text-white font-semibold rounded py-2.5 text-xs hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            {loading ? "..." : isSetup ? "Set Password" : "Log In"}
+            {loading ? "..." : isSetup ? "Set Password" : "Sign In"}
           </button>
         </form>
       </div>

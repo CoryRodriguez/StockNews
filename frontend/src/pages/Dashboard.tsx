@@ -105,7 +105,7 @@ export function Dashboard() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-surface overflow-hidden font-mono">
+    <div className="h-screen w-screen flex flex-col bg-base overflow-hidden">
       <TopNav />
       <div className="flex-1 overflow-auto">
         <GridLayout

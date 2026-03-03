@@ -409,7 +409,7 @@ function SignalDetailPanel({
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:text-muted text-white text-xs font-semibold py-2 rounded transition-colors"
+            className="flex-1 bg-accent hover:opacity-90 disabled:opacity-50 disabled:text-muted text-white text-xs font-semibold py-2 rounded transition-colors"
           >
             {saving ? "Saving..." : "Save Label"}
           </button>
@@ -599,7 +599,7 @@ export function HistoryPage() {
   );
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-surface overflow-hidden font-mono">
+    <div className="h-screen w-screen flex flex-col bg-base overflow-hidden">
       <TopNav />
       <div className="flex-1 flex flex-col overflow-hidden p-4">
         <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 overflow-hidden">

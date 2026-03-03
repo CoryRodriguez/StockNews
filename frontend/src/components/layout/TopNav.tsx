@@ -8,10 +8,10 @@ export function TopNav() {
   const navBtn = (target: typeof page, label: string) => (
     <button
       onClick={() => setPage(target)}
-      className={`text-xs px-2.5 py-1 rounded transition-colors ${
+      className={`text-[11px] font-medium px-2.5 py-1 rounded transition-colors ${
         page === target
-          ? "text-white bg-surface"
-          : "text-muted hover:text-white hover:bg-surface"
+          ? "text-white bg-raised"
+          : "text-muted hover:text-white hover:bg-raised"
       }`}
     >
       {label}
@@ -19,11 +19,13 @@ export function TopNav() {
   );
 
   return (
-    <nav className="h-10 bg-panel border-b border-border flex items-center px-3 gap-3 shrink-0 font-mono">
-      <span className="text-white font-semibold text-sm mr-1">DTDash</span>
+    <nav className="h-11 bg-panel border-b border-border flex items-center px-4 gap-1 shrink-0">
+      <span className="text-white font-bold text-sm mr-2 tracking-tight">DTDash</span>
+
+      <div className="w-px h-5 bg-border mx-1" />
 
       {/* Page navigation tabs */}
-      <div className="flex items-center gap-0.5 border-r border-border pr-3">
+      <div className="flex items-center gap-0.5">
         {navBtn("newsfeeds", "Dashboard")}
         {navBtn("scanner", "Scanner")}
         {navBtn("trades", "Trades")}
@@ -33,7 +35,7 @@ export function TopNav() {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        <span className="text-xs text-muted">
+        <span className="text-[10px] font-mono text-muted">
           {new Date().toLocaleTimeString("en-US", {
             timeZone: "America/New_York",
             hour: "2-digit",
@@ -44,7 +46,7 @@ export function TopNav() {
         </span>
         <button
           onClick={logout}
-          className="text-muted hover:text-white text-xs px-2 py-1 rounded hover:bg-surface"
+          className="text-muted hover:text-white text-[10px] font-medium px-2 py-1 rounded border border-border hover:bg-raised transition-colors"
         >
           Logout
         </button>

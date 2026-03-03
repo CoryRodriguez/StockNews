@@ -123,7 +123,7 @@ function FeedArticleRow({
   const stars = deriveStars(article.title);
   return (
     <div
-      className="border-b border-border px-2 py-1.5 hover:bg-surface cursor-pointer"
+      className="border-b border-border px-2 py-1.5 hover:bg-raised cursor-pointer"
       onClick={() => onArticleClick(article.ticker)}
     >
       <div className="flex items-center gap-1.5 mb-0.5">
@@ -276,7 +276,7 @@ export function NewsFeedsPage() {
   const visibleFeeds = FEEDS.filter((f) => selectedFeeds.has(f.id));
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-surface overflow-hidden font-mono">
+    <div className="h-screen w-screen flex flex-col bg-base overflow-hidden">
       <TopNav />
 
       {/* Feed filter bar */}

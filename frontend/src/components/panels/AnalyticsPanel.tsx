@@ -278,7 +278,7 @@ function ByCatalystTab({ categories }: { categories: CategoryStat[] }) {
         </thead>
         <tbody>
           {sorted.map((c) => (
-            <tr key={c.category} className="border-t border-border hover:bg-surface">
+            <tr key={c.category} className="border-t border-border hover:bg-raised">
               <td className="py-1 pr-2 text-white truncate max-w-[140px]">
                 {categoryLabel(c.category)}
               </td>
@@ -350,13 +350,13 @@ function StrategiesTab({
             key={key}
             className={`border rounded p-2 text-[11px] font-mono ${
               isGlobal
-                ? "border-blue-500/40 bg-blue-500/5"
+                ? "border-accent/40 bg-blue-soft"
                 : "border-border bg-panel"
             }`}
           >
             {/* Header row */}
             <div className="flex items-center justify-between mb-1">
-              <span className={`font-semibold ${isGlobal ? "text-blue-400" : "text-white"}`}>
+              <span className={`font-semibold ${isGlobal ? "text-accent" : "text-white"}`}>
                 {isGlobal ? "Global Default" : cat}
               </span>
               <div className="flex items-center gap-1 text-[10px] text-muted">

@@ -66,7 +66,7 @@ function NewsItem({
 
   return (
     <div
-      className={`border-b border-border px-2 py-1.5 hover:bg-surface cursor-pointer ${
+      className={`border-b border-border px-2 py-1.5 hover:bg-raised cursor-pointer ${
         tradeStatus ? "border-l-2 border-l-accent" : ""
       }`}
       onClick={() => {
@@ -90,7 +90,7 @@ function NewsItem({
           </span>
         )}
         {tradeStatus === "open" && (
-          <span className="shrink-0 bg-blue-500/20 text-blue-400 text-[9px] font-bold px-1 rounded leading-tight border border-blue-500/40">
+          <span className="shrink-0 bg-blue-soft text-accent text-[9px] font-bold px-1 rounded leading-tight border border-accent/40">
             HOLDING
           </span>
         )}

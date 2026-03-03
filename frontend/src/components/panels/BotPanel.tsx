@@ -77,7 +77,7 @@ function PositionRow({ pos }: { pos: BotPosition }) {
   const unrealized = (currentPrice - entry) * shares;
   const positive = unrealized >= 0;
   return (
-    <div className="px-2 py-1.5 border-b border-border text-xs font-mono hover:bg-surface">
+    <div className="px-2 py-1.5 border-b border-border text-xs font-mono hover:bg-raised">
       <div className="flex items-center justify-between">
         <span className="text-white font-semibold">{pos.symbol}</span>
         <span className={`font-semibold ${positive ? "text-up" : "text-down"}`}>
@@ -98,7 +98,7 @@ function BotTradeRow({ trade }: { trade: BotTrade }) {
   const pnl = trade.pnl ?? 0;
   const positive = pnl >= 0;
   return (
-    <div className="px-2 py-1.5 border-b border-border text-xs font-mono hover:bg-surface">
+    <div className="px-2 py-1.5 border-b border-border text-xs font-mono hover:bg-raised">
       <div className="flex items-center justify-between">
         <span className="text-white font-semibold">{trade.symbol}</span>
         {trade.pnl != null && (
@@ -122,7 +122,7 @@ function SignalRow({ signal }: { signal: BotSignal }) {
     ? (REJECT_LABELS[signal.rejectReason] ?? signal.rejectReason)
     : "rejected";
   return (
-    <div className="px-2 py-1.5 border-b border-border text-xs font-mono hover:bg-surface">
+    <div className="px-2 py-1.5 border-b border-border text-xs font-mono hover:bg-raised">
       <div className="flex items-center justify-between">
         <span className="text-white font-semibold">{signal.symbol}</span>
         <span className="text-down text-[10px]">{label}</span>
@@ -407,7 +407,7 @@ export function BotPanel() {
           {state !== "stopped" && (
             <button
               onClick={() => void botAction("stop")}
-              className="text-[10px] px-2 py-0.5 rounded border border-red-600/50 bg-red-500/10 text-red-400 hover:bg-red-500/20 font-mono"
+              className="text-[10px] px-2 py-0.5 rounded border border-red-600/50 bg-red-500/10 text-down hover:bg-red-500/20 font-mono"
             >
               STOP
             </button>
@@ -424,14 +424,14 @@ export function BotPanel() {
               setTab(t);
               if (t === "recap") setRecapUnread(false);
             }}
-            className={`px-3 py-1 text-[10px] font-mono capitalize ${
+            className={`px-3 py-1 text-[10px] capitalize ${
               tab === t ? "text-accent border-b-2 border-accent" : "text-muted hover:text-white"
             }`}
           >
             <span className="relative">
               {t}
               {t === "recap" && recapUnread && (
-                <span className="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                <span className="absolute -top-0.5 -right-1.5 w-1.5 h-1.5 rounded-full bg-accent" />
               )}
             </span>
           </button>
@@ -570,10 +570,10 @@ export function BotPanel() {
 
             {/* Open positions */}
             <div className="px-2 py-1 border-b border-border">
-              <span className="text-[9px] text-muted font-mono uppercase tracking-wide">Open Positions</span>
+              <span className="text-[9px] text-muted uppercase tracking-wide">Open Positions</span>
             </div>
             {positions.length === 0 ? (
-              <div className="text-muted text-[10px] text-center py-3 font-mono">No open positions</div>
+              <div className="text-muted text-[10px] text-center py-3">No open positions</div>
             ) : (
               positions.map((p) => <PositionRow key={p.id} pos={p} />)
             )}
@@ -584,7 +584,7 @@ export function BotPanel() {
         {tab === "history" && (
           <div>
             {trades.length === 0 ? (
-              <div className="text-muted text-[10px] text-center py-3 font-mono">No completed bot trades yet</div>
+              <div className="text-muted text-[10px] text-center py-3">No completed bot trades yet</div>
             ) : (
               trades.map((t) => <BotTradeRow key={t.id} trade={t} />)
             )}
@@ -595,7 +595,7 @@ export function BotPanel() {
         {tab === "signals" && (
           <div>
             {signals.length === 0 ? (
-              <div className="text-muted text-[10px] text-center py-3 font-mono">No rejected signals yet</div>
+              <div className="text-muted text-[10px] text-center py-3">No rejected signals yet</div>
             ) : (
               signals.map((s) => <SignalRow key={s.id} signal={s} />)
             )}
@@ -615,14 +615,14 @@ export function BotPanel() {
               />
               <button
                 onClick={() => setPage("recap")}
-                className="text-xs text-blue-400 hover:text-blue-300 underline ml-auto"
+                className="text-xs text-accent hover:opacity-80 underline ml-auto"
               >
                 View full recap →
               </button>
             </div>
 
             {recapLoading && <div className="text-muted text-xs">Loading recap...</div>}
-            {recapError && <div className="text-red-400 text-xs">{recapError}</div>}
+            {recapError && <div className="text-down text-xs">{recapError}</div>}
 
             {recap && !recapLoading && (
               <>
@@ -699,11 +699,11 @@ export function BotPanel() {
         {tab === "config" && (
           <div>
             {!draft ? (
-              <div className="text-muted text-[10px] text-center py-3 font-mono">Loading config…</div>
+              <div className="text-muted text-[10px] text-center py-3">Loading config…</div>
             ) : (
               <>
                 <div className="px-2 py-1 border-b border-border">
-                  <span className="text-[9px] text-muted font-mono uppercase tracking-wide">Bot Configuration</span>
+                  <span className="text-[9px] text-muted uppercase tracking-wide">Bot Configuration</span>
                 </div>
 
                 <ConfigRow label="Catalyst Tiers (e.g. 1,2,3,4)" value={draft.enabledCatalystTiers}
@@ -747,7 +747,7 @@ export function BotPanel() {
 
                 {/* Scanner Trading section */}
                 <div className="px-2 py-1.5 mt-2 border-t border-b border-border flex items-center justify-between">
-                  <span className="text-[9px] text-muted font-mono uppercase tracking-wide">Scanner Trading</span>
+                  <span className="text-[9px] text-muted uppercase tracking-wide">Scanner Trading</span>
                   <button
                     onClick={() => setDraft({ ...draft, scannerTradingEnabled: !draft.scannerTradingEnabled })}
                     className={`text-[9px] font-mono px-2 py-0.5 rounded border ${

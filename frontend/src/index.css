@@ -8,15 +8,16 @@
 
 body {
   margin: 0;
-  background-color: #0d1117;
+  background-color: #0a0e14;
   color: #e6edf3;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 /* react-grid-layout overrides */
 .react-grid-item.react-grid-placeholder {
-  background: #58a6ff22 !important;
-  border: 1px dashed #58a6ff !important;
+  background: #4c8dca22 !important;
+  border: 1px dashed #4c8dca !important;
   border-radius: 4px;
 }
 
@@ -30,6 +31,6 @@ body {
 
 /* Scrollbars */
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: #0d1117; }
-::-webkit-scrollbar-thumb { background: #21262d; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #8b949e; }
+::-webkit-scrollbar-track { background: #0a0e14; }
+::-webkit-scrollbar-thumb { background: #252d3a; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #636e7b; }

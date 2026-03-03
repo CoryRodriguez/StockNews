@@ -18,8 +18,8 @@ function fmt(n: number | null | undefined): string {
 }
 
 function pctClass(v: number): string {
-  if (v > 0) return "text-green-400";
-  if (v < 0) return "text-red-400";
+  if (v > 0) return "text-up";
+  if (v < 0) return "text-down";
   return "text-muted";
 }
 
@@ -113,7 +113,7 @@ const COLUMNS: ColDef[] = [
     render: (r) =>
       r.newsHeadline ? (
         <span className="flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+          <span className="w-1.5 h-1.5 rounded-full bg-up shrink-0" />
           <span className="truncate">{r.newsHeadline}</span>
         </span>
       ) : (
@@ -141,13 +141,13 @@ function FilterBar({ total, showing }: { total: number; showing: number }) {
         onChange={(e) =>
           setFilter(filterKey, e.target.value === "" ? null : Number(e.target.value))
         }
-        className="w-16 bg-surface border border-border rounded px-1.5 py-0.5 text-[11px] text-white font-mono focus:border-blue-500 focus:outline-none"
+        className="w-16 bg-surface border border-border rounded px-1.5 py-0.5 text-[11px] text-white font-mono focus:border-accent focus:outline-none"
       />
     </label>
   );
 
   return (
-    <div className="flex items-center gap-3 px-3 py-1.5 bg-panel border-b border-border font-mono flex-wrap">
+    <div className="flex items-center gap-3 px-3 py-1.5 bg-panel border-b border-border flex-wrap">
       {numInput("Min $", "minPrice", "0")}
       {numInput("Max $", "maxPrice", "999")}
       <span className="text-border">|</span>
@@ -201,14 +201,14 @@ export function ScannerPage() {
   );
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-surface overflow-hidden font-mono">
+    <div className="h-screen w-screen flex flex-col bg-base overflow-hidden">
       <TopNav />
       <FilterBar total={store.rows.length} showing={filtered.length} />
 
       <div className="flex-1 flex gap-2 p-2 overflow-hidden min-h-0">
         {/* Left: data table */}
         <div className="flex-[3] min-w-0 overflow-auto border border-border rounded">
-          <table className="w-full text-[11px]">
+          <table className="w-full text-[11px] font-mono">
             <thead className="sticky top-0 bg-panel z-10">
               <tr className="border-b border-border">
                 {COLUMNS.map((col) => (
@@ -221,7 +221,7 @@ export function ScannerPage() {
                   >
                     {col.label}
                     {sortKey === col.key && (
-                      <span className="ml-0.5 text-blue-400">
+                      <span className="ml-0.5 text-accent">
                         {sortDir === "asc" ? "\u25B2" : "\u25BC"}
                       </span>
                     )}

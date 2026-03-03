@@ -100,7 +100,7 @@ export function WatchlistPanel() {
             <div
               key={ticker}
               onClick={() => handleRowClick(ticker)}
-              className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_20px] gap-x-1 px-2 py-1 hover:bg-surface cursor-pointer border-b border-border text-xs font-mono group"
+              className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_20px] gap-x-1 px-2 py-1 hover:bg-raised cursor-pointer border-b border-border text-xs font-mono group"
             >
               <span className="text-white font-semibold truncate">{ticker}</span>
               <span className="text-right text-white">{p ? `$${fmt(p.price)}` : "—"}</span>

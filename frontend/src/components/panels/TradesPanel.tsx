@@ -29,7 +29,7 @@ function statusBadge(trade: PaperTrade) {
   if (trade.buyStatus === "error") return <span className="text-down text-[10px]">BUY ERR</span>;
   if (trade.buyStatus === "pending") return <span className="text-yellow-400 text-[10px]">BUYING</span>;
   if (trade.sellStatus === "awaiting" || trade.sellStatus === "pending")
-    return <span className="text-blue-400 text-[10px]">HOLDING</span>;
+    return <span className="text-accent text-[10px]">HOLDING</span>;
   if (trade.sellStatus === "error") return <span className="text-down text-[10px]">SELL ERR</span>;
   return null; // filled — show P&L instead
 }
@@ -39,7 +39,7 @@ function TradeRow({ trade }: { trade: PaperTrade }) {
   const pnlPositive = (trade.pnl ?? 0) >= 0;
 
   return (
-    <div className="px-2 py-1.5 border-b border-border text-xs font-mono hover:bg-surface">
+    <div className="px-2 py-1.5 border-b border-border text-xs font-mono hover:bg-raised">
       {/* Row 1: ticker + status/pnl */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">

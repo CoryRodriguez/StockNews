@@ -10,8 +10,8 @@ export const config = {
   alpacaApiSecret: process.env.ALPACA_API_SECRET ?? "",
   nodeEnv: process.env.NODE_ENV ?? "development",
   alpacaDataUrl: "https://data.alpaca.markets",
-  alpacaDataFeed: (process.env.ALPACA_DATA_FEED ?? "sip") as "iex" | "sip",
-  alpacaWsUrl: `wss://stream.data.alpaca.markets/v2/${process.env.ALPACA_DATA_FEED ?? "sip"}`,
+  alpacaDataFeed: (process.env.ALPACA_DATA_FEED ?? "iex") as "iex" | "sip",
+  alpacaWsUrl: `wss://stream.data.alpaca.markets/v2/${process.env.ALPACA_DATA_FEED ?? "iex"}`,
   rtprWsUrl: "wss://ws.rtpr.io",
   // Paper trading
   paperTradingEnabled: process.env.PAPER_TRADING_ENABLED === "true",

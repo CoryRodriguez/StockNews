@@ -4,7 +4,7 @@
  * Full-page trade journal combining:
  *   - Hero stat strip with dominant P&L and inline sparklines
  *   - Split panel: equity curve + calendar heatmap side by side
- *   - Enhanced trade log with edge accents and magnitude bars
+ *   - Enhanced trade log with colored catalyst/scanner badges and filters
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "../store/authStore";
@@ -69,27 +69,79 @@ function toDateKey(iso: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// ── Catalyst & Scanner Badge Colors ───────────────────────────────────────
+
+const CATALYST_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  EARNINGS_BEAT:       { bg: "rgba(46,160,67,0.12)",  text: "#5cda6f", border: "rgba(46,160,67,0.25)" },
+  FDA_APPROVAL:        { bg: "rgba(56,189,193,0.12)", text: "#56c4c8", border: "rgba(56,189,193,0.25)" },
+  CLINICAL_TRIAL:      { bg: "rgba(163,113,247,0.12)",text: "#a371f7", border: "rgba(163,113,247,0.25)" },
+  MA_ACQUISITION:      { bg: "rgba(199,147,22,0.12)", text: "#d4a843", border: "rgba(199,147,22,0.25)" },
+  CONTRACT_WIN:        { bg: "rgba(76,141,202,0.12)", text: "#6da9d6", border: "rgba(76,141,202,0.25)" },
+  REGULATORY_APPROVAL: { bg: "rgba(46,160,100,0.12)", text: "#4dc98a", border: "rgba(46,160,100,0.25)" },
+  GUIDANCE_RAISE:      { bg: "rgba(130,194,40,0.12)", text: "#93c83e", border: "rgba(130,194,40,0.25)" },
+  PARTNERSHIP:         { bg: "rgba(99,102,241,0.12)", text: "#818cf8", border: "rgba(99,102,241,0.25)" },
+  TREASURY_STRATEGY:   { bg: "rgba(234,138,46,0.12)", text: "#ea8a2e", border: "rgba(234,138,46,0.25)" },
+};
+
+const SCANNER_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  news_flow: { bg: "rgba(76,141,202,0.12)", text: "#6da9d6", border: "rgba(76,141,202,0.25)" },
+  gap_up:    { bg: "rgba(234,138,46,0.12)", text: "#ea8a2e", border: "rgba(234,138,46,0.25)" },
+};
+
+const DEFAULT_BADGE = { bg: "rgba(99,110,123,0.12)", text: "#636e7b", border: "rgba(99,110,123,0.25)" };
+
+function CatalystBadge({ category }: { category: string }) {
+  const colors = CATALYST_COLORS[category] ?? DEFAULT_BADGE;
+  return (
+    <span
+      className="text-[9px] font-mono px-1.5 py-[1px] rounded-sm whitespace-nowrap inline-block leading-tight"
+      style={{ backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}
+    >
+      {categoryLabel(category)}
+    </span>
+  );
+}
+
+function ScannerBadge({ scanner }: { scanner: string }) {
+  const colors = SCANNER_COLORS[scanner] ?? DEFAULT_BADGE;
+  const label = scanner === "news_flow" ? "NEWS" : scanner === "gap_up" ? "GAP" : scanner.toUpperCase();
+  return (
+    <span
+      className="text-[8px] font-mono font-semibold px-1 py-[1px] rounded-sm whitespace-nowrap inline-block leading-tight uppercase tracking-wider"
+      style={{ backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}
+    >
+      {label}
+    </span>
+  );
+}
+
 // ── Dummy P&L data (shown when no real trades exist) ──────────────────────
+// Covers Feb–Mar 2026 so the calendar heatmap is populated for the current month
 
 const DUMMY_PNL_TRADES: { date: string; pnl: number }[] = [
-  { date: "2026-01-05", pnl: 42.80 }, { date: "2026-01-06", pnl: -28.50 },
-  { date: "2026-01-07", pnl: 95.20 }, { date: "2026-01-08", pnl: 18.75 },
-  { date: "2026-01-09", pnl: -55.30 }, { date: "2026-01-12", pnl: 112.40 },
-  { date: "2026-01-13", pnl: -32.10 }, { date: "2026-01-14", pnl: 78.60 },
-  { date: "2026-01-15", pnl: 145.20 }, { date: "2026-01-16", pnl: -88.75 },
-  { date: "2026-01-20", pnl: 62.30 }, { date: "2026-01-21", pnl: 38.90 },
-  { date: "2026-01-22", pnl: -24.60 }, { date: "2026-01-23", pnl: 198.40 },
-  { date: "2026-01-26", pnl: -42.30 }, { date: "2026-01-27", pnl: 88.50 },
-  { date: "2026-01-28", pnl: 125.80 }, { date: "2026-01-29", pnl: -65.40 },
-  { date: "2026-01-30", pnl: 92.70 }, { date: "2026-02-02", pnl: 75.30 },
-  { date: "2026-02-03", pnl: -38.90 }, { date: "2026-02-04", pnl: 148.60 },
-  { date: "2026-02-05", pnl: 55.20 }, { date: "2026-02-06", pnl: -72.40 },
-  { date: "2026-02-09", pnl: 118.50 }, { date: "2026-02-10", pnl: 42.80 },
-  { date: "2026-02-11", pnl: -28.60 }, { date: "2026-02-12", pnl: 165.30 },
-  { date: "2026-02-13", pnl: 88.70 }, { date: "2026-02-17", pnl: -95.40 },
-  { date: "2026-02-18", pnl: 112.20 }, { date: "2026-02-19", pnl: 78.50 },
-  { date: "2026-02-20", pnl: -45.30 }, { date: "2026-02-23", pnl: 155.80 },
-  { date: "2026-02-24", pnl: 92.40 },
+  // February 2026
+  { date: "2026-02-02", pnl: 75.30 },  { date: "2026-02-03", pnl: -38.90 },
+  { date: "2026-02-04", pnl: 148.60 }, { date: "2026-02-05", pnl: 55.20 },
+  { date: "2026-02-06", pnl: -72.40 }, { date: "2026-02-09", pnl: 118.50 },
+  { date: "2026-02-10", pnl: 42.80 },  { date: "2026-02-11", pnl: -28.60 },
+  { date: "2026-02-12", pnl: 165.30 }, { date: "2026-02-13", pnl: 88.70 },
+  { date: "2026-02-17", pnl: -95.40 }, { date: "2026-02-18", pnl: 112.20 },
+  { date: "2026-02-19", pnl: 78.50 },  { date: "2026-02-20", pnl: -45.30 },
+  { date: "2026-02-23", pnl: 155.80 }, { date: "2026-02-24", pnl: 92.40 },
+  { date: "2026-02-25", pnl: -33.10 }, { date: "2026-02-26", pnl: 67.80 },
+  { date: "2026-02-27", pnl: 128.90 },
+  // March 2026
+  { date: "2026-03-02", pnl: 84.50 },  { date: "2026-03-03", pnl: -41.20 },
+  { date: "2026-03-04", pnl: 176.30 }, { date: "2026-03-05", pnl: -62.80 },
+  { date: "2026-03-06", pnl: 98.40 },  { date: "2026-03-09", pnl: 52.70 },
+  { date: "2026-03-10", pnl: -88.50 }, { date: "2026-03-11", pnl: 134.20 },
+  { date: "2026-03-12", pnl: 45.90 },  { date: "2026-03-13", pnl: -29.60 },
+  { date: "2026-03-16", pnl: 187.40 }, { date: "2026-03-17", pnl: -55.10 },
+  { date: "2026-03-18", pnl: 92.30 },  { date: "2026-03-19", pnl: 68.70 },
+  { date: "2026-03-20", pnl: -74.20 }, { date: "2026-03-23", pnl: 142.50 },
+  { date: "2026-03-24", pnl: 38.90 },  { date: "2026-03-25", pnl: -22.40 },
+  { date: "2026-03-26", pnl: 115.60 }, { date: "2026-03-27", pnl: 78.30 },
+  { date: "2026-03-30", pnl: -48.70 }, { date: "2026-03-31", pnl: 156.80 },
 ];
 
 // ── Dummy full journal trades (all sections use these when no real trades) ─
@@ -116,6 +168,7 @@ const _HOLD_TIMES = [
   38, 52, 65, 82, 95, 124, 147, 165, 198, 245, 285, 55,
   48, 71, 115, 88, 143, 185, 225, 270, 98, 62, 175, 235,
   155, 210, 75, 130, 190, 250, 40, 85, 160, 220, 300,
+  45, 78, 102, 132, 168, 205, 58,
 ];
 
 const DUMMY_JOURNAL_TRADES: JournalTrade[] = DUMMY_PNL_TRADES.map((d, i) => {
@@ -246,7 +299,6 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
 
   const pnlColor = totalPnl >= 0 ? "text-up" : "text-down";
 
-  // Build cumulative P&L sparkline
   const sparkValues = useMemo(() => {
     const sorted = [...completed].sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -255,7 +307,6 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
     return sorted.map((t) => { cum += t.pnl ?? 0; return cum; });
   }, [completed]);
 
-  // Recent 10 trades for W/L streak display
   const recentResults = useMemo(() => {
     return [...completed]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -308,7 +359,6 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
             <span className="text-[11px] text-white font-mono">
               {winners.length}W / {losers.length}L
             </span>
-            {/* Recent streak dots */}
             {recentResults.length > 0 && (
               <div className="flex gap-0.5 mt-1">
                 {recentResults.map((won, i) => (
@@ -349,7 +399,6 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
           }`}>
             {profitFactor === Infinity ? "INF" : profitFactor > 0 ? fmt2(profitFactor) : "—"}
           </span>
-          {/* Gross profit/loss bar */}
           {(grossProfit > 0 || grossLoss > 0) && (
             <div className="flex h-1.5 rounded-full overflow-hidden mt-1 w-20">
               <div
@@ -385,7 +434,7 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
   );
 }
 
-// ── Calendar Heatmap (compact) ───────────────────────────────────────────
+// ── Calendar Heatmap ─────────────────────────────────────────────────────
 
 function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   const now = new Date();
@@ -457,7 +506,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   };
 
   const renderDay = (day: number | null, wi: number, di: number) => {
-    if (day == null) return <div key={`e-${wi}-${di}`} className="aspect-square" />;
+    if (day == null) return <div key={`e-${wi}-${di}`} />;
     const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const dayData = dayMap.get(dateKey);
     const isToday = dateKey === todayKey;
@@ -474,10 +523,10 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
     return (
       <div
         key={day}
-        className={`relative rounded p-1 border flex flex-col min-h-[44px] transition-all duration-150 hover:scale-105 hover:z-10 ${
+        className={`relative rounded p-1 border flex flex-col transition-all duration-150 hover:scale-105 hover:z-10 ${
           isToday ? "border-accent ring-1 ring-accent/30" : "border-border"
         } ${!dayData ? "bg-surface" : ""}`}
-        style={dayData ? bgStyle : undefined}
+        style={{ ...bgStyle, minHeight: "40px" }}
         title={dayData ? `$${dayData.pnl >= 0 ? "+" : ""}${dayData.pnl.toFixed(2)} (${dayData.count} trade${dayData.count !== 1 ? "s" : ""})` : undefined}
       >
         <span className={`text-[9px] font-mono leading-none ${isToday ? "text-accent font-bold" : "text-white/50"}`}>
@@ -486,7 +535,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
         {dayData && (
           <div className="mt-auto">
             <div className="text-[10px] font-mono font-semibold text-white leading-none">
-              {dayData.pnl >= 0 ? "+" : ""}${dayData.pnl.toFixed(0)}
+              {dayData.pnl >= 0 ? "+" : ""}{dayData.pnl.toFixed(0)}
             </div>
             <div className="text-[8px] text-white/60 leading-none mt-px">{dayData.count}t</div>
           </div>
@@ -496,7 +545,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   };
 
   return (
-    <div className="bg-panel border border-border rounded-lg flex flex-col h-full">
+    <div className="bg-panel border border-border rounded-lg flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1">
@@ -523,7 +572,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
       </div>
 
       {/* Calendar grid */}
-      <div className="px-3 py-2 flex-1 flex flex-col min-h-0">
+      <div className="px-3 py-2 flex flex-col">
         {/* Day-of-week headers */}
         <div className="flex gap-1 mb-1">
           <div className="grid grid-cols-7 gap-1 flex-1">
@@ -535,7 +584,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
         </div>
 
         {/* Week rows */}
-        <div className="flex flex-col gap-1 flex-1">
+        <div className="flex flex-col gap-1">
           {weeks.map((wk, wi) => {
             const { pnl, count } = weekSummary(wk);
             return (
@@ -630,7 +679,6 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   const finalPnl = points[points.length - 1].cumPnl;
   const isPositive = finalPnl >= 0;
   const lineColor = isPositive ? "rgb(46,160,67)" : "rgb(218,54,51)";
-  const fillColor = isPositive ? "rgba(46,160,67,0.08)" : "rgba(218,54,51,0.08)";
   const glowColor = isPositive ? "rgba(46,160,67,0.4)" : "rgba(218,54,51,0.4)";
 
   const linePath = points
@@ -638,7 +686,6 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
     .join(" ");
   const areaPath = `${linePath} L${toX(points.length - 1).toFixed(1)},${zeroY.toFixed(1)} L${toX(0).toFixed(1)},${zeroY.toFixed(1)} Z`;
 
-  // Grid lines
   const gridCount = 4;
   const gridLines = Array.from({ length: gridCount + 1 }, (_, i) => {
     const v = minY + (rangeY / gridCount) * i;
@@ -714,7 +761,6 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
             </linearGradient>
           </defs>
 
-          {/* Horizontal grid */}
           {gridLines.map(({ v, y }) => (
             <g key={v}>
               <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
@@ -724,23 +770,16 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
             </g>
           ))}
 
-          {/* Zero line */}
           <line x1={PL} y1={zeroY} x2={W - PR} y2={zeroY} stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="3,4" />
-
-          {/* Area fill */}
           <path d={areaPath} fill="url(#areaGrad)" />
-
-          {/* Main line with glow */}
           <path d={linePath} fill="none" stroke={glowColor} strokeWidth="4" strokeLinejoin="round" opacity="0.3" />
           <path d={linePath} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" />
 
-          {/* Peak annotation */}
           <circle cx={toX(peakIdx)} cy={toY(points[peakIdx].cumPnl)} r="3" fill="rgb(46,160,67)" filter="url(#glow)" />
           <text x={toX(peakIdx)} y={toY(points[peakIdx].cumPnl) - 8} textAnchor="middle" fill="rgba(46,160,67,0.9)" fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="600">
             +${points[peakIdx].cumPnl.toFixed(0)}
           </text>
 
-          {/* Trough annotation */}
           {points[troughIdx].cumPnl < 0 && (
             <>
               <circle cx={toX(troughIdx)} cy={toY(points[troughIdx].cumPnl)} r="3" fill="rgb(218,54,51)" filter="url(#glow)" />
@@ -750,7 +789,6 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
             </>
           )}
 
-          {/* Hover crosshair */}
           {hover && (
             <>
               <line x1={hover.x} y1={PT} x2={hover.x} y2={H - PB} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="2,2" />
@@ -769,7 +807,6 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
             </>
           )}
 
-          {/* X-axis labels */}
           {xIndices.map((idx) => (
             <text key={idx} x={toX(idx)} y={H - 6} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize="8" fontFamily="JetBrains Mono, monospace">
               {points[idx].label}
@@ -810,6 +847,8 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   const [sortBy, setSortBy] = useState<SortKey>("createdAt");
   const [asc, setAsc] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("all");
+  const [activeCatalysts, setActiveCatalysts] = useState<Set<string>>(new Set());
+  const [activeScanners, setActiveScanners] = useState<Set<string>>(new Set());
   const [token] = [useAuthStore((s) => s.token)];
   const [exporting, setExporting] = useState(false);
 
@@ -818,20 +857,68 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
     return Math.max(1, ...pnls);
   }, [trades]);
 
+  // Collect unique catalyst categories and scanners from trades
+  const { catalystCategories, scannerIds } = useMemo(() => {
+    const cats = new Set<string>();
+    const scanners = new Set<string>();
+    for (const t of trades) {
+      if (t.analytics?.catalystCategory) cats.add(t.analytics.catalystCategory);
+      if (t.scannerId) scanners.add(t.scannerId);
+    }
+    return {
+      catalystCategories: [...cats].sort(),
+      scannerIds: [...scanners].sort(),
+    };
+  }, [trades]);
+
+  const toggleCatalyst = (cat: string) => {
+    setActiveCatalysts((prev) => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  const toggleScanner = (scanner: string) => {
+    setActiveScanners((prev) => {
+      const next = new Set(prev);
+      if (next.has(scanner)) next.delete(scanner);
+      else next.add(scanner);
+      return next;
+    });
+  };
+
   const filtered = useMemo(() => {
+    let result = trades;
+
+    // P&L filter
     switch (filter) {
       case "wins":
-        return trades.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) > 0);
+        result = result.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) > 0);
+        break;
       case "losses":
-        return trades.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) <= 0);
+        result = result.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) <= 0);
+        break;
       case "open":
-        return trades.filter(
+        result = result.filter(
           (t) => t.buyStatus === "filled" && (t.sellStatus === "awaiting" || t.sellStatus === "pending")
         );
-      default:
-        return trades;
+        break;
     }
-  }, [trades, filter]);
+
+    // Catalyst category filter
+    if (activeCatalysts.size > 0) {
+      result = result.filter((t) => t.analytics?.catalystCategory && activeCatalysts.has(t.analytics.catalystCategory));
+    }
+
+    // Scanner filter
+    if (activeScanners.size > 0) {
+      result = result.filter((t) => t.scannerId && activeScanners.has(t.scannerId));
+    }
+
+    return result;
+  }, [trades, filter, activeCatalysts, activeScanners]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
@@ -911,9 +998,11 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   const lossCount = trades.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) <= 0).length;
   const openCount = trades.filter((t) => t.buyStatus === "filled" && (t.sellStatus === "awaiting" || t.sellStatus === "pending")).length;
 
+  const hasActiveFilters = activeCatalysts.size > 0 || activeScanners.size > 0;
+
   return (
-    <div className="bg-panel border border-border rounded-lg flex flex-col overflow-hidden">
-      {/* Table header bar */}
+    <div className="bg-panel border border-border rounded-lg flex flex-col overflow-hidden h-full">
+      {/* Primary filter bar: P&L filters + export */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1">
           {filterBtn("all", "All", trades.length)}
@@ -938,13 +1027,83 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
         </div>
       </div>
 
+      {/* Secondary filter bar: catalyst + scanner badges */}
+      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50 shrink-0 overflow-x-auto">
+        {/* Scanner filters */}
+        <span className="text-[8px] text-muted font-mono uppercase tracking-widest shrink-0">Source</span>
+        <div className="flex items-center gap-1">
+          {scannerIds.map((s) => {
+            const active = activeScanners.has(s);
+            const colors = SCANNER_COLORS[s] ?? DEFAULT_BADGE;
+            const label = s === "news_flow" ? "NEWS" : s === "gap_up" ? "GAP" : s.toUpperCase();
+            return (
+              <button
+                key={s}
+                onClick={() => toggleScanner(s)}
+                className="text-[8px] font-mono font-semibold px-1.5 py-[2px] rounded-sm uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                style={{
+                  backgroundColor: active ? colors.bg : "transparent",
+                  color: active ? colors.text : "#636e7b",
+                  border: `1px solid ${active ? colors.border : "transparent"}`,
+                  opacity: active ? 1 : 0.7,
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="w-px h-3 bg-border mx-1 shrink-0" />
+
+        {/* Catalyst category filters */}
+        <span className="text-[8px] text-muted font-mono uppercase tracking-widest shrink-0">Catalyst</span>
+        <div className="flex items-center gap-1 flex-wrap">
+          {catalystCategories.map((cat) => {
+            const active = activeCatalysts.has(cat);
+            const colors = CATALYST_COLORS[cat] ?? DEFAULT_BADGE;
+            return (
+              <button
+                key={cat}
+                onClick={() => toggleCatalyst(cat)}
+                className="text-[8px] font-mono px-1.5 py-[2px] rounded-sm whitespace-nowrap transition-all duration-150 cursor-pointer"
+                style={{
+                  backgroundColor: active ? colors.bg : "transparent",
+                  color: active ? colors.text : "#636e7b",
+                  border: `1px solid ${active ? colors.border : "transparent"}`,
+                  opacity: active ? 1 : 0.7,
+                }}
+              >
+                {categoryLabel(cat)}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Clear filters */}
+        {hasActiveFilters && (
+          <>
+            <div className="w-px h-3 bg-border mx-1 shrink-0" />
+            <button
+              onClick={() => { setActiveCatalysts(new Set()); setActiveScanners(new Set()); }}
+              className="text-[8px] font-mono text-muted hover:text-white px-1.5 py-[2px] rounded-sm border border-border hover:border-accent/30 transition-all shrink-0"
+            >
+              CLEAR
+            </button>
+          </>
+        )}
+      </div>
+
       {/* Scrollable table */}
-      <div className="overflow-auto flex-1">
+      <div className="overflow-auto flex-1 min-h-0">
         <table className="w-full text-[11px] font-mono border-collapse">
           <thead className="sticky top-0 bg-panel z-10 border-b border-border">
             <tr>
               {col("createdAt", "Date")}
               {col("ticker", "Ticker")}
+              <th className="text-left text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+                Source
+              </th>
               <th className="text-left text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
                 Catalyst
               </th>
@@ -964,7 +1123,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center text-muted py-12 text-xs">
+                <td colSpan={11} className="text-center text-muted py-12 text-xs">
                   No trades match this filter
                 </td>
               </tr>
@@ -986,7 +1145,6 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
                     {/* Date/Time */}
                     <td className="px-2.5 py-2 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
-                        {/* Edge accent bar */}
                         <div
                           className="w-0.5 h-6 rounded-full shrink-0"
                           style={{
@@ -1018,22 +1176,19 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
                     {/* Ticker */}
                     <td className="px-2.5 py-2">
                       <span className="text-white font-semibold text-xs">{t.ticker}</span>
-                      {t.scannerId && (
-                        <span className="ml-1 text-[8px] text-muted/60 uppercase">{t.scannerId}</span>
-                      )}
                     </td>
 
-                    {/* Category */}
-                    <td className="px-2.5 py-2 max-w-[140px]">
-                      {t.analytics ? (
-                        <span
-                          className="text-white/80 truncate block text-[10px]"
-                          title={t.catalyst}
-                        >
-                          {categoryLabel(t.analytics.catalystCategory)}
-                        </span>
+                    {/* Scanner source badge */}
+                    <td className="px-2.5 py-2">
+                      {t.scannerId && <ScannerBadge scanner={t.scannerId} />}
+                    </td>
+
+                    {/* Catalyst category badge */}
+                    <td className="px-2.5 py-2">
+                      {t.analytics?.catalystCategory ? (
+                        <CatalystBadge category={t.analytics.catalystCategory} />
                       ) : (
-                        <span className="text-muted truncate block text-[10px]" title={t.catalyst}>
+                        <span className="text-muted text-[10px]" title={t.catalyst}>
                           {t.catalystType}
                         </span>
                       )}
@@ -1163,19 +1318,22 @@ export function TradesPage() {
             </div>
           )}
 
-          {/* Split panel: Chart + Calendar */}
-          <div className="flex gap-3 p-3 shrink-0" style={{ height: "320px" }}>
-            <div className="flex-[3] min-w-0">
-              <PnlChart trades={displayTrades} isDemoMode={isDemoMode} />
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-auto min-h-0">
+            {/* Split panel: Chart + Calendar — natural height, no fixed px */}
+            <div className="flex gap-3 p-3">
+              <div className="flex-[3] min-w-0" style={{ minHeight: "240px" }}>
+                <PnlChart trades={displayTrades} isDemoMode={isDemoMode} />
+              </div>
+              <div className="flex-[2] min-w-0">
+                <CalendarHeatmap trades={displayTrades} />
+              </div>
             </div>
-            <div className="flex-[2] min-w-0">
-              <CalendarHeatmap trades={displayTrades} />
-            </div>
-          </div>
 
-          {/* Trade log — fills remaining space */}
-          <div className="flex-1 px-3 pb-3 min-h-0">
-            <TradeLog trades={displayTrades} isDemoMode={isDemoMode} />
+            {/* Trade log */}
+            <div className="px-3 pb-3" style={{ minHeight: "400px" }}>
+              <TradeLog trades={displayTrades} isDemoMode={isDemoMode} />
+            </div>
           </div>
         </div>
       )}

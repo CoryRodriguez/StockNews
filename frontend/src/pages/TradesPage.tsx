@@ -551,7 +551,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   };
 
   return (
-    <div className="bg-panel border border-border rounded-lg flex flex-col">
+    <div className="bg-panel border border-border rounded-lg flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1">
@@ -578,7 +578,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
       </div>
 
       {/* Calendar grid */}
-      <div className="px-3 py-2 flex flex-col">
+      <div className="px-3 py-2 flex flex-col flex-1">
         {/* Day-of-week headers */}
         <div className="flex gap-1 mb-1">
           <div className="grid grid-cols-7 gap-1 flex-1">

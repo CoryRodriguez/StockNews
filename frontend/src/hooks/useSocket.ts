@@ -36,7 +36,7 @@ function getWs(token: string, onOpen: () => void) {
 export function useSocket() {
   const token = useAuthStore((s) => s.token);
   const addArticle = useNewsStore((s) => s.addArticle);
-  const { addAlert, clearAlert, activeScanners } = useScannerStore();
+  const { addAlert, clearAlert, clearAllAlerts, activeScanners } = useScannerStore();
   const updatePrice = useWatchlistStore((s) => s.updatePrice);
   const upsertTrade = useTradesStore((s) => s.upsertTrade);
   const setBotStatus = useBotStore((s) => s.setStatus);
@@ -54,6 +54,7 @@ export function useSocket() {
         "trades",
         "bot",
         "screener",
+        "scanner_control",
         "scanner:news_flow",
         ...Array.from(activeScanners).map((id) => `scanner:${id}`),
       ];
@@ -80,6 +81,8 @@ export function useSocket() {
           addAlert({ ...msg, alertedAt: new Date().toISOString() } as ScannerAlert);
         } else if (msg.type === "scanner_clear") {
           clearAlert(msg.scannerId, msg.ticker);
+        } else if (msg.type === "scanner_session_reset") {
+          clearAllAlerts();
         } else if (msg.type === "quote_update") {
           updatePrice(msg.ticker, msg.price);
         } else if (msg.type === "trade_update") {
@@ -102,7 +105,7 @@ export function useSocket() {
 
     ws.addEventListener("message", handleMessage);
     return () => ws.removeEventListener("message", handleMessage);
-  }, [token, activeScanners, addArticle, addAlert, clearAlert, updatePrice, upsertTrade,
+  }, [token, activeScanners, addArticle, addAlert, clearAlert, clearAllAlerts, updatePrice, upsertTrade,
       setBotStatus, prependBotTrade, prependBotSignal, setScreenerRows]);
 
   // Seed scanner store with current server-side alert state on mount

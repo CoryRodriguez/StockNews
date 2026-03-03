@@ -77,7 +77,7 @@ async function getBarDerivedData(symbols: string[]): Promise<BarDerivedData> {
   const endStr = end.toISOString().split("T")[0];
 
   const data = await fetchJson<AlpacaBarsResponse>(
-    `/v2/stocks/bars?symbols=${encodeURIComponent(symbols.join(","))}&timeframe=1Day&start=${startStr}&end=${endStr}&limit=10000&feed=iex`
+    `/v2/stocks/bars?symbols=${encodeURIComponent(symbols.join(","))}&timeframe=1Day&start=${startStr}&end=${endStr}&limit=10000&feed=${config.alpacaDataFeed}`
   );
 
   const avgVolumes: Record<string, number> = {};
@@ -126,7 +126,7 @@ export async function getSnapshots(symbols: string[]): Promise<Snapshot[]> {
 
   const [data, barData] = await Promise.all([
     fetchJson<AlpacaSnapshotResponse>(
-      `/v2/stocks/snapshots?symbols=${encodeURIComponent(param)}&feed=iex`
+      `/v2/stocks/snapshots?symbols=${encodeURIComponent(param)}&feed=${config.alpacaDataFeed}`
     ),
     getBarDerivedData(symbols),
   ]);
@@ -189,7 +189,7 @@ export async function getHourlyChanges(symbols: string[]): Promise<Record<string
 
   const [snapData, barData] = await Promise.all([
     fetchJson<AlpacaSnapshotResponse>(
-      `/v2/stocks/snapshots?symbols=${encodeURIComponent(stale.join(","))}&feed=iex`
+      `/v2/stocks/snapshots?symbols=${encodeURIComponent(stale.join(","))}&feed=${config.alpacaDataFeed}`
     ),
     getBarDerivedData(stale),
   ]);
@@ -237,7 +237,7 @@ async function computeSessionVwap(symbol: string): Promise<number | null> {
   const start = `${dateStr}T09:00:00Z`; // 4 AM ET ≈ 09:00 UTC
 
   const data = await fetchJson<SingleSymbolBarsResponse>(
-    `/v2/stocks/${encodeURIComponent(symbol)}/bars?timeframe=1Min&start=${encodeURIComponent(start)}&limit=1000&feed=iex`
+    `/v2/stocks/${encodeURIComponent(symbol)}/bars?timeframe=1Min&start=${encodeURIComponent(start)}&limit=1000&feed=${config.alpacaDataFeed}`
   );
 
   if (!data?.bars?.length) return null;

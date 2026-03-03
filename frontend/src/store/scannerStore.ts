@@ -8,6 +8,7 @@ interface ScannerState {
   setDefinitions: (defs: ScannerDefinition[]) => void;
   addAlert: (alert: ScannerAlert) => void;
   clearAlert: (scannerId: string, ticker: string) => void;
+  clearAllAlerts: () => void;
   toggleScanner: (id: string) => void;
 }
 
@@ -38,6 +39,8 @@ export const useScannerStore = create<ScannerState>((set) => ({
         [scannerId]: (s.alerts[scannerId] ?? []).filter((a) => a.ticker !== ticker),
       },
     })),
+
+  clearAllAlerts: () => set({ alerts: {} }),
 
   toggleScanner: (id) =>
     set((s) => {

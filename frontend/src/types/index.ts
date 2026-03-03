@@ -132,6 +132,7 @@ export type WsMessage =
   | { type: "news_article"; article: NewsArticle; channel: string }
   | { type: "scanner_alert"; channel: string; scannerId: string } & ScannerAlert
   | { type: "scanner_clear"; channel: string; scannerId: string; ticker: string }
+  | { type: "scanner_session_reset"; channel: string }
   | { type: "quote_update"; channel: string; ticker: string; price: number; volume?: number }
   | { type: "trade_update"; channel: string; trade: PaperTrade }
   | { type: "bot_status_update"; channel: string; status: { state: string; mode: string; openPositionCount: number; todayRealizedPnl: number; todayTradeCount: number; dayTradeCount: number; marketOpen: boolean } }

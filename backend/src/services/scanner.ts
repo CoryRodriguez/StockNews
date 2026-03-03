@@ -75,6 +75,27 @@ export function getActiveScannersForTicker(ticker: string): string[] {
 const alertState = new Map<string, Map<string, Snapshot>>(); // scannerId → Map<ticker, Snapshot>
 for (const s of SCANNERS) alertState.set(s.id, new Map());
 
+// ── Daily session reset (clear stale alerts at 4 AM ET each day) ─────────
+let lastSessionDate = "";
+
+function getCurrentSessionDate(): string {
+  const now = new Date();
+  const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+  // Session starts at 4:00 AM ET — before 4 AM is still the prior session
+  if (et.getHours() < 4) et.setDate(et.getDate() - 1);
+  return et.toISOString().split("T")[0];
+}
+
+function resetIfNewSession() {
+  const sessionDate = getCurrentSessionDate();
+  if (sessionDate !== lastSessionDate) {
+    for (const [, map] of alertState) map.clear();
+    lastSessionDate = sessionDate;
+    broadcast("scanner_control", { type: "scanner_session_reset" });
+    console.log(`[Scanner] New session ${sessionDate} — alerts cleared`);
+  }
+}
+
 // ── Screener universe (full snapshot set, pre-filter) ────────────────────
 
 export interface ScreenerRow {
@@ -144,6 +165,8 @@ export function startScanner() {
 
 async function runScan() {
   try {
+    resetIfNewSession();
+
     const actives = await getMostActives();
     if (!actives.length) return;
 

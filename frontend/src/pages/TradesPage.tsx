@@ -10,6 +10,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import { TopNav } from "../components/layout/TopNav";
 
+// ── Mobile detection hook ────────────────────────────────────────────────
+
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < breakpoint
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    setIsMobile(mq.matches);
+    return () => mq.removeEventListener("change", handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface TradeAnalyticsSummary {
@@ -323,12 +339,12 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
 
   return (
     <div className="bg-surface border-b border-border shrink-0">
-      <div className="flex items-stretch">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:items-stretch">
         {/* Dominant P&L block */}
-        <div className="flex items-center gap-3 px-5 py-3 border-r border-border min-w-[240px]">
+        <div className="flex items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-border col-span-2 sm:col-span-2 md:min-w-[240px]">
           <div className="flex flex-col">
             <span className="text-xs text-muted uppercase tracking-widest font-mono">Net P&L</span>
-            <span className={`text-2xl font-mono font-bold tracking-tight ${pnlColor}`}>
+            <span className={`text-xl md:text-2xl font-mono font-bold tracking-tight ${pnlColor}`}>
               {totalPnl >= 0 ? "+" : ""}${fmt2(totalPnl)}
             </span>
             <div className="flex items-center gap-2 mt-0.5">
@@ -358,7 +374,7 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
         </div>
 
         {/* Win Rate with ring */}
-        <div className="flex items-center gap-2.5 px-4 py-3 border-r border-border">
+        <div className="flex items-center gap-2.5 px-4 py-3 border-b md:border-b-0 md:border-r border-border">
           <WinRateRing rate={winRate} />
           <div className="flex flex-col">
             <span className="text-xs text-muted uppercase tracking-widest font-mono">Win Rate</span>
@@ -380,27 +396,27 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
         </div>
 
         {/* Avg Winner */}
-        <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
-          <span className="text-xs text-muted uppercase tracking-widest font-mono">Avg Win</span>
-          <span className="text-base text-up font-mono font-semibold">
+        <div className="flex flex-col justify-center px-4 py-2.5 md:py-3 border-b md:border-b-0 md:border-r border-border">
+          <span className="text-[10px] md:text-xs text-muted uppercase tracking-widest font-mono">Avg Win</span>
+          <span className="text-sm md:text-base text-up font-mono font-semibold">
             {winners.length > 0 ? `+$${fmt2(avgWin)}` : "—"}
           </span>
-          <span className="text-xs text-muted font-mono">{winners.length} trades</span>
+          <span className="text-[10px] md:text-xs text-muted font-mono">{winners.length} trades</span>
         </div>
 
         {/* Avg Loser */}
-        <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
-          <span className="text-xs text-muted uppercase tracking-widest font-mono">Avg Loss</span>
-          <span className={`text-base font-mono font-semibold ${losers.length > 0 ? "text-down" : "text-muted"}`}>
+        <div className="flex flex-col justify-center px-4 py-2.5 md:py-3 border-b md:border-b-0 md:border-r border-border">
+          <span className="text-[10px] md:text-xs text-muted uppercase tracking-widest font-mono">Avg Loss</span>
+          <span className={`text-sm md:text-base font-mono font-semibold ${losers.length > 0 ? "text-down" : "text-muted"}`}>
             {losers.length > 0 ? `-$${fmt2(Math.abs(avgLoss))}` : "—"}
           </span>
-          <span className="text-xs text-muted font-mono">{losers.length} trades</span>
+          <span className="text-[10px] md:text-xs text-muted font-mono">{losers.length} trades</span>
         </div>
 
         {/* Profit Factor with bar */}
-        <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
-          <span className="text-xs text-muted uppercase tracking-widest font-mono">Profit Factor</span>
-          <span className={`text-base font-mono font-semibold ${
+        <div className="flex flex-col justify-center px-4 py-2.5 md:py-3 border-b sm:border-b-0 md:border-r border-border">
+          <span className="text-[10px] md:text-xs text-muted uppercase tracking-widest font-mono">Profit Factor</span>
+          <span className={`text-sm md:text-base font-mono font-semibold ${
             profitFactor >= 1.5 ? "text-up" : profitFactor >= 1 ? "text-warn" : "text-down"
           }`}>
             {profitFactor === Infinity ? "INF" : profitFactor > 0 ? fmt2(profitFactor) : "—"}
@@ -426,10 +442,10 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
         </div>
 
         {/* Total Trades */}
-        <div className="flex flex-col justify-center px-4 py-3">
-          <span className="text-xs text-muted uppercase tracking-widest font-mono">Total</span>
-          <span className="text-base text-white font-mono font-semibold">{trades.length}</span>
-          <span className="text-xs text-muted font-mono">
+        <div className="flex flex-col justify-center px-4 py-2.5 md:py-3">
+          <span className="text-[10px] md:text-xs text-muted uppercase tracking-widest font-mono">Total</span>
+          <span className="text-sm md:text-base text-white font-mono font-semibold">{trades.length}</span>
+          <span className="text-[10px] md:text-xs text-muted font-mono">
             {trades.length > 0 ? `${fmtSec(
               completed.reduce((s, t) => s + (t.analytics?.actualHoldSec ?? 0), 0) / Math.max(1, completed.length)
             )} avg hold` : "—"}
@@ -586,7 +602,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
               <div key={i} className="text-center text-[11px] text-muted font-mono py-0.5">{d}</div>
             ))}
           </div>
-          <div className="w-16 shrink-0 text-right text-[11px] text-muted font-mono py-0.5 pr-1">Wk</div>
+          <div className="w-12 md:w-16 shrink-0 text-right text-[11px] text-muted font-mono py-0.5 pr-1 hidden sm:block">Wk</div>
         </div>
 
         {/* Week rows */}
@@ -598,7 +614,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
                 <div className="grid grid-cols-7 gap-1 flex-1">
                   {wk.map((day, di) => renderDay(day, wi, di))}
                 </div>
-                <div className="w-16 shrink-0 flex flex-col items-end justify-center bg-surface border border-border rounded px-1.5 py-0.5">
+                <div className="w-12 md:w-16 shrink-0 hidden sm:flex flex-col items-end justify-center bg-surface border border-border rounded px-1 md:px-1.5 py-0.5">
                   {count > 0 ? (
                     <>
                       <span className={`text-xs font-mono font-semibold leading-none ${pnl >= 0 ? "text-up" : "text-down"}`}>
@@ -850,6 +866,7 @@ function statusBadge(t: JournalTrade) {
 }
 
 function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?: boolean }) {
+  const isMobile = useIsMobile();
   const [sortBy, setSortBy] = useState<SortKey>("createdAt");
   const [asc, setAsc] = useState(false);
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -1009,29 +1026,52 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   return (
     <div className="bg-panel border border-border rounded-lg flex flex-col overflow-hidden h-full">
       {/* Primary filter bar: P&L filters + export */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0 gap-2">
+        <div className="flex items-center gap-1 overflow-x-auto shrink min-w-0">
           {filterBtn("all", "All", trades.length)}
           {filterBtn("wins", "Wins", winCount)}
           {filterBtn("losses", "Losses", lossCount)}
           {filterBtn("open", "Open", openCount)}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {isDemoMode && (
-            <span className="text-[11px] font-bold px-1.5 py-0.5 bg-warn/10 text-warn border border-warn/30 rounded font-mono">
+            <span className="text-[11px] font-bold px-1.5 py-0.5 bg-warn/10 text-warn border border-warn/30 rounded font-mono hidden sm:inline">
               DEMO
             </span>
           )}
           <button
             onClick={exportCsv}
             disabled={exporting || !!isDemoMode}
-            className="text-xs font-mono px-2.5 py-1 rounded border border-border text-muted hover:text-white hover:border-accent/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="text-xs font-mono px-2 md:px-2.5 py-1 rounded border border-border text-muted hover:text-white hover:border-accent/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
             title={isDemoMode ? "Export disabled in demo mode" : undefined}
           >
-            {exporting ? "..." : "EXPORT CSV"}
+            {exporting ? "..." : "CSV"}
           </button>
         </div>
       </div>
+
+      {/* Mobile sort selector */}
+      {isMobile && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50 shrink-0">
+          <span className="text-[10px] text-muted font-mono uppercase tracking-widest shrink-0">Sort</span>
+          <select
+            value={`${sortBy}-${asc ? "asc" : "desc"}`}
+            onChange={(e) => {
+              const [key, dir] = e.target.value.split("-") as [SortKey, string];
+              setSortBy(key);
+              setAsc(dir === "asc");
+            }}
+            className="text-[11px] font-mono bg-surface border border-border rounded px-1.5 py-1 text-white appearance-none cursor-pointer"
+          >
+            <option value="createdAt-desc">Newest First</option>
+            <option value="createdAt-asc">Oldest First</option>
+            <option value="pnl-desc">P&L High → Low</option>
+            <option value="pnl-asc">P&L Low → High</option>
+            <option value="ticker-asc">Ticker A → Z</option>
+            <option value="returnPct-desc">Return % High</option>
+          </select>
+        </div>
+      )}
 
       {/* Secondary filter bar: catalyst + scanner badges */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50 shrink-0 overflow-x-auto">
@@ -1100,41 +1140,122 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
         )}
       </div>
 
-      {/* Scrollable table */}
+      {/* Scrollable content — cards on mobile, table on desktop */}
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full text-[13px] font-mono border-collapse">
-          <thead className="sticky top-0 bg-panel z-10 border-b border-border">
-            <tr>
-              {col("createdAt", "Date")}
-              {col("ticker", "Ticker")}
-              <th className="text-left text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
-                Source
-              </th>
-              <th className="text-left text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
-                Catalyst
-              </th>
-              {col("entryPrice", "Entry", "right")}
-              <th className="text-right text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
-                Exit
-              </th>
-              {col("pnl", "P&L", "right")}
-              {col("returnPct", "Ret%", "right")}
-              {col("actualHoldSec", "Hold", "right")}
-              {col("relativeVolume", "RVOL", "right")}
-              <th className="text-center text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 font-mono font-normal">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
+        {sorted.length === 0 ? (
+          <div className="text-center text-muted py-12 text-xs font-mono">
+            No trades match this filter
+          </div>
+        ) : isMobile ? (
+          /* ── Mobile Card Layout ── */
+          <div className="flex flex-col divide-y divide-border/50">
+            {sorted.map((t) => {
+              const isComplete = t.sellStatus === "filled";
+              const pnlVal = t.pnl ?? 0;
+              const pnlPos = pnlVal > 0;
+              const retPos = (t.analytics?.returnPct ?? 0) > 0;
+              const entryPrice = t.analytics?.entryPrice ?? t.buyPrice;
+              const exitPrice = t.analytics?.exitPrice ?? t.sellPrice;
+
+              return (
+                <div key={t.id} className="px-3 py-2.5 flex flex-col gap-1.5">
+                  {/* Row 1: Ticker + P&L + Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-0.5 h-5 rounded-full shrink-0"
+                        style={{
+                          backgroundColor: !isComplete ? "#4c8dca" : pnlPos ? "#2ea043" : "#da3633",
+                          opacity: isComplete ? Math.max(0.4, Math.abs(pnlVal) / maxAbsPnl) : 0.5,
+                        }}
+                      />
+                      <span className="text-white font-mono font-semibold text-sm">{t.ticker}</span>
+                      {t.scannerId && <ScannerBadge scanner={t.scannerId} />}
+                      {t.analytics?.catalystCategory && (
+                        <CatalystBadge category={t.analytics.catalystCategory} />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-mono font-semibold text-sm ${isComplete ? (pnlPos ? "text-up" : "text-down") : "text-muted"}`}>
+                        {isComplete && t.pnl != null
+                          ? `${pnlPos ? "+" : ""}$${fmt2(t.pnl)}`
+                          : "—"}
+                      </span>
+                      {statusBadge(t)}
+                    </div>
+                  </div>
+
+                  {/* Row 2: Date, Entry/Exit, Ret%, Hold */}
+                  <div className="flex items-center justify-between text-[11px] font-mono text-muted">
+                    <div className="flex items-center gap-2">
+                      <span>
+                        {new Date(t.createdAt).toLocaleDateString("en-US", {
+                          month: "2-digit",
+                          day: "2-digit",
+                        })}
+                        {" "}
+                        {new Date(t.createdAt).toLocaleTimeString("en-US", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "America/New_York",
+                        })}
+                        {t.analytics?.isPreMarket && (
+                          <span className="ml-0.5 text-warn/80">PRE</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {entryPrice != null && (
+                        <span>
+                          ${entryPrice.toFixed(2)}
+                          {isComplete && exitPrice != null && (
+                            <span className="text-muted/60">{" → "}</span>
+                          )}
+                          {isComplete && exitPrice != null && `$${exitPrice.toFixed(2)}`}
+                        </span>
+                      )}
+                      {t.analytics?.returnPct != null && (
+                        <span className={retPos ? "text-up" : "text-down"}>
+                          {retPos ? "+" : ""}{t.analytics.returnPct.toFixed(2)}%
+                        </span>
+                      )}
+                      {t.analytics?.actualHoldSec != null && (
+                        <span>{fmtSec(t.analytics.actualHoldSec)}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* ── Desktop Table Layout ── */
+          <table className="w-full text-[13px] font-mono border-collapse">
+            <thead className="sticky top-0 bg-panel z-10 border-b border-border">
               <tr>
-                <td colSpan={11} className="text-center text-muted py-12 text-xs">
-                  No trades match this filter
-                </td>
+                {col("createdAt", "Date")}
+                {col("ticker", "Ticker")}
+                <th className="text-left text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+                  Source
+                </th>
+                <th className="text-left text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+                  Catalyst
+                </th>
+                {col("entryPrice", "Entry", "right")}
+                <th className="text-right text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+                  Exit
+                </th>
+                {col("pnl", "P&L", "right")}
+                {col("returnPct", "Ret%", "right")}
+                {col("actualHoldSec", "Hold", "right")}
+                {col("relativeVolume", "RVOL", "right")}
+                <th className="text-center text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 font-mono font-normal">
+                  Status
+                </th>
               </tr>
-            ) : (
-              sorted.map((t) => {
+            </thead>
+            <tbody>
+              {sorted.map((t) => {
                 const isComplete = t.sellStatus === "filled";
                 const pnlVal = t.pnl ?? 0;
                 const pnlPos = pnlVal > 0;
@@ -1261,10 +1382,10 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
                     <td className="px-2.5 py-2 text-center">{statusBadge(t)}</td>
                   </tr>
                 );
-              })
-            )}
-          </tbody>
-        </table>
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -1326,14 +1447,14 @@ export function TradesPage() {
 
           {/* Scrollable content area */}
           <div className="flex-1 overflow-auto min-h-0">
-            {/* Split panel: Chart + Calendar — both stretch to same height */}
-            <div className="flex gap-3 p-3 items-stretch">
-              <div className="flex-[3] min-w-0 flex">
+            {/* Split panel: Chart + Calendar — stack on mobile, side-by-side on desktop */}
+            <div className="flex flex-col md:flex-row gap-3 p-3 md:items-stretch">
+              <div className="md:flex-[3] min-w-0 flex">
                 <div className="flex-1">
                   <PnlChart trades={displayTrades} isDemoMode={isDemoMode} />
                 </div>
               </div>
-              <div className="flex-[2] min-w-0 flex">
+              <div className="md:flex-[2] min-w-0 flex">
                 <div className="flex-1">
                   <CalendarHeatmap trades={displayTrades} />
                 </div>
@@ -1341,7 +1462,7 @@ export function TradesPage() {
             </div>
 
             {/* Trade log */}
-            <div className="px-3 pb-3" style={{ minHeight: "400px" }}>
+            <div className="px-2 md:px-3 pb-3" style={{ minHeight: "300px" }}>
               <TradeLog trades={displayTrades} isDemoMode={isDemoMode} />
             </div>
           </div>

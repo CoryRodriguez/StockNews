@@ -9,11 +9,23 @@
  * screenerRows array. Fire-and-forget — never blocks the scanner loop.
  */
 import prisma from '../db/client';
-import { getBotState, getBotConfig, isMarketOpen } from './botController';
+import { getBotState, getBotConfig, isMarketOpen, isRegularHours } from './botController';
 import { getOpenPositionCount, getOpenSymbols } from './positionMonitor';
 import { executeScannerTradeAsync } from './tradeExecutor';
 import { broadcast } from '../ws/clientHub';
 import type { ScreenerRow } from './scanner';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns true during premarket hours (4:00 AM – 9:30 AM ET, weekdays) */
+function isPremarket(): boolean {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etTime.getDay();
+  if (day === 0 || day === 6) return false;
+  const totalMinutes = etTime.getHours() * 60 + etTime.getMinutes();
+  return totalMinutes >= 240 && totalMinutes < 570; // 4:00 AM to 9:30 AM
+}
 
 // ── Cooldown map: ticker → timestamp of last trade ──────────────────────────
 
@@ -69,7 +81,8 @@ export async function evaluateScannerRows(rows: ScreenerRow[]): Promise<void> {
     // Check technical criteria
     if (row.relativeVolume < cfg.scannerMinRvol) continue;
     if (row.float == null || row.float > cfg.scannerMaxFloat) continue;
-    if (row.gapPct < cfg.scannerMinGapPct) continue;
+    // Gap% filter only applies during premarket (4:00–9:30 AM ET)
+    if (isPremarket() && row.gapPct < cfg.scannerMinGapPct) continue;
     if (row.price > cfg.maxSharePrice) continue;
 
     // All criteria passed — log and fire trade

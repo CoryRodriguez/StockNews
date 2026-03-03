@@ -57,11 +57,17 @@ function fmtSec(sec: number): string {
   return `${(sec / 3600).toFixed(1)}h`;
 }
 
+const ACRONYMS = new Set(["FDA", "MA", "CEO", "CFO", "IPO", "SEC", "DOD", "AI", "EPS", "FSD"]);
+
 function categoryLabel(raw: string): string {
   return raw
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+    .split("_")
+    .map((w) => {
+      const upper = w.toUpperCase();
+      if (ACRONYMS.has(upper)) return upper;
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(" ");
 }
 
 function toDateKey(iso: string): string {
@@ -94,7 +100,7 @@ function CatalystBadge({ category }: { category: string }) {
   const colors = CATALYST_COLORS[category] ?? DEFAULT_BADGE;
   return (
     <span
-      className="text-[9px] font-mono px-1.5 py-[1px] rounded-sm whitespace-nowrap inline-block leading-tight"
+      className="text-[11px] font-mono px-1.5 py-[2px] rounded-sm whitespace-nowrap inline-block leading-tight"
       style={{ backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}
     >
       {categoryLabel(category)}
@@ -107,7 +113,7 @@ function ScannerBadge({ scanner }: { scanner: string }) {
   const label = scanner === "news_flow" ? "NEWS" : scanner === "gap_up" ? "GAP" : scanner.toUpperCase();
   return (
     <span
-      className="text-[8px] font-mono font-semibold px-1 py-[1px] rounded-sm whitespace-nowrap inline-block leading-tight uppercase tracking-wider"
+      className="text-[10px] font-mono font-semibold px-1.5 py-[2px] rounded-sm whitespace-nowrap inline-block leading-tight uppercase tracking-wider"
       style={{ backgroundColor: colors.bg, color: colors.text, border: `1px solid ${colors.border}` }}
     >
       {label}
@@ -247,7 +253,7 @@ function MiniSparkline({ values, color, width = 64, height = 20 }: {
 
 // ── Win Rate Ring ─────────────────────────────────────────────────────────
 
-function WinRateRing({ rate, size = 36 }: { rate: number; size?: number }) {
+function WinRateRing({ rate, size = 42 }: { rate: number; size?: number }) {
   const r = (size - 4) / 2;
   const circ = 2 * Math.PI * r;
   const filled = circ * rate;
@@ -269,7 +275,7 @@ function WinRateRing({ rate, size = 36 }: { rate: number; size?: number }) {
       <text
         x={size / 2} y={size / 2}
         textAnchor="middle" dominantBaseline="central"
-        fill="white" fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="600"
+        fill="white" fontSize="11" fontFamily="JetBrains Mono, monospace" fontWeight="600"
       >
         {Math.round(rate * 100)}%
       </text>
@@ -321,21 +327,21 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
         {/* Dominant P&L block */}
         <div className="flex items-center gap-3 px-5 py-3 border-r border-border min-w-[240px]">
           <div className="flex flex-col">
-            <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Net P&L</span>
+            <span className="text-xs text-muted uppercase tracking-widest font-mono">Net P&L</span>
             <span className={`text-2xl font-mono font-bold tracking-tight ${pnlColor}`}>
               {totalPnl >= 0 ? "+" : ""}${fmt2(totalPnl)}
             </span>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[10px] text-muted font-mono">
+              <span className="text-xs text-muted font-mono">
                 {completed.length} closed
               </span>
               {open.length > 0 && (
-                <span className="text-[10px] text-accent font-mono">
+                <span className="text-xs text-accent font-mono">
                   {open.length} open
                 </span>
               )}
               {isDemoMode && (
-                <span className="text-[9px] font-bold px-1 py-px bg-warn/10 text-warn border border-warn/30 rounded">
+                <span className="text-[11px] font-bold px-1 py-px bg-warn/10 text-warn border border-warn/30 rounded">
                   DEMO
                 </span>
               )}
@@ -355,8 +361,8 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
         <div className="flex items-center gap-2.5 px-4 py-3 border-r border-border">
           <WinRateRing rate={winRate} />
           <div className="flex flex-col">
-            <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Win Rate</span>
-            <span className="text-[11px] text-white font-mono">
+            <span className="text-xs text-muted uppercase tracking-widest font-mono">Win Rate</span>
+            <span className="text-[13px] text-white font-mono">
               {winners.length}W / {losers.length}L
             </span>
             {recentResults.length > 0 && (
@@ -375,26 +381,26 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
 
         {/* Avg Winner */}
         <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
-          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Avg Win</span>
-          <span className="text-sm text-up font-mono font-semibold">
+          <span className="text-xs text-muted uppercase tracking-widest font-mono">Avg Win</span>
+          <span className="text-base text-up font-mono font-semibold">
             {winners.length > 0 ? `+$${fmt2(avgWin)}` : "—"}
           </span>
-          <span className="text-[10px] text-muted font-mono">{winners.length} trades</span>
+          <span className="text-xs text-muted font-mono">{winners.length} trades</span>
         </div>
 
         {/* Avg Loser */}
         <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
-          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Avg Loss</span>
-          <span className={`text-sm font-mono font-semibold ${losers.length > 0 ? "text-down" : "text-muted"}`}>
+          <span className="text-xs text-muted uppercase tracking-widest font-mono">Avg Loss</span>
+          <span className={`text-base font-mono font-semibold ${losers.length > 0 ? "text-down" : "text-muted"}`}>
             {losers.length > 0 ? `-$${fmt2(Math.abs(avgLoss))}` : "—"}
           </span>
-          <span className="text-[10px] text-muted font-mono">{losers.length} trades</span>
+          <span className="text-xs text-muted font-mono">{losers.length} trades</span>
         </div>
 
         {/* Profit Factor with bar */}
         <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
-          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Profit Factor</span>
-          <span className={`text-sm font-mono font-semibold ${
+          <span className="text-xs text-muted uppercase tracking-widest font-mono">Profit Factor</span>
+          <span className={`text-base font-mono font-semibold ${
             profitFactor >= 1.5 ? "text-up" : profitFactor >= 1 ? "text-warn" : "text-down"
           }`}>
             {profitFactor === Infinity ? "INF" : profitFactor > 0 ? fmt2(profitFactor) : "—"}
@@ -421,9 +427,9 @@ function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode:
 
         {/* Total Trades */}
         <div className="flex flex-col justify-center px-4 py-3">
-          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Total</span>
-          <span className="text-sm text-white font-mono font-semibold">{trades.length}</span>
-          <span className="text-[10px] text-muted font-mono">
+          <span className="text-xs text-muted uppercase tracking-widest font-mono">Total</span>
+          <span className="text-base text-white font-mono font-semibold">{trades.length}</span>
+          <span className="text-xs text-muted font-mono">
             {trades.length > 0 ? `${fmtSec(
               completed.reduce((s, t) => s + (t.analytics?.actualHoldSec ?? 0), 0) / Math.max(1, completed.length)
             )} avg hold` : "—"}
@@ -529,15 +535,15 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
         style={{ ...bgStyle, minHeight: "40px" }}
         title={dayData ? `$${dayData.pnl >= 0 ? "+" : ""}${dayData.pnl.toFixed(2)} (${dayData.count} trade${dayData.count !== 1 ? "s" : ""})` : undefined}
       >
-        <span className={`text-[9px] font-mono leading-none ${isToday ? "text-accent font-bold" : "text-white/50"}`}>
+        <span className={`text-[11px] font-mono leading-none ${isToday ? "text-accent font-bold" : "text-white/50"}`}>
           {day}
         </span>
         {dayData && (
           <div className="mt-auto">
-            <div className="text-[10px] font-mono font-semibold text-white leading-none">
+            <div className="text-xs font-mono font-semibold text-white leading-none">
               {dayData.pnl >= 0 ? "+" : ""}{dayData.pnl.toFixed(0)}
             </div>
-            <div className="text-[8px] text-white/60 leading-none mt-px">{dayData.count}t</div>
+            <div className="text-[10px] text-white/60 leading-none mt-px">{dayData.count}t</div>
           </div>
         )}
       </div>
@@ -555,7 +561,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
           >
             ‹
           </button>
-          <span className="text-white text-xs font-semibold font-mono w-20 text-center">{monthLabel}</span>
+          <span className="text-white text-sm font-semibold font-mono w-24 text-center">{monthLabel}</span>
           <button
             onClick={nextMonth}
             className="text-muted hover:text-white text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-surface transition-colors"
@@ -564,9 +570,9 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
           </button>
         </div>
         {monthTrades > 0 && (
-          <span className={`text-[11px] font-mono font-semibold ${monthPnl >= 0 ? "text-up" : "text-down"}`}>
+          <span className={`text-[13px] font-mono font-semibold ${monthPnl >= 0 ? "text-up" : "text-down"}`}>
             {monthPnl >= 0 ? "+" : ""}${monthPnl.toFixed(2)}
-            <span className="text-muted font-normal ml-1 text-[10px]">{monthTrades}t</span>
+            <span className="text-muted font-normal ml-1 text-xs">{monthTrades}t</span>
           </span>
         )}
       </div>
@@ -577,10 +583,10 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
         <div className="flex gap-1 mb-1">
           <div className="grid grid-cols-7 gap-1 flex-1">
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <div key={i} className="text-center text-[9px] text-muted font-mono py-0.5">{d}</div>
+              <div key={i} className="text-center text-[11px] text-muted font-mono py-0.5">{d}</div>
             ))}
           </div>
-          <div className="w-14 shrink-0 text-right text-[9px] text-muted font-mono py-0.5 pr-1">Wk</div>
+          <div className="w-16 shrink-0 text-right text-[11px] text-muted font-mono py-0.5 pr-1">Wk</div>
         </div>
 
         {/* Week rows */}
@@ -592,13 +598,13 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
                 <div className="grid grid-cols-7 gap-1 flex-1">
                   {wk.map((day, di) => renderDay(day, wi, di))}
                 </div>
-                <div className="w-14 shrink-0 flex flex-col items-end justify-center bg-surface border border-border rounded px-1.5 py-0.5">
+                <div className="w-16 shrink-0 flex flex-col items-end justify-center bg-surface border border-border rounded px-1.5 py-0.5">
                   {count > 0 ? (
                     <>
-                      <span className={`text-[10px] font-mono font-semibold leading-none ${pnl >= 0 ? "text-up" : "text-down"}`}>
+                      <span className={`text-xs font-mono font-semibold leading-none ${pnl >= 0 ? "text-up" : "text-down"}`}>
                         {pnl >= 0 ? "+" : ""}${pnl.toFixed(0)}
                       </span>
-                      <span className="text-[8px] text-muted mt-0.5">{count}t</span>
+                      <span className="text-[10px] text-muted mt-0.5">{count}t</span>
                     </>
                   ) : (
                     <span className="text-[9px] text-muted">—</span>
@@ -611,7 +617,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
 
         {/* Legend */}
         <div className="flex items-center gap-1.5 mt-2 justify-center">
-          <span className="text-[8px] text-muted font-mono">LOSS</span>
+          <span className="text-[10px] text-muted font-mono">LOSS</span>
           <div className="flex gap-px">
             {[0.85, 0.55, 0.3].map((o) => (
               <div key={o} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `rgba(218,54,51,${o})` }} />
@@ -621,7 +627,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
               <div key={o} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `rgba(46,160,67,${o})` }} />
             ))}
           </div>
-          <span className="text-[8px] text-muted font-mono">GAIN</span>
+          <span className="text-[10px] text-muted font-mono">GAIN</span>
         </div>
       </div>
     </div>
@@ -722,17 +728,17 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   return (
     <div className="bg-panel border border-border rounded-lg flex flex-col h-full">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
-        <span className="text-white text-xs font-semibold">Equity Curve</span>
+        <span className="text-white text-sm font-semibold">Equity Curve</span>
         <div className="flex items-center gap-2">
           {isDummy && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-warn/10 text-warn border border-warn/30 rounded font-mono">
+            <span className="text-[11px] font-bold px-1.5 py-0.5 bg-warn/10 text-warn border border-warn/30 rounded font-mono">
               DEMO
             </span>
           )}
-          <span className={`text-xs font-mono font-semibold ${isPositive ? "text-up" : "text-down"}`}>
+          <span className={`text-sm font-mono font-semibold ${isPositive ? "text-up" : "text-down"}`}>
             {isPositive ? "+" : ""}${finalPnl.toFixed(2)}
           </span>
-          <span className="text-[10px] text-muted font-mono">{points.length}t</span>
+          <span className="text-xs text-muted font-mono">{points.length}t</span>
         </div>
       </div>
 
@@ -833,14 +839,14 @@ type FilterMode = "all" | "wins" | "losses" | "open";
 
 function statusBadge(t: JournalTrade) {
   if (t.buyStatus === "error")
-    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-down/10 text-down">ERR</span>;
+    return <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-down/10 text-down">ERR</span>;
   if (t.buyStatus === "pending")
-    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-warn/10 text-warn">BUY</span>;
+    return <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-warn/10 text-warn">BUY</span>;
   if (t.sellStatus === "awaiting" || t.sellStatus === "pending")
-    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent/10 text-accent">HOLD</span>;
+    return <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-accent/10 text-accent">HOLD</span>;
   if (t.sellStatus === "error")
-    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-down/10 text-down">ERR</span>;
-  return <span className="text-[10px] font-mono text-muted">DONE</span>;
+    return <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-down/10 text-down">ERR</span>;
+  return <span className="text-xs font-mono text-muted">DONE</span>;
 }
 
 function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?: boolean }) {
@@ -943,7 +949,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
     const active = sortBy === key;
     return (
       <th
-        className={`text-${align} text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 cursor-pointer select-none whitespace-nowrap font-mono font-normal hover:text-white transition-colors`}
+        className={`text-${align} text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 cursor-pointer select-none whitespace-nowrap font-mono font-normal hover:text-white transition-colors`}
         onClick={() => {
           if (sortBy === key) setAsc((v) => !v);
           else {
@@ -984,7 +990,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
     <button
       key={mode}
       onClick={() => setFilter(mode)}
-      className={`text-[10px] font-mono px-2.5 py-1 rounded transition-all duration-150 ${
+      className={`text-xs font-mono px-2.5 py-1 rounded transition-all duration-150 ${
         filter === mode
           ? "bg-accent/15 text-accent border border-accent/30"
           : "text-muted hover:text-white border border-transparent"
@@ -1012,14 +1018,14 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
         </div>
         <div className="flex items-center gap-2">
           {isDemoMode && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-warn/10 text-warn border border-warn/30 rounded font-mono">
+            <span className="text-[11px] font-bold px-1.5 py-0.5 bg-warn/10 text-warn border border-warn/30 rounded font-mono">
               DEMO
             </span>
           )}
           <button
             onClick={exportCsv}
             disabled={exporting || !!isDemoMode}
-            className="text-[10px] font-mono px-2 py-1 rounded border border-border text-muted hover:text-white hover:border-accent/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="text-xs font-mono px-2.5 py-1 rounded border border-border text-muted hover:text-white hover:border-accent/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             title={isDemoMode ? "Export disabled in demo mode" : undefined}
           >
             {exporting ? "..." : "EXPORT CSV"}
@@ -1030,7 +1036,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
       {/* Secondary filter bar: catalyst + scanner badges */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/50 shrink-0 overflow-x-auto">
         {/* Scanner filters */}
-        <span className="text-[8px] text-muted font-mono uppercase tracking-widest shrink-0">Source</span>
+        <span className="text-[10px] text-muted font-mono uppercase tracking-widest shrink-0">Source</span>
         <div className="flex items-center gap-1">
           {scannerIds.map((s) => {
             const active = activeScanners.has(s);
@@ -1040,7 +1046,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
               <button
                 key={s}
                 onClick={() => toggleScanner(s)}
-                className="text-[8px] font-mono font-semibold px-1.5 py-[2px] rounded-sm uppercase tracking-wider transition-all duration-150 cursor-pointer"
+                className="text-[10px] font-mono font-semibold px-1.5 py-[2px] rounded-sm uppercase tracking-wider transition-all duration-150 cursor-pointer"
                 style={{
                   backgroundColor: active ? colors.bg : "transparent",
                   color: active ? colors.text : "#636e7b",
@@ -1057,7 +1063,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
         <div className="w-px h-3 bg-border mx-1 shrink-0" />
 
         {/* Catalyst category filters */}
-        <span className="text-[8px] text-muted font-mono uppercase tracking-widest shrink-0">Catalyst</span>
+        <span className="text-[10px] text-muted font-mono uppercase tracking-widest shrink-0">Catalyst</span>
         <div className="flex items-center gap-1 flex-wrap">
           {catalystCategories.map((cat) => {
             const active = activeCatalysts.has(cat);
@@ -1066,7 +1072,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
               <button
                 key={cat}
                 onClick={() => toggleCatalyst(cat)}
-                className="text-[8px] font-mono px-1.5 py-[2px] rounded-sm whitespace-nowrap transition-all duration-150 cursor-pointer"
+                className="text-[10px] font-mono px-1.5 py-[2px] rounded-sm whitespace-nowrap transition-all duration-150 cursor-pointer"
                 style={{
                   backgroundColor: active ? colors.bg : "transparent",
                   color: active ? colors.text : "#636e7b",
@@ -1086,7 +1092,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
             <div className="w-px h-3 bg-border mx-1 shrink-0" />
             <button
               onClick={() => { setActiveCatalysts(new Set()); setActiveScanners(new Set()); }}
-              className="text-[8px] font-mono text-muted hover:text-white px-1.5 py-[2px] rounded-sm border border-border hover:border-accent/30 transition-all shrink-0"
+              className="text-[10px] font-mono text-muted hover:text-white px-1.5 py-[2px] rounded-sm border border-border hover:border-accent/30 transition-all shrink-0"
             >
               CLEAR
             </button>
@@ -1096,26 +1102,26 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
 
       {/* Scrollable table */}
       <div className="overflow-auto flex-1 min-h-0">
-        <table className="w-full text-[11px] font-mono border-collapse">
+        <table className="w-full text-[13px] font-mono border-collapse">
           <thead className="sticky top-0 bg-panel z-10 border-b border-border">
             <tr>
               {col("createdAt", "Date")}
               {col("ticker", "Ticker")}
-              <th className="text-left text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+              <th className="text-left text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
                 Source
               </th>
-              <th className="text-left text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+              <th className="text-left text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
                 Catalyst
               </th>
               {col("entryPrice", "Entry", "right")}
-              <th className="text-right text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+              <th className="text-right text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
                 Exit
               </th>
               {col("pnl", "P&L", "right")}
               {col("returnPct", "Ret%", "right")}
               {col("actualHoldSec", "Hold", "right")}
               {col("relativeVolume", "RVOL", "right")}
-              <th className="text-center text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 font-mono font-normal">
+              <th className="text-center text-[11px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 font-mono font-normal">
                 Status
               </th>
             </tr>
@@ -1153,13 +1159,13 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
                           }}
                         />
                         <div>
-                          <div className="text-white text-[11px]">
+                          <div className="text-white text-[13px]">
                             {new Date(t.createdAt).toLocaleDateString("en-US", {
                               month: "2-digit",
                               day: "2-digit",
                             })}
                           </div>
-                          <div className="text-[9px] text-muted">
+                          <div className="text-[11px] text-muted">
                             {new Date(t.createdAt).toLocaleTimeString("en-US", {
                               hour: "2-digit",
                               minute: "2-digit",
@@ -1175,7 +1181,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
 
                     {/* Ticker */}
                     <td className="px-2.5 py-2">
-                      <span className="text-white font-semibold text-xs">{t.ticker}</span>
+                      <span className="text-white font-semibold text-sm">{t.ticker}</span>
                     </td>
 
                     {/* Scanner source badge */}
@@ -1188,7 +1194,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
                       {t.analytics?.catalystCategory ? (
                         <CatalystBadge category={t.analytics.catalystCategory} />
                       ) : (
-                        <span className="text-muted text-[10px]" title={t.catalyst}>
+                        <span className="text-muted text-xs" title={t.catalyst}>
                           {t.catalystType}
                         </span>
                       )}
@@ -1312,7 +1318,7 @@ export function TradesPage() {
           {/* Demo banner */}
           {isDemoMode && (
             <div className="px-4 py-1.5 bg-warn/5 border-b border-warn/20 shrink-0">
-              <span className="text-warn/80 text-[10px] font-mono">
+              <span className="text-warn/80 text-xs font-mono">
                 DEMO DATA — no real trades recorded yet. All figures are simulated.
               </span>
             </div>
@@ -1320,13 +1326,17 @@ export function TradesPage() {
 
           {/* Scrollable content area */}
           <div className="flex-1 overflow-auto min-h-0">
-            {/* Split panel: Chart + Calendar — natural height, no fixed px */}
-            <div className="flex gap-3 p-3">
-              <div className="flex-[3] min-w-0" style={{ minHeight: "240px" }}>
-                <PnlChart trades={displayTrades} isDemoMode={isDemoMode} />
+            {/* Split panel: Chart + Calendar — both stretch to same height */}
+            <div className="flex gap-3 p-3 items-stretch">
+              <div className="flex-[3] min-w-0 flex">
+                <div className="flex-1">
+                  <PnlChart trades={displayTrades} isDemoMode={isDemoMode} />
+                </div>
               </div>
-              <div className="flex-[2] min-w-0">
-                <CalendarHeatmap trades={displayTrades} />
+              <div className="flex-[2] min-w-0 flex">
+                <div className="flex-1">
+                  <CalendarHeatmap trades={displayTrades} />
+                </div>
               </div>
             </div>
 

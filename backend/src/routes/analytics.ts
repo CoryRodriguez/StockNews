@@ -27,10 +27,23 @@ router.post("/strategies/recompute", requireAuth, async (_req, res) => {
 
 // ── Trade analytics with snapshots ───────────────────────────────────────
 
+// Valid catalyst categories for input validation
+const VALID_CATEGORIES = [
+  "MA_ACQUISITION", "TENDER_OFFER", "MERGER", "GOING_PRIVATE",
+  "FDA_APPROVAL", "FDA_BREAKTHROUGH", "CLINICAL_TRIAL_SUCCESS",
+  "EARNINGS_BEAT", "REVENUE_RECORD", "GUIDANCE_RAISE",
+  "GOVERNMENT_CONTRACT", "CONTRACT_AWARD", "ANALYST_UPGRADE",
+  "PARTNERSHIP", "PRODUCT_LAUNCH", "STOCK_BUYBACK", "OTHER",
+] as const;
+
 /** List all analytics records with their price snapshot curves. */
 router.get("/trades", requireAuth, async (req, res) => {
-  const limit = Math.min(parseInt(String(req.query.limit ?? "50")), 200);
-  const category = req.query.category as string | undefined;
+  const limit = Math.min(Math.max(parseInt(String(req.query.limit ?? "50")) || 50, 1), 200);
+  const categoryRaw = req.query.category as string | undefined;
+  // Validate category against whitelist
+  const category = categoryRaw && VALID_CATEGORIES.includes(categoryRaw as any)
+    ? categoryRaw
+    : undefined;
 
   const where = category ? { catalystCategory: category } : {};
 

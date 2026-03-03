@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
+import { logSecurityEvent } from "./security";
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -9,6 +10,7 @@ export interface AuthRequest extends Request {
 export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
+    logSecurityEvent(req, "TOKEN_INVALID", { reason: "missing_header" });
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -17,7 +19,11 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
     const payload = jwt.verify(token, config.jwtSecret) as { sub: string };
     req.userId = payload.sub;
     next();
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
+  } catch (err) {
+    const isExpired = err instanceof jwt.TokenExpiredError;
+    logSecurityEvent(req, isExpired ? "TOKEN_EXPIRED" : "TOKEN_INVALID", {
+      reason: isExpired ? "expired" : "invalid_signature",
+    });
+    res.status(401).json({ error: isExpired ? "Token expired" : "Invalid token" });
   }
 }

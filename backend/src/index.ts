@@ -2,6 +2,8 @@ import "dotenv/config";
 import http from "http";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import { WebSocketServer } from "ws";
 import { config } from "./config";
 import { addClient } from "./ws/clientHub";
@@ -21,6 +23,7 @@ import analyticsRouter from "./routes/analytics";
 import botRouter from "./routes/bot";
 import labelsRouter from "./routes/labels";
 import { requireAuth } from "./middleware/auth";
+import { requestId } from "./middleware/security";
 import { initBot } from "./services/botController";
 import { loadStrategiesFromDb, recomputeStrategies } from "./services/strategyEngine";
 import { startTradingWs } from "./services/tradingWs";
@@ -28,8 +31,57 @@ import { startPositionMonitor } from "./services/positionMonitor";
 import { scheduleRecapCron } from "./services/eodRecap";
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
+
+// ── Security middleware ──────────────────────────────────────────────────
+// Request ID for audit traceability
+app.use(requestId);
+
+// Helmet: security headers (CSP, X-Frame-Options, HSTS, etc.)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://s3.tradingview.com"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        connectSrc: ["'self'", "wss:", "https:"],
+        frameSrc: ["'none'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // needed for TradingView widget
+    hsts: { maxAge: 31536000, includeSubDomains: true },
+  })
+);
+
+// CORS: explicit origin whitelist instead of wildcard
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (server-to-server, curl, mobile apps)
+      if (!origin) return callback(null, true);
+      if (config.corsOrigins.includes(origin)) return callback(null, true);
+      callback(new Error("CORS not allowed"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    maxAge: 3600,
+  })
+);
+
+// Global rate limiting: 100 requests per minute per IP
+app.use(
+  rateLimit({
+    windowMs: 60_000,
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests, slow down" },
+  })
+);
+
+// JSON body parser with size limit to prevent oversized payloads
+app.use(express.json({ limit: "1mb" }));
 
 // ── Routes ────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRouter);
@@ -72,7 +124,12 @@ app.get("/api/news/recent", requireAuth, async (_req, res) => {
 });
 
 app.get("/api/news/ticker/:symbol", requireAuth, (req, res) => {
-  const sym = req.params.symbol.toUpperCase();
+  const sym = req.params.symbol.toUpperCase().trim();
+  // Validate ticker symbol format
+  if (!/^[A-Z0-9.]{1,10}$/.test(sym)) {
+    res.status(400).json({ error: "Invalid symbol" });
+    return;
+  }
   res.json(recentArticles.filter((a) => a.ticker === sym).slice(0, 20));
 });
 

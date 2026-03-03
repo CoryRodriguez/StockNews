@@ -6,6 +6,14 @@ interface Props {
   symbol: string;
 }
 
+// ── Symbol validation ────────────────────────────────────────────────────
+// Only allow valid ticker symbols to prevent injection via TradingView widget
+const VALID_SYMBOL = /^[A-Z0-9./-]{1,20}$/;
+function sanitizeSymbol(s: string): string {
+  const upper = s.toUpperCase().trim();
+  return VALID_SYMBOL.test(upper) ? upper : "AAPL";
+}
+
 // TradingView timeframe buttons
 const TIMEFRAMES = ["10S", "30S", "1", "5", "15", "60", "240", "D"];
 const TF_LABELS: Record<string, string> = {
@@ -43,6 +51,8 @@ export function ChartPanel({ panelId, symbol }: Props) {
     widgetDiv.style.cssText = "height:100%;width:100%;";
     container.appendChild(widgetDiv);
 
+    const safeSymbol = sanitizeSymbol(symbol);
+
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.src =
@@ -50,7 +60,7 @@ export function ChartPanel({ panelId, symbol }: Props) {
     script.async = true;
     script.innerHTML = JSON.stringify({
       autosize: true,
-      symbol,
+      symbol: safeSymbol,
       interval: "15",
       timezone: "America/New_York",
       theme: "dark",

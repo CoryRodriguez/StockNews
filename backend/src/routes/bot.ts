@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../db/client';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, AuthRequest } from '../middleware/auth';
+import { logSecurityEvent } from '../middleware/security';
 import {
   getBotState,
   setBotState,
@@ -16,9 +17,14 @@ import { computeRecap } from '../services/eodRecap';
 
 const router = Router();
 
+// ── Input validation helpers ─────────────────────────────────────────────
+const VALID_OUTCOMES = ["fired", "rejected", "skipped"] as const;
+const VALID_RECAP_MODES = ["week", "month"] as const;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 // ─── POST /start ────────────────────────────────────────────────────────────
 // Valid from: stopped only
-router.post('/start', requireAuth, async (_req, res) => {
+router.post('/start', requireAuth, async (req: AuthRequest, res) => {
   try {
     const state: BotState = getBotState();
     if (state === 'running') {
@@ -30,6 +36,7 @@ router.post('/start', requireAuth, async (_req, res) => {
       return;
     }
     await setBotState('running');
+    logSecurityEvent(req, "BOT_STATE_CHANGED", { from: state, to: "running" });
     res.json({ state: 'running' });
   } catch (err) {
     console.error('[BotRoute] /start error:', err);
@@ -40,7 +47,7 @@ router.post('/start', requireAuth, async (_req, res) => {
 // ─── POST /pause ─────────────────────────────────────────────────────────────
 // Valid from: running only
 // Semantics: no new buy signals, but open positions continue to be monitored
-router.post('/pause', requireAuth, async (_req, res) => {
+router.post('/pause', requireAuth, async (req: AuthRequest, res) => {
   try {
     const state: BotState = getBotState();
     if (state !== 'running') {
@@ -48,6 +55,7 @@ router.post('/pause', requireAuth, async (_req, res) => {
       return;
     }
     await setBotState('paused');
+    logSecurityEvent(req, "BOT_STATE_CHANGED", { from: "running", to: "paused" });
     res.json({ state: 'paused' });
   } catch (err) {
     console.error('[BotRoute] /pause error:', err);
@@ -57,7 +65,7 @@ router.post('/pause', requireAuth, async (_req, res) => {
 
 // ─── POST /resume ────────────────────────────────────────────────────────────
 // Valid from: paused only
-router.post('/resume', requireAuth, async (_req, res) => {
+router.post('/resume', requireAuth, async (req: AuthRequest, res) => {
   try {
     const state: BotState = getBotState();
     if (state !== 'paused') {
@@ -65,6 +73,7 @@ router.post('/resume', requireAuth, async (_req, res) => {
       return;
     }
     await setBotState('running');
+    logSecurityEvent(req, "BOT_STATE_CHANGED", { from: "paused", to: "running" });
     res.json({ state: 'running' });
   } catch (err) {
     console.error('[BotRoute] /resume error:', err);
@@ -74,7 +83,7 @@ router.post('/resume', requireAuth, async (_req, res) => {
 
 // ─── POST /stop ───────────────────────────────────────────────────────────────
 // Valid from: running or paused
-router.post('/stop', requireAuth, async (_req, res) => {
+router.post('/stop', requireAuth, async (req: AuthRequest, res) => {
   try {
     const state: BotState = getBotState();
     if (state === 'stopped') {
@@ -82,6 +91,7 @@ router.post('/stop', requireAuth, async (_req, res) => {
       return;
     }
     await setBotState('stopped');
+    logSecurityEvent(req, "BOT_STATE_CHANGED", { from: state, to: "stopped" });
     res.json({ state: 'stopped' });
   } catch (err) {
     console.error('[BotRoute] /stop error:', err);
@@ -130,7 +140,7 @@ router.get('/config', requireAuth, (_req, res) => {
 
 // ─── PATCH /config ────────────────────────────────────────────────────────────
 // Applies a partial update to BotConfig — strips id and updatedAt before delegating to updateConfig()
-router.patch('/config', requireAuth, async (req, res) => {
+router.patch('/config', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { id: _id, updatedAt: _ts, ...patch } = req.body as Record<string, unknown>;
     // Lightweight validation
@@ -143,6 +153,7 @@ router.patch('/config', requireAuth, async (req, res) => {
       if (wr < 0 || wr > 1) { res.status(400).json({ error: 'minWinRate must be 0–1' }); return; }
     }
     const updated = await updateConfig(patch as Parameters<typeof updateConfig>[0]);
+    logSecurityEvent(req, "CONFIG_CHANGED", { fields: Object.keys(patch) });
     res.json(updated);
   } catch (err) {
     console.error('[BotRoute] /config PATCH error:', err);
@@ -186,7 +197,11 @@ router.get('/trades', requireAuth, async (_req, res) => {
 // Optional filter: ?outcome=fired|rejected|skipped
 router.get('/signals', requireAuth, async (req, res) => {
   try {
-    const outcomeFilter = req.query.outcome as string | undefined;
+    const outcomeRaw = req.query.outcome as string | undefined;
+    // Validate outcome filter against whitelist
+    const outcomeFilter = outcomeRaw && VALID_OUTCOMES.includes(outcomeRaw as any)
+      ? outcomeRaw
+      : undefined;
     const where = outcomeFilter ? { outcome: outcomeFilter } : {};
 
     const signals = await prisma.botSignalLog.findMany({
@@ -220,7 +235,7 @@ router.get('/signals', requireAuth, async (req, res) => {
 // Gate check is server-side — never trust client's gate assertion.
 // live→paper does NOT require gate re-check.
 // Both directions require no open positions (enforced by switchMode() service layer).
-router.post('/mode', requireAuth, async (req, res) => {
+router.post('/mode', requireAuth, async (req: AuthRequest, res) => {
   const { mode } = req.body as { mode: string };
   if (mode !== 'paper' && mode !== 'live') {
     res.status(400).json({ error: 'mode must be "paper" or "live"' });
@@ -245,6 +260,7 @@ router.post('/mode', requireAuth, async (req, res) => {
   }
   try {
     await switchMode(mode as 'paper' | 'live');
+    logSecurityEvent(req, "MODE_SWITCHED", { mode });
     // Frontend re-fetches GET /status after a successful switch to update the mode badge
     res.json({ mode });
   } catch (err) {
@@ -301,8 +317,11 @@ function getMonthDates(anchor: string): string[] {
 // GET /api/bot/recap/history?mode=week|month&anchor=YYYY-MM-DD
 router.get('/recap/history', requireAuth, async (req, res) => {
   try {
-    const mode = (req.query.mode as string) ?? 'week';
-    const anchor = (req.query.anchor as string) ?? getTodayDateET();
+    const modeRaw = (req.query.mode as string) ?? 'week';
+    const mode = VALID_RECAP_MODES.includes(modeRaw as any) ? modeRaw : 'week';
+    const anchorRaw = (req.query.anchor as string) ?? getTodayDateET();
+    // Validate date format to prevent injection
+    const anchor = DATE_PATTERN.test(anchorRaw) ? anchorRaw : getTodayDateET();
     const dates = mode === 'month' ? getMonthDates(anchor) : getWeekDates(anchor);
     const rows = await prisma.dailyRecap.findMany({
       where: { date: { in: dates } },
@@ -321,7 +340,8 @@ router.get('/recap/history', requireAuth, async (req, res) => {
 // GET /api/bot/recap?date=YYYY-MM-DD
 router.get('/recap', requireAuth, async (req, res) => {
   try {
-    const dateET = (req.query.date as string) ?? getTodayDateET();
+    const dateRaw = (req.query.date as string) ?? getTodayDateET();
+    const dateET = DATE_PATTERN.test(dateRaw) ? dateRaw : getTodayDateET();
 
     // Try persisted first (fast path)
     const persisted = await prisma.dailyRecap.findUnique({ where: { date: dateET } });

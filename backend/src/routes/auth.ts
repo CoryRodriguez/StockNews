@@ -87,4 +87,37 @@ router.get("/status", async (_req: Request, res: Response) => {
   res.json({ needsSetup: count === 0 });
 });
 
+// ── Emergency password reset ─────────────────────────────────────────────
+// Triggered by setting RESET_PASSWORD env var and hitting this endpoint.
+// Usage: set RESET_PASSWORD=<new-password> in .env, restart, hit POST /api/auth/reset-password,
+// then remove the env var and restart again.
+router.post("/reset-password", authLimiter, async (req: Request, res: Response) => {
+  const resetPassword = process.env.RESET_PASSWORD;
+  if (!resetPassword) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  const strengthError = validatePasswordStrength(resetPassword);
+  if (strengthError) {
+    res.status(400).json({ error: `RESET_PASSWORD env var: ${strengthError}` });
+    return;
+  }
+
+  const user = await prisma.user.findFirst();
+  if (!user) {
+    res.status(403).json({ error: "No user exists" });
+    return;
+  }
+
+  const hashed = await bcrypt.hash(resetPassword, 12);
+  await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+
+  logSecurityEvent(req, "AUTH_SUCCESS", { action: "password_reset_via_env" });
+  const token = jwt.sign({ sub: user.id }, config.jwtSecret, {
+    expiresIn: config.jwtExpiresIn as any,
+  });
+  res.json({ ok: true, message: "Password reset. Remove RESET_PASSWORD from .env and restart.", token });
+});
+
 export default router;

@@ -1,12 +1,12 @@
 /**
- * Trades Page
+ * Trades Page — Institutional Trading Desk
  *
  * Full-page trade journal combining:
- *   - Summary stat cards (total P&L, win rate, avg win/loss, profit factor)
- *   - Monthly calendar heatmap (daily P&L heat coloring)
- *   - Sortable, filterable trade log table
+ *   - Hero stat strip with dominant P&L and inline sparklines
+ *   - Split panel: equity curve + calendar heatmap side by side
+ *   - Enhanced trade log with edge accents and magnitude bars
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuthStore } from "../store/authStore";
 import { TopNav } from "../components/layout/TopNav";
 
@@ -126,7 +126,6 @@ const DUMMY_JOURNAL_TRADES: JournalTrade[] = DUMMY_PNL_TRADES.map((d, i) => {
   const returnPct = +((exitPrice - entryPrice) / entryPrice * 100).toFixed(2);
   const holdSec = _HOLD_TIMES[i % _HOLD_TIMES.length];
   const [yr, mo, dy] = d.date.split("-").map(Number);
-  // Spread trades across the trading day; pre-market gets 8-9 AM slot
   const hour = tmpl.pre ? 8 : 9 + (i % 4);
   const minute = (i * 17 + 5) % 60;
   const createdAt = new Date(yr, mo - 1, dy, hour, minute, 0).toISOString();
@@ -162,33 +161,72 @@ const DUMMY_JOURNAL_TRADES: JournalTrade[] = DUMMY_PNL_TRADES.map((d, i) => {
   };
 });
 
-// ── Stat Card ──────────────────────────────────────────────────────────────
+// ── Inline Sparkline ──────────────────────────────────────────────────────
 
-function StatCard({
-  label,
-  value,
-  sub,
-  color,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  color?: string;
+function MiniSparkline({ values, color, width = 64, height = 20 }: {
+  values: number[];
+  color: string;
+  width?: number;
+  height?: number;
 }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * width;
+    const y = height - ((v - min) / range) * (height - 2) - 1;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
   return (
-    <div className="bg-panel border border-border rounded p-3 flex flex-col gap-0.5 min-w-0">
-      <span className="text-[10px] text-muted uppercase tracking-wide truncate">{label}</span>
-      <span className={`text-base font-semibold font-mono truncate ${color ?? "text-white"}`}>
-        {value}
-      </span>
-      {sub && <span className="text-[10px] text-muted truncate">{sub}</span>}
-    </div>
+    <svg width={width} height={height} className="opacity-60">
+      <polyline
+        points={pts.join(" ")}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
-// ── Stats Row ─────────────────────────────────────────────────────────────
+// ── Win Rate Ring ─────────────────────────────────────────────────────────
 
-function StatsRow({ trades }: { trades: JournalTrade[] }) {
+function WinRateRing({ rate, size = 36 }: { rate: number; size?: number }) {
+  const r = (size - 4) / 2;
+  const circ = 2 * Math.PI * r;
+  const filled = circ * rate;
+  const color = rate >= 0.6 ? "#2ea043" : rate >= 0.45 ? "#c79316" : "#da3633";
+  return (
+    <svg width={size} height={size} className="shrink-0">
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none" stroke="#252d3a" strokeWidth="3"
+      />
+      <circle
+        cx={size / 2} cy={size / 2} r={r}
+        fill="none" stroke={color} strokeWidth="3"
+        strokeDasharray={`${filled} ${circ - filled}`}
+        strokeDashoffset={circ * 0.25}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dasharray 0.6s ease" }}
+      />
+      <text
+        x={size / 2} y={size / 2}
+        textAnchor="middle" dominantBaseline="central"
+        fill="white" fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="600"
+      >
+        {Math.round(rate * 100)}%
+      </text>
+    </svg>
+  );
+}
+
+// ── Hero Stat Strip ───────────────────────────────────────────────────────
+
+function HeroStats({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode: boolean }) {
   const completed = trades.filter((t) => t.sellStatus === "filled" && t.pnl != null);
   const open = trades.filter((t) => t.buyStatus === "filled" && (t.sellStatus === "awaiting" || t.sellStatus === "pending"));
   const winners = completed.filter((t) => (t.pnl ?? 0) > 0);
@@ -207,56 +245,147 @@ function StatsRow({ trades }: { trades: JournalTrade[] }) {
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
 
   const pnlColor = totalPnl >= 0 ? "text-up" : "text-down";
-  const winColor = winRate >= 0.6 ? "text-up" : winRate >= 0.45 ? "text-yellow-400" : "text-down";
+
+  // Build cumulative P&L sparkline
+  const sparkValues = useMemo(() => {
+    const sorted = [...completed].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+    let cum = 0;
+    return sorted.map((t) => { cum += t.pnl ?? 0; return cum; });
+  }, [completed]);
+
+  // Recent 10 trades for W/L streak display
+  const recentResults = useMemo(() => {
+    return [...completed]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10)
+      .reverse()
+      .map((t) => (t.pnl ?? 0) > 0);
+  }, [completed]);
 
   return (
-    <div className="grid grid-cols-6 gap-2 px-4 py-3 border-b border-border bg-surface shrink-0">
-      <StatCard
-        label="Net P&L"
-        value={`${totalPnl >= 0 ? "+" : ""}$${fmt2(totalPnl)}`}
-        sub={`${completed.length} closed`}
-        color={pnlColor}
-      />
-      <StatCard
-        label="Win Rate"
-        value={`${Math.round(winRate * 100)}%`}
-        sub={`${winners.length}W / ${losers.length}L`}
-        color={winColor}
-      />
-      <StatCard
-        label="Total Trades"
-        value={String(trades.length)}
-        sub={`${open.length} open`}
-      />
-      <StatCard
-        label="Avg Winner"
-        value={winners.length > 0 ? `+$${fmt2(avgWin)}` : "—"}
-        sub={`${winners.length} trades`}
-        color="text-up"
-      />
-      <StatCard
-        label="Avg Loser"
-        value={losers.length > 0 ? `-$${fmt2(Math.abs(avgLoss))}` : "—"}
-        sub={`${losers.length} trades`}
-        color={losers.length > 0 ? "text-down" : "text-muted"}
-      />
-      <StatCard
-        label="Profit Factor"
-        value={
-          profitFactor === Infinity
-            ? "∞"
-            : profitFactor > 0
-            ? fmt2(profitFactor)
-            : "—"
-        }
-        sub={grossLoss > 0 ? `$${fmt2(grossProfit)} / $${fmt2(grossLoss)}` : undefined}
-        color={profitFactor >= 1.5 ? "text-up" : profitFactor >= 1 ? "text-yellow-400" : "text-down"}
-      />
+    <div className="bg-surface border-b border-border shrink-0">
+      <div className="flex items-stretch">
+        {/* Dominant P&L block */}
+        <div className="flex items-center gap-3 px-5 py-3 border-r border-border min-w-[240px]">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Net P&L</span>
+            <span className={`text-2xl font-mono font-bold tracking-tight ${pnlColor}`}>
+              {totalPnl >= 0 ? "+" : ""}${fmt2(totalPnl)}
+            </span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-muted font-mono">
+                {completed.length} closed
+              </span>
+              {open.length > 0 && (
+                <span className="text-[10px] text-accent font-mono">
+                  {open.length} open
+                </span>
+              )}
+              {isDemoMode && (
+                <span className="text-[9px] font-bold px-1 py-px bg-warn/10 text-warn border border-warn/30 rounded">
+                  DEMO
+                </span>
+              )}
+            </div>
+          </div>
+          {sparkValues.length > 1 && (
+            <MiniSparkline
+              values={sparkValues}
+              color={totalPnl >= 0 ? "#2ea043" : "#da3633"}
+              width={72}
+              height={28}
+            />
+          )}
+        </div>
+
+        {/* Win Rate with ring */}
+        <div className="flex items-center gap-2.5 px-4 py-3 border-r border-border">
+          <WinRateRing rate={winRate} />
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Win Rate</span>
+            <span className="text-[11px] text-white font-mono">
+              {winners.length}W / {losers.length}L
+            </span>
+            {/* Recent streak dots */}
+            {recentResults.length > 0 && (
+              <div className="flex gap-0.5 mt-1">
+                {recentResults.map((won, i) => (
+                  <div
+                    key={i}
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: won ? "#2ea043" : "#da3633" }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Avg Winner */}
+        <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
+          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Avg Win</span>
+          <span className="text-sm text-up font-mono font-semibold">
+            {winners.length > 0 ? `+$${fmt2(avgWin)}` : "—"}
+          </span>
+          <span className="text-[10px] text-muted font-mono">{winners.length} trades</span>
+        </div>
+
+        {/* Avg Loser */}
+        <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
+          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Avg Loss</span>
+          <span className={`text-sm font-mono font-semibold ${losers.length > 0 ? "text-down" : "text-muted"}`}>
+            {losers.length > 0 ? `-$${fmt2(Math.abs(avgLoss))}` : "—"}
+          </span>
+          <span className="text-[10px] text-muted font-mono">{losers.length} trades</span>
+        </div>
+
+        {/* Profit Factor with bar */}
+        <div className="flex flex-col justify-center px-4 py-3 border-r border-border">
+          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Profit Factor</span>
+          <span className={`text-sm font-mono font-semibold ${
+            profitFactor >= 1.5 ? "text-up" : profitFactor >= 1 ? "text-warn" : "text-down"
+          }`}>
+            {profitFactor === Infinity ? "INF" : profitFactor > 0 ? fmt2(profitFactor) : "—"}
+          </span>
+          {/* Gross profit/loss bar */}
+          {(grossProfit > 0 || grossLoss > 0) && (
+            <div className="flex h-1.5 rounded-full overflow-hidden mt-1 w-20">
+              <div
+                className="h-full rounded-l-full"
+                style={{
+                  width: `${(grossProfit / (grossProfit + grossLoss)) * 100}%`,
+                  backgroundColor: "#2ea043",
+                }}
+              />
+              <div
+                className="h-full rounded-r-full"
+                style={{
+                  width: `${(grossLoss / (grossProfit + grossLoss)) * 100}%`,
+                  backgroundColor: "#da3633",
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Total Trades */}
+        <div className="flex flex-col justify-center px-4 py-3">
+          <span className="text-[10px] text-muted uppercase tracking-widest font-mono">Total</span>
+          <span className="text-sm text-white font-mono font-semibold">{trades.length}</span>
+          <span className="text-[10px] text-muted font-mono">
+            {trades.length > 0 ? `${fmtSec(
+              completed.reduce((s, t) => s + (t.analytics?.actualHoldSec ?? 0), 0) / Math.max(1, completed.length)
+            )} avg hold` : "—"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ── Calendar Heatmap ──────────────────────────────────────────────────────
+// ── Calendar Heatmap (compact) ───────────────────────────────────────────
 
 function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   const now = new Date();
@@ -264,7 +393,6 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
     () => new Date(now.getFullYear(), now.getMonth(), 1)
   );
 
-  // Build day -> { pnl, count } from completed trades
   const dayMap = useMemo(() => {
     const map = new Map<string, { pnl: number; count: number }>();
     for (const t of trades) {
@@ -279,7 +407,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
   const monthLabel = monthDate.toLocaleString("en-US", {
-    month: "long",
+    month: "short",
     year: "numeric",
   });
   const firstDayOfWeek = new Date(year, month, 1).getDay();
@@ -295,7 +423,6 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   const nextMonth = () =>
     setMonthDate((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
 
-  // Build month summary
   const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`;
   const monthPnl = [...dayMap.entries()]
     .filter(([k]) => k.startsWith(monthPrefix))
@@ -304,7 +431,6 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
     .filter(([k]) => k.startsWith(monthPrefix))
     .reduce((s, [, v]) => s + v.count, 0);
 
-  // Build weeks: array of arrays of day-number | null
   const weeks: (number | null)[][] = [];
   let week: (number | null)[] = Array(firstDayOfWeek).fill(null);
   for (let day = 1; day <= daysInMonth; day++) {
@@ -331,7 +457,7 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   };
 
   const renderDay = (day: number | null, wi: number, di: number) => {
-    if (day == null) return <div key={`e-${wi}-${di}`} />;
+    if (day == null) return <div key={`e-${wi}-${di}`} className="aspect-square" />;
     const dateKey = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     const dayData = dayMap.get(dateKey);
     const isToday = dateKey === todayKey;
@@ -348,20 +474,21 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
     return (
       <div
         key={day}
-        className={`relative rounded p-1.5 border flex flex-col min-h-[56px] ${
-          isToday ? "border-accent" : "border-border"
+        className={`relative rounded p-1 border flex flex-col min-h-[44px] transition-all duration-150 hover:scale-105 hover:z-10 ${
+          isToday ? "border-accent ring-1 ring-accent/30" : "border-border"
         } ${!dayData ? "bg-surface" : ""}`}
         style={dayData ? bgStyle : undefined}
+        title={dayData ? `$${dayData.pnl >= 0 ? "+" : ""}${dayData.pnl.toFixed(2)} (${dayData.count} trade${dayData.count !== 1 ? "s" : ""})` : undefined}
       >
-        <span className={`text-[10px] font-mono ${isToday ? "text-accent font-bold" : "text-white/60"}`}>
+        <span className={`text-[9px] font-mono leading-none ${isToday ? "text-accent font-bold" : "text-white/50"}`}>
           {day}
         </span>
         {dayData && (
           <div className="mt-auto">
-            <div className="text-[11px] font-mono font-semibold text-white leading-none">
-              {dayData.pnl >= 0 ? "+" : ""}${dayData.pnl.toFixed(2)}
+            <div className="text-[10px] font-mono font-semibold text-white leading-none">
+              {dayData.pnl >= 0 ? "+" : ""}${dayData.pnl.toFixed(0)}
             </div>
-            <div className="text-[9px] text-white/70">{dayData.count} trade{dayData.count !== 1 ? "s" : ""}</div>
+            <div className="text-[8px] text-white/60 leading-none mt-px">{dayData.count}t</div>
           </div>
         )}
       </div>
@@ -369,80 +496,84 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
   };
 
   return (
-    <div className="bg-panel border border-border rounded p-3">
-      {/* Header: ‹ Month Year › + month summary */}
-      <div className="flex items-center gap-1.5 mb-2">
-        <button
-          onClick={prevMonth}
-          className="text-muted hover:text-white text-sm w-6 h-6 flex items-center justify-center rounded hover:bg-surface"
-        >
-          ‹
-        </button>
-        <span className="text-white text-xs font-semibold">{monthLabel}</span>
-        <button
-          onClick={nextMonth}
-          className="text-muted hover:text-white text-sm w-6 h-6 flex items-center justify-center rounded hover:bg-surface"
-        >
-          ›
-        </button>
+    <div className="bg-panel border border-border rounded-lg flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={prevMonth}
+            className="text-muted hover:text-white text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-surface transition-colors"
+          >
+            ‹
+          </button>
+          <span className="text-white text-xs font-semibold font-mono w-20 text-center">{monthLabel}</span>
+          <button
+            onClick={nextMonth}
+            className="text-muted hover:text-white text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-surface transition-colors"
+          >
+            ›
+          </button>
+        </div>
         {monthTrades > 0 && (
-          <span className={`text-xs font-mono font-semibold ml-1 ${monthPnl >= 0 ? "text-up" : "text-down"}`}>
+          <span className={`text-[11px] font-mono font-semibold ${monthPnl >= 0 ? "text-up" : "text-down"}`}>
             {monthPnl >= 0 ? "+" : ""}${monthPnl.toFixed(2)}
-            <span className="text-muted font-normal ml-1">({monthTrades}t)</span>
+            <span className="text-muted font-normal ml-1 text-[10px]">{monthTrades}t</span>
           </span>
         )}
       </div>
 
-      {/* Day-of-week headers + "Week" recap header */}
-      <div className="flex gap-1 mb-1">
-        <div className="grid grid-cols-7 gap-1 flex-1">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-            <div key={d} className="text-center text-[10px] text-muted py-0.5">{d}</div>
-          ))}
+      {/* Calendar grid */}
+      <div className="px-3 py-2 flex-1 flex flex-col min-h-0">
+        {/* Day-of-week headers */}
+        <div className="flex gap-1 mb-1">
+          <div className="grid grid-cols-7 gap-1 flex-1">
+            {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+              <div key={i} className="text-center text-[9px] text-muted font-mono py-0.5">{d}</div>
+            ))}
+          </div>
+          <div className="w-14 shrink-0 text-right text-[9px] text-muted font-mono py-0.5 pr-1">Wk</div>
         </div>
-        <div className="w-[76px] shrink-0 text-right text-[10px] text-muted py-0.5 pr-1">Week</div>
-      </div>
 
-      {/* Week rows with weekly recap */}
-      <div className="flex flex-col gap-1">
-        {weeks.map((wk, wi) => {
-          const { pnl, count } = weekSummary(wk);
-          return (
-            <div key={wi} className="flex gap-1 items-stretch">
-              <div className="grid grid-cols-7 gap-1 flex-1">
-                {wk.map((day, di) => renderDay(day, wi, di))}
+        {/* Week rows */}
+        <div className="flex flex-col gap-1 flex-1">
+          {weeks.map((wk, wi) => {
+            const { pnl, count } = weekSummary(wk);
+            return (
+              <div key={wi} className="flex gap-1 items-stretch">
+                <div className="grid grid-cols-7 gap-1 flex-1">
+                  {wk.map((day, di) => renderDay(day, wi, di))}
+                </div>
+                <div className="w-14 shrink-0 flex flex-col items-end justify-center bg-surface border border-border rounded px-1.5 py-0.5">
+                  {count > 0 ? (
+                    <>
+                      <span className={`text-[10px] font-mono font-semibold leading-none ${pnl >= 0 ? "text-up" : "text-down"}`}>
+                        {pnl >= 0 ? "+" : ""}${pnl.toFixed(0)}
+                      </span>
+                      <span className="text-[8px] text-muted mt-0.5">{count}t</span>
+                    </>
+                  ) : (
+                    <span className="text-[9px] text-muted">—</span>
+                  )}
+                </div>
               </div>
-              {/* Weekly recap cell */}
-              <div className="w-[76px] shrink-0 flex flex-col items-end justify-center bg-surface border border-border rounded px-2 py-1 min-h-[56px]">
-                {count > 0 ? (
-                  <>
-                    <span className={`text-[11px] font-mono font-semibold leading-none ${pnl >= 0 ? "text-up" : "text-down"}`}>
-                      {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
-                    </span>
-                    <span className="text-[9px] text-muted mt-0.5">{count} Trade{count !== 1 ? "s" : ""}</span>
-                  </>
-                ) : (
-                  <span className="text-[9px] text-muted">—</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-2 mt-2 justify-end">
-        <span className="text-[9px] text-muted">Loss</span>
-        <div className="flex gap-0.5">
-          {[0.85, 0.55, 0.3].map((o) => (
-            <div key={o} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(218,54,51,${o})` }} />
-          ))}
-          <div className="w-3 h-3 rounded-sm bg-surface border border-border" />
-          {[0.3, 0.55, 0.85].map((o) => (
-            <div key={o} className="w-3 h-3 rounded-sm" style={{ backgroundColor: `rgba(46,160,67,${o})` }} />
-          ))}
+            );
+          })}
         </div>
-        <span className="text-[9px] text-muted">Gain</span>
+
+        {/* Legend */}
+        <div className="flex items-center gap-1.5 mt-2 justify-center">
+          <span className="text-[8px] text-muted font-mono">LOSS</span>
+          <div className="flex gap-px">
+            {[0.85, 0.55, 0.3].map((o) => (
+              <div key={o} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `rgba(218,54,51,${o})` }} />
+            ))}
+            <div className="w-2.5 h-2.5 rounded-sm bg-surface border border-border" />
+            {[0.3, 0.55, 0.85].map((o) => (
+              <div key={o} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: `rgba(46,160,67,${o})` }} />
+            ))}
+          </div>
+          <span className="text-[8px] text-muted font-mono">GAIN</span>
+        </div>
       </div>
     </div>
   );
@@ -451,6 +582,9 @@ function CalendarHeatmap({ trades }: { trades: JournalTrade[] }) {
 // ── P&L Equity Curve ─────────────────────────────────────────────────────
 
 function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?: boolean }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
+
   const completed = useMemo(
     () =>
       trades
@@ -479,9 +613,8 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
 
   if (points.length === 0) return null;
 
-  // SVG coordinate system
-  const W = 800, H = 160;
-  const PL = 52, PR = 10, PT = 14, PB = 24;
+  const W = 800, H = 200;
+  const PL = 52, PR = 16, PT = 20, PB = 28;
   const chartW = W - PL - PR;
   const chartH = H - PT - PB;
 
@@ -497,18 +630,20 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   const finalPnl = points[points.length - 1].cumPnl;
   const isPositive = finalPnl >= 0;
   const lineColor = isPositive ? "rgb(46,160,67)" : "rgb(218,54,51)";
-  const fillColor = isPositive ? "rgba(46,160,67,0.12)" : "rgba(218,54,51,0.12)";
+  const fillColor = isPositive ? "rgba(46,160,67,0.08)" : "rgba(218,54,51,0.08)";
+  const glowColor = isPositive ? "rgba(46,160,67,0.4)" : "rgba(218,54,51,0.4)";
 
   const linePath = points
     .map((p, i) => `${i === 0 ? "M" : "L"}${toX(i).toFixed(1)},${toY(p.cumPnl).toFixed(1)}`)
     .join(" ");
   const areaPath = `${linePath} L${toX(points.length - 1).toFixed(1)},${zeroY.toFixed(1)} L${toX(0).toFixed(1)},${zeroY.toFixed(1)} Z`;
 
-  const yLabels = [
-    { v: maxY, y: toY(maxY) },
-    { v: 0, y: zeroY },
-    ...(minY < 0 ? [{ v: minY, y: toY(minY) }] : []),
-  ];
+  // Grid lines
+  const gridCount = 4;
+  const gridLines = Array.from({ length: gridCount + 1 }, (_, i) => {
+    const v = minY + (rangeY / gridCount) * i;
+    return { v, y: toY(v) };
+  });
 
   const xCount = Math.min(7, points.length);
   const xIndices =
@@ -524,63 +659,124 @@ function PnlChart({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   const fmtY = (v: number) =>
     v === 0 ? "0" : `${v > 0 ? "+" : ""}${Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`;
 
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const mouseX = ((e.clientX - rect.left) / rect.width) * W;
+    let closest = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const dist = Math.abs(toX(i) - mouseX);
+      if (dist < minDist) { minDist = dist; closest = i; }
+    }
+    setHover({ i: closest, x: toX(closest), y: toY(points[closest].cumPnl) });
+  };
+
   return (
-    <div className="bg-panel border border-border rounded p-3">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-white text-xs font-semibold">Cumulative P&amp;L</span>
+    <div className="bg-panel border border-border rounded-lg flex flex-col h-full">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
+        <span className="text-white text-xs font-semibold">Equity Curve</span>
         <div className="flex items-center gap-2">
           {isDummy && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 rounded">
-              DEMO DATA
+            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-warn/10 text-warn border border-warn/30 rounded font-mono">
+              DEMO
             </span>
           )}
           <span className={`text-xs font-mono font-semibold ${isPositive ? "text-up" : "text-down"}`}>
             {isPositive ? "+" : ""}${finalPnl.toFixed(2)}
           </span>
-          <span className="text-[10px] text-muted">{points.length} trades</span>
+          <span className="text-[10px] text-muted font-mono">{points.length}t</span>
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="overflow-visible">
-        {/* Zero line */}
-        <line x1={PL} y1={zeroY} x2={W - PR} y2={zeroY} stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="4,3" />
+      <div className="flex-1 px-2 py-1 min-h-0">
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${W} ${H}`}
+          width="100%"
+          height="100%"
+          preserveAspectRatio="xMidYMid meet"
+          className="overflow-visible"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHover(null)}
+        >
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={lineColor} stopOpacity="0.15" />
+              <stop offset="100%" stopColor={lineColor} stopOpacity="0" />
+            </linearGradient>
+          </defs>
 
-        {/* Area fill */}
-        <path d={areaPath} fill={fillColor} />
+          {/* Horizontal grid */}
+          {gridLines.map(({ v, y }) => (
+            <g key={v}>
+              <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+              <text x={PL - 4} y={y} textAnchor="end" dominantBaseline="middle" fill="rgba(255,255,255,0.25)" fontSize="8" fontFamily="JetBrains Mono, monospace">
+                {fmtY(v)}
+              </text>
+            </g>
+          ))}
 
-        {/* Line */}
-        <path d={linePath} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" />
+          {/* Zero line */}
+          <line x1={PL} y1={zeroY} x2={W - PR} y2={zeroY} stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="3,4" />
 
-        {/* Peak annotation */}
-        <circle cx={toX(peakIdx)} cy={toY(points[peakIdx].cumPnl)} r="3" fill="rgb(46,160,67)" />
-        <text x={toX(peakIdx)} y={toY(points[peakIdx].cumPnl) - 6} textAnchor="middle" fill="rgba(46,160,67,0.8)" fontSize="8" fontFamily="monospace">
-          +${points[peakIdx].cumPnl.toFixed(0)}
-        </text>
+          {/* Area fill */}
+          <path d={areaPath} fill="url(#areaGrad)" />
 
-        {/* Trough annotation (only if negative) */}
-        {points[troughIdx].cumPnl < 0 && (
-          <>
-            <circle cx={toX(troughIdx)} cy={toY(points[troughIdx].cumPnl)} r="3" fill="rgb(218,54,51)" />
-            <text x={toX(troughIdx)} y={toY(points[troughIdx].cumPnl) + 12} textAnchor="middle" fill="rgba(218,54,51,0.8)" fontSize="8" fontFamily="monospace">
-              ${points[troughIdx].cumPnl.toFixed(0)}
+          {/* Main line with glow */}
+          <path d={linePath} fill="none" stroke={glowColor} strokeWidth="4" strokeLinejoin="round" opacity="0.3" />
+          <path d={linePath} fill="none" stroke={lineColor} strokeWidth="1.5" strokeLinejoin="round" />
+
+          {/* Peak annotation */}
+          <circle cx={toX(peakIdx)} cy={toY(points[peakIdx].cumPnl)} r="3" fill="rgb(46,160,67)" filter="url(#glow)" />
+          <text x={toX(peakIdx)} y={toY(points[peakIdx].cumPnl) - 8} textAnchor="middle" fill="rgba(46,160,67,0.9)" fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="600">
+            +${points[peakIdx].cumPnl.toFixed(0)}
+          </text>
+
+          {/* Trough annotation */}
+          {points[troughIdx].cumPnl < 0 && (
+            <>
+              <circle cx={toX(troughIdx)} cy={toY(points[troughIdx].cumPnl)} r="3" fill="rgb(218,54,51)" filter="url(#glow)" />
+              <text x={toX(troughIdx)} y={toY(points[troughIdx].cumPnl) + 14} textAnchor="middle" fill="rgba(218,54,51,0.9)" fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="600">
+                ${points[troughIdx].cumPnl.toFixed(0)}
+              </text>
+            </>
+          )}
+
+          {/* Hover crosshair */}
+          {hover && (
+            <>
+              <line x1={hover.x} y1={PT} x2={hover.x} y2={H - PB} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="2,2" />
+              <circle cx={hover.x} cy={hover.y} r="4" fill={lineColor} stroke="white" strokeWidth="1.5" />
+              <rect
+                x={hover.x - 36} y={hover.y - 22} width="72" height="16" rx="3"
+                fill="#151b23" stroke="#252d3a" strokeWidth="1"
+              />
+              <text
+                x={hover.x} y={hover.y - 12}
+                textAnchor="middle" dominantBaseline="middle"
+                fill="white" fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="600"
+              >
+                {points[hover.i].cumPnl >= 0 ? "+" : ""}${points[hover.i].cumPnl.toFixed(2)}
+              </text>
+            </>
+          )}
+
+          {/* X-axis labels */}
+          {xIndices.map((idx) => (
+            <text key={idx} x={toX(idx)} y={H - 6} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize="8" fontFamily="JetBrains Mono, monospace">
+              {points[idx].label}
             </text>
-          </>
-        )}
-
-        {/* Y-axis labels */}
-        {yLabels.map(({ v, y }) => (
-          <text key={v} x={PL - 4} y={y} textAnchor="end" dominantBaseline="middle" fill="rgba(255,255,255,0.35)" fontSize="9" fontFamily="monospace">
-            {fmtY(v)}
-          </text>
-        ))}
-
-        {/* X-axis labels */}
-        {xIndices.map((idx) => (
-          <text key={idx} x={toX(idx)} y={H - 4} textAnchor="middle" fill="rgba(255,255,255,0.3)" fontSize="8" fontFamily="monospace">
-            {points[idx].label}
-          </text>
-        ))}
-      </svg>
+          ))}
+        </svg>
+      </div>
     </div>
   );
 }
@@ -600,14 +796,14 @@ type FilterMode = "all" | "wins" | "losses" | "open";
 
 function statusBadge(t: JournalTrade) {
   if (t.buyStatus === "error")
-    return <span className="text-[10px] text-down">BUY ERR</span>;
+    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-down/10 text-down">ERR</span>;
   if (t.buyStatus === "pending")
-    return <span className="text-[10px] text-yellow-400">BUYING</span>;
+    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-warn/10 text-warn">BUY</span>;
   if (t.sellStatus === "awaiting" || t.sellStatus === "pending")
-    return <span className="text-[10px] text-blue-400">HOLDING</span>;
+    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent/10 text-accent">HOLD</span>;
   if (t.sellStatus === "error")
-    return <span className="text-[10px] text-down">SELL ERR</span>;
-  return <span className="text-[10px] text-muted">CLOSED</span>;
+    return <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-down/10 text-down">ERR</span>;
+  return <span className="text-[10px] font-mono text-muted">DONE</span>;
 }
 
 function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?: boolean }) {
@@ -616,6 +812,11 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
   const [filter, setFilter] = useState<FilterMode>("all");
   const [token] = [useAuthStore((s) => s.token)];
   const [exporting, setExporting] = useState(false);
+
+  const maxAbsPnl = useMemo(() => {
+    const pnls = trades.filter(t => t.pnl != null).map(t => Math.abs(t.pnl!));
+    return Math.max(1, ...pnls);
+  }, [trades]);
 
   const filtered = useMemo(() => {
     switch (filter) {
@@ -651,11 +852,11 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
     });
   }, [filtered, sortBy, asc]);
 
-  function col(key: SortKey, label: string, extraClass = "") {
+  function col(key: SortKey, label: string, align: "left" | "right" = "left") {
     const active = sortBy === key;
     return (
       <th
-        className={`text-left text-[10px] text-muted uppercase tracking-wide pb-1.5 pt-1 px-2 cursor-pointer select-none whitespace-nowrap ${extraClass}`}
+        className={`text-${align} text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 cursor-pointer select-none whitespace-nowrap font-mono font-normal hover:text-white transition-colors`}
         onClick={() => {
           if (sortBy === key) setAsc((v) => !v);
           else {
@@ -665,7 +866,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
         }}
       >
         {label}
-        {active && <span className="ml-0.5 text-accent">{asc ? "↑" : "↓"}</span>}
+        {active && <span className="ml-0.5 text-accent">{asc ? "▲" : "▼"}</span>}
       </th>
     );
   }
@@ -692,41 +893,47 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
     }
   };
 
-  const filterBtn = (mode: FilterMode, label: string) => (
+  const filterBtn = (mode: FilterMode, label: string, count: number) => (
     <button
       key={mode}
       onClick={() => setFilter(mode)}
-      className={`text-[11px] px-2 py-0.5 rounded transition-colors ${
-        filter === mode ? "bg-accent text-white" : "text-muted hover:text-white"
+      className={`text-[10px] font-mono px-2.5 py-1 rounded transition-all duration-150 ${
+        filter === mode
+          ? "bg-accent/15 text-accent border border-accent/30"
+          : "text-muted hover:text-white border border-transparent"
       }`}
     >
-      {label}
+      {label} <span className="opacity-60">{count}</span>
     </button>
   );
 
+  const winCount = trades.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) > 0).length;
+  const lossCount = trades.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) <= 0).length;
+  const openCount = trades.filter((t) => t.buyStatus === "filled" && (t.sellStatus === "awaiting" || t.sellStatus === "pending")).length;
+
   return (
-    <div className="bg-panel border border-border rounded flex flex-col overflow-hidden">
+    <div className="bg-panel border border-border rounded-lg flex flex-col overflow-hidden">
       {/* Table header bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
         <div className="flex items-center gap-1">
-          {filterBtn("all", `All (${trades.length})`)}
-          {filterBtn("wins", `Wins (${trades.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) > 0).length})`)}
-          {filterBtn("losses", `Losses (${trades.filter((t) => t.sellStatus === "filled" && (t.pnl ?? 0) <= 0).length})`)}
-          {filterBtn("open", `Open (${trades.filter((t) => t.buyStatus === "filled" && (t.sellStatus === "awaiting" || t.sellStatus === "pending")).length})`)}
+          {filterBtn("all", "All", trades.length)}
+          {filterBtn("wins", "Wins", winCount)}
+          {filterBtn("losses", "Losses", lossCount)}
+          {filterBtn("open", "Open", openCount)}
         </div>
         <div className="flex items-center gap-2">
           {isDemoMode && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-yellow-400/10 text-yellow-400 border border-yellow-400/30 rounded">
+            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-warn/10 text-warn border border-warn/30 rounded font-mono">
               DEMO
             </span>
           )}
           <button
             onClick={exportCsv}
             disabled={exporting || !!isDemoMode}
-            className="text-[11px] px-2 py-0.5 rounded border border-border text-muted hover:text-white hover:border-accent transition-colors disabled:opacity-40"
+            className="text-[10px] font-mono px-2 py-1 rounded border border-border text-muted hover:text-white hover:border-accent/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             title={isDemoMode ? "Export disabled in demo mode" : undefined}
           >
-            {exporting ? "…" : "↓ CSV"}
+            {exporting ? "..." : "EXPORT CSV"}
           </button>
         </div>
       </div>
@@ -736,20 +943,20 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
         <table className="w-full text-[11px] font-mono border-collapse">
           <thead className="sticky top-0 bg-panel z-10 border-b border-border">
             <tr>
-              {col("createdAt", "Date / Time")}
+              {col("createdAt", "Date")}
               {col("ticker", "Ticker")}
-              <th className="text-left text-[10px] text-muted uppercase tracking-wide pb-1.5 pt-1 px-2 whitespace-nowrap">
-                Category
+              <th className="text-left text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+                Catalyst
               </th>
-              {col("entryPrice", "Entry $", "text-right")}
-              <th className="text-right text-[10px] text-muted uppercase tracking-wide pb-1.5 pt-1 px-2 whitespace-nowrap">
-                Exit $
+              {col("entryPrice", "Entry", "right")}
+              <th className="text-right text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 whitespace-nowrap font-mono font-normal">
+                Exit
               </th>
-              {col("pnl", "P&L $", "text-right")}
-              {col("returnPct", "Return %", "text-right")}
-              {col("actualHoldSec", "Hold", "text-right")}
-              {col("relativeVolume", "RVOL", "text-right")}
-              <th className="text-left text-[10px] text-muted uppercase tracking-wide pb-1.5 pt-1 px-2">
+              {col("pnl", "P&L", "right")}
+              {col("returnPct", "Ret%", "right")}
+              {col("actualHoldSec", "Hold", "right")}
+              {col("relativeVolume", "RVOL", "right")}
+              <th className="text-center text-[9px] text-muted uppercase tracking-wider pb-2 pt-1.5 px-2.5 font-mono font-normal">
                 Status
               </th>
             </tr>
@@ -757,109 +964,140 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center text-muted py-8">
+                <td colSpan={10} className="text-center text-muted py-12 text-xs">
                   No trades match this filter
                 </td>
               </tr>
             ) : (
               sorted.map((t) => {
                 const isComplete = t.sellStatus === "filled";
-                const pnlPos = (t.pnl ?? 0) > 0;
+                const pnlVal = t.pnl ?? 0;
+                const pnlPos = pnlVal > 0;
                 const retPos = (t.analytics?.returnPct ?? 0) > 0;
                 const entryPrice = t.analytics?.entryPrice ?? t.buyPrice;
                 const exitPrice = t.analytics?.exitPrice ?? t.sellPrice;
+                const pnlBarWidth = isComplete ? Math.min(100, (Math.abs(pnlVal) / maxAbsPnl) * 100) : 0;
 
                 return (
                   <tr
                     key={t.id}
-                    className="border-t border-border hover:bg-surface transition-colors"
+                    className="border-t border-border/50 hover:bg-surface/80 transition-colors group"
                   >
                     {/* Date/Time */}
-                    <td className="px-2 py-1.5 whitespace-nowrap">
-                      <div className="text-white">
-                        {new Date(t.createdAt).toLocaleDateString("en-US", {
-                          month: "2-digit",
-                          day: "2-digit",
-                          year: "2-digit",
-                        })}
-                      </div>
-                      <div className="text-[10px] text-muted">
-                        {new Date(t.createdAt).toLocaleTimeString("en-US", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          timeZone: "America/New_York",
-                        })}{" "}
-                        ET
-                        {t.analytics?.isPreMarket && (
-                          <span className="ml-1 text-yellow-400/80">PM</span>
-                        )}
+                    <td className="px-2.5 py-2 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        {/* Edge accent bar */}
+                        <div
+                          className="w-0.5 h-6 rounded-full shrink-0"
+                          style={{
+                            backgroundColor: !isComplete ? "#4c8dca" : pnlPos ? "#2ea043" : "#da3633",
+                            opacity: isComplete ? Math.max(0.3, Math.abs(pnlVal) / maxAbsPnl) : 0.5,
+                          }}
+                        />
+                        <div>
+                          <div className="text-white text-[11px]">
+                            {new Date(t.createdAt).toLocaleDateString("en-US", {
+                              month: "2-digit",
+                              day: "2-digit",
+                            })}
+                          </div>
+                          <div className="text-[9px] text-muted">
+                            {new Date(t.createdAt).toLocaleTimeString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              timeZone: "America/New_York",
+                            })}
+                            {t.analytics?.isPreMarket && (
+                              <span className="ml-0.5 text-warn/80">PM</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </td>
 
                     {/* Ticker */}
-                    <td className="px-2 py-1.5">
-                      <span className="text-white font-semibold">{t.ticker}</span>
+                    <td className="px-2.5 py-2">
+                      <span className="text-white font-semibold text-xs">{t.ticker}</span>
                       {t.scannerId && (
-                        <span className="ml-1 text-[9px] text-muted">{t.scannerId}</span>
+                        <span className="ml-1 text-[8px] text-muted/60 uppercase">{t.scannerId}</span>
                       )}
                     </td>
 
                     {/* Category */}
-                    <td className="px-2 py-1.5 max-w-[160px]">
+                    <td className="px-2.5 py-2 max-w-[140px]">
                       {t.analytics ? (
                         <span
-                          className="text-white truncate block"
+                          className="text-white/80 truncate block text-[10px]"
                           title={t.catalyst}
                         >
                           {categoryLabel(t.analytics.catalystCategory)}
                         </span>
                       ) : (
-                        <span className="text-muted truncate block" title={t.catalyst}>
+                        <span className="text-muted truncate block text-[10px]" title={t.catalyst}>
                           {t.catalystType}
                         </span>
                       )}
                     </td>
 
                     {/* Entry $ */}
-                    <td className="px-2 py-1.5 text-right text-white">
+                    <td className="px-2.5 py-2 text-right text-white/80">
                       {entryPrice != null ? `$${entryPrice.toFixed(2)}` : "—"}
                     </td>
 
                     {/* Exit $ */}
-                    <td className="px-2 py-1.5 text-right text-white">
+                    <td className="px-2.5 py-2 text-right text-white/80">
                       {isComplete && exitPrice != null ? `$${exitPrice.toFixed(2)}` : "—"}
                     </td>
 
-                    {/* P&L $ */}
-                    <td className={`px-2 py-1.5 text-right font-semibold ${isComplete ? (pnlPos ? "text-up" : "text-down") : "text-muted"}`}>
-                      {isComplete && t.pnl != null
-                        ? `${pnlPos ? "+" : ""}$${fmt2(t.pnl)}`
-                        : "—"}
+                    {/* P&L $ with magnitude bar */}
+                    <td className="px-2.5 py-2 text-right">
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className={`font-semibold ${isComplete ? (pnlPos ? "text-up" : "text-down") : "text-muted"}`}>
+                          {isComplete && t.pnl != null
+                            ? `${pnlPos ? "+" : ""}$${fmt2(t.pnl)}`
+                            : "—"}
+                        </span>
+                        {isComplete && t.pnl != null && (
+                          <div className="w-full h-px rounded-full overflow-hidden bg-border">
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{
+                                width: `${pnlBarWidth}%`,
+                                backgroundColor: pnlPos ? "#2ea043" : "#da3633",
+                                marginLeft: pnlPos ? "auto" : undefined,
+                                float: pnlPos ? "right" : "left",
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </td>
 
                     {/* Return % */}
-                    <td className={`px-2 py-1.5 text-right font-semibold ${t.analytics?.returnPct != null ? (retPos ? "text-up" : "text-down") : "text-muted"}`}>
+                    <td className={`px-2.5 py-2 text-right font-semibold ${t.analytics?.returnPct != null ? (retPos ? "text-up" : "text-down") : "text-muted"}`}>
                       {t.analytics?.returnPct != null
                         ? `${retPos ? "+" : ""}${t.analytics.returnPct.toFixed(2)}%`
                         : "—"}
                     </td>
 
                     {/* Hold */}
-                    <td className="px-2 py-1.5 text-right text-muted">
+                    <td className="px-2.5 py-2 text-right text-muted">
                       {t.analytics?.actualHoldSec != null
                         ? fmtSec(t.analytics.actualHoldSec)
                         : "—"}
                     </td>
 
                     {/* RVOL */}
-                    <td className="px-2 py-1.5 text-right text-muted">
-                      {t.analytics?.relativeVolume != null
-                        ? `${t.analytics.relativeVolume.toFixed(1)}x`
-                        : "—"}
+                    <td className="px-2.5 py-2 text-right">
+                      {t.analytics?.relativeVolume != null ? (
+                        <span className={t.analytics.relativeVolume >= 5 ? "text-accent" : "text-muted"}>
+                          {t.analytics.relativeVolume.toFixed(1)}x
+                        </span>
+                      ) : "—"}
                     </td>
 
                     {/* Status */}
-                    <td className="px-2 py-1.5">{statusBadge(t)}</td>
+                    <td className="px-2.5 py-2 text-center">{statusBadge(t)}</td>
                   </tr>
                 );
               })
@@ -906,31 +1144,37 @@ export function TradesPage() {
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
-          <span className="text-muted text-sm">Loading trades…</span>
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+            <span className="text-muted text-xs font-mono">Loading trades...</span>
+          </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-auto">
-          {/* Stats row */}
-          <StatsRow trades={displayTrades} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Hero stat strip */}
+          <HeroStats trades={displayTrades} isDemoMode={isDemoMode} />
 
-          {/* Demo data banner */}
+          {/* Demo banner */}
           {isDemoMode && (
-            <div className="px-4 py-1.5 bg-yellow-400/8 border-b border-yellow-400/20 shrink-0">
-              <span className="text-yellow-400/90 text-[11px]">
-                ⚠ Demo data — no real trades recorded yet. All figures below are simulated.
+            <div className="px-4 py-1.5 bg-warn/5 border-b border-warn/20 shrink-0">
+              <span className="text-warn/80 text-[10px] font-mono">
+                DEMO DATA — no real trades recorded yet. All figures are simulated.
               </span>
             </div>
           )}
 
-          {/* Chart + calendar + log */}
-          <div className="p-3 flex flex-col gap-3">
-            {/* Equity curve */}
-            <PnlChart trades={displayTrades} isDemoMode={isDemoMode} />
+          {/* Split panel: Chart + Calendar */}
+          <div className="flex gap-3 p-3 shrink-0" style={{ height: "320px" }}>
+            <div className="flex-[3] min-w-0">
+              <PnlChart trades={displayTrades} isDemoMode={isDemoMode} />
+            </div>
+            <div className="flex-[2] min-w-0">
+              <CalendarHeatmap trades={displayTrades} />
+            </div>
+          </div>
 
-            {/* Calendar heatmap */}
-            <CalendarHeatmap trades={displayTrades} />
-
-            {/* Trade log */}
+          {/* Trade log — fills remaining space */}
+          <div className="flex-1 px-3 pb-3 min-h-0">
             <TradeLog trades={displayTrades} isDemoMode={isDemoMode} />
           </div>
         </div>

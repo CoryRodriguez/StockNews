@@ -18,10 +18,13 @@ export type CatalystCategory =
   | "REVENUE_RECORD"
   | "GUIDANCE_RAISE"
   | "GOVERNMENT_CONTRACT"
+  | "INFRASTRUCTURE_CONTRACT"
   | "CONTRACT_AWARD"
   | "ANALYST_UPGRADE"
   | "PARTNERSHIP"
   | "PRODUCT_LAUNCH"
+  | "PRODUCT_MILESTONE"
+  | "CORPORATE_ACTION"
   | "STOCK_BUYBACK"
   | "OTHER";
 
@@ -117,6 +120,12 @@ const RULES: CategoryRule[] = [
       ["record", "quarter"],
       ["record", "revenue"],
       ["revenue", "exceeds"],
+      ["revenue", "surged"],
+      ["revenue", "doubled"],
+      ["revenue", "tripled"],
+      ["ebitda", "doubled"],
+      ["ebitda", "tripled"],
+      ["ebitda", "record"],
     ],
   },
   {
@@ -128,6 +137,9 @@ const RULES: CategoryRule[] = [
       ["eps", "beat"],
       ["beats", "guidance raised"],
       ["beat", "guidance raised"],
+      ["adjusted ebitda", "up"],
+      ["revenue up", "report"],
+      ["financial results", "revenue"],
     ],
   },
 
@@ -140,6 +152,31 @@ const RULES: CategoryRule[] = [
       ["contract", "defense"],
       ["contract", "department of defense"],
       "government contract",
+      ["contract", "department of transportation"],
+      ["order", "caltrans"],
+      ["order", "department of"],
+      ["contract", "federal"],
+      ["contract", "army"],
+      ["contract", "navy"],
+      ["contract", "air force"],
+      ["contract", "nasa"],
+    ],
+  },
+  {
+    category: "INFRASTRUCTURE_CONTRACT",
+    tier: 4,
+    patterns: [
+      ["notice to proceed", "billion"],
+      ["notice to proceed", "million"],
+      "notice to proceed",
+      ["design-build", "billion"],
+      ["design-build", "million"],
+      ["highway", "modernization"],
+      ["data center", "power", "billion"],
+      ["data center", "power", "million"],
+      ["gigawatt", "power"],
+      ["ai factory", "power"],
+      ["power generation", "data center"],
     ],
   },
   {
@@ -149,6 +186,12 @@ const RULES: CategoryRule[] = [
       ["awarded", "million"],
       ["awarded", "billion"],
       ["contract", "award"],
+      ["wins order", "million"],
+      ["wins order", "billion"],
+      ["won order"],
+      ["secured order"],
+      ["received order", "million"],
+      ["received order", "billion"],
     ],
   },
 
@@ -182,6 +225,36 @@ const RULES: CategoryRule[] = [
       ["launch", "platform"],
       ["introduces", "new"],
       ["unveils", "new"],
+    ],
+  },
+  {
+    category: "PRODUCT_MILESTONE",
+    tier: 4,
+    patterns: [
+      ["first delivery", "system"],
+      ["first shipment"],
+      ["delivers first"],
+      ["first commercial"],
+      ["milestone", "delivery"],
+      ["milestone", "shipment"],
+      ["panel-level packaging"],
+      ["semiconductor", "packaging"],
+      ["ai chip", "deliver"],
+    ],
+  },
+  {
+    category: "CORPORATE_ACTION",
+    tier: 4,
+    patterns: [
+      "share consolidation",
+      "reverse stock split",
+      "reverse split",
+      ["dual-class", "share"],
+      ["dual class", "share"],
+      ["redesignation", "share"],
+      ["share", "restructur"],
+      ["stock", "restructur"],
+      ["memorandum", "articles of association"],
     ],
   },
   {

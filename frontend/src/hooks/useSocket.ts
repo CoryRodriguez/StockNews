@@ -7,6 +7,7 @@ import { useTradesStore } from "../store/tradesStore";
 import { useBotStore } from "../store/botStore";
 import { useRecapStore } from "../store/recapStore";
 import { useScreenerStore } from "../store/screenerStore";
+import { useCatalystStore, type KeywordHit, type UserArticle } from "../store/catalystStore";
 import { WsMessage, ScannerAlert } from "../types";
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`;
@@ -55,6 +56,7 @@ export function useSocket() {
         "bot",
         "screener",
         "scanner_control",
+        "catalyst",
         "scanner:news_flow",
         ...Array.from(activeScanners).map((id) => `scanner:${id}`),
       ];
@@ -101,6 +103,22 @@ export function useSocket() {
           useNewsStore.getState().updateArticleAi(
             msg.receivedAt, msg.ticker, msg.aiStars, msg.aiAnalysis, msg.aiConfidence
           );
+        } else if (msg.type === "catalyst_keyword_hit") {
+          useCatalystStore.getState().prependHit(msg.hit as unknown as KeywordHit);
+        } else if (msg.type === "catalyst_user_article") {
+          useCatalystStore.getState().updateUserArticle(msg.article as unknown as UserArticle);
+        } else if (msg.type === "catalyst_mover_analysis") {
+          const store = useCatalystStore.getState();
+          if (store.moverSelectedDate === msg.date) {
+            store.setMoverAnalysis({
+              id: "",
+              date: msg.date,
+              moversJson: msg.moversJson as never[],
+              trendingKeywords: msg.trendingKeywords as never[],
+              aiSummary: msg.aiSummary,
+              computedAt: new Date().toISOString(),
+            });
+          }
         }
       } catch {
         // ignore

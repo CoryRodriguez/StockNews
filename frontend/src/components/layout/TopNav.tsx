@@ -32,6 +32,7 @@ export function TopNav() {
         {navBtn("bot", "Bot")}
         {navBtn("recap", "Recap")}
         {navBtn("history", "History")}
+        {navBtn("catalyst", "Catalyst")}
       </div>
 
       <div className="ml-auto flex items-center gap-3">

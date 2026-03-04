@@ -145,4 +145,7 @@ export type WsMessage =
   | { type: "bot_signal_evaluated"; channel: string; signal: { id: string; symbol: string; catalystCategory: string | null; catalystTier: number | null; rejectReason: string | null; evaluatedAt: string } }
   | { type: "recap_ready"; channel: string; date: string }
   | { type: "screener_update"; channel: string; rows: ScreenerRow[] }
-  | { type: "news_article_ai_update"; channel: string; receivedAt: string; ticker: string; aiStars: number; aiAnalysis: string; aiConfidence: string };
+  | { type: "news_article_ai_update"; channel: string; receivedAt: string; ticker: string; aiStars: number; aiAnalysis: string; aiConfidence: string }
+  | { type: "catalyst_keyword_hit"; channel: string; hit: Record<string, unknown> }
+  | { type: "catalyst_user_article"; channel: string; article: Record<string, unknown> }
+  | { type: "catalyst_mover_analysis"; channel: string; date: string; moversJson: unknown[]; trendingKeywords: unknown[]; aiSummary: string };

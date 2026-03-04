@@ -11,6 +11,7 @@ import { broadcast } from "../ws/clientHub";
 import { recentArticles, type RtprArticle } from "./rtpr";
 import prisma from "../db/client";
 import { classifyCatalystGranular } from "./catalystClassifier";
+import { logKeywordHit } from "./keywordTracker";
 
 // ── OpenAI client (lazy init) ─────────────────────────────────────────────
 
@@ -119,8 +120,98 @@ Return JSON: {"stars": <1-5>, "analysis": "<2-3 sentence explanation>", "confide
       aiConfidence: confidence,
     });
 
+    // Fire-and-forget: log keyword hit for Catalyst Tracker
+    const matchedKw = keywords.find((k) =>
+      `${article.title} ${article.body}`.toLowerCase().includes(k.toLowerCase())
+    ) ?? null;
+    logKeywordHit({
+      articleId: articleDbId,
+      ticker: article.ticker,
+      headline: article.title,
+      source: article.source ?? "rtpr",
+      matchedKeyword: matchedKw,
+      catalystCategory: catalyst?.category ?? null,
+      catalystTier: catalyst?.tier ?? null,
+      aiStars: stars,
+      aiAnalysis: analysis,
+      aiConfidence: confidence,
+    }).catch(() => {}); // fire-and-forget
+
     console.log(`[AiRater] ${article.ticker}: ${stars}★ (${confidence}) — ${analysis.slice(0, 60)}…`);
   } catch (err) {
     console.error("[AiRater] OpenAI error:", err instanceof Error ? err.message : err);
+  }
+}
+
+// ── User article evaluation ──────────────────────────────────────────────
+
+export async function evaluateUserArticle(
+  userArticleId: string,
+  ticker: string,
+  title: string,
+  body: string
+): Promise<{ stars: number; analysis: string; confidence: string } | null> {
+  const client = getOpenAIClient();
+  if (!client) return null;
+
+  try {
+    const response = await client.chat.completions.create({
+      model: config.openaiSignalModel,
+      temperature: 0.3,
+      max_tokens: 300,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `You are a stock news analyst. Rate the significance of a news article as a potential stock price catalyst on a 1-5 scale.
+
+5 = Major M&A, acquisition, merger, buyout, take-private
+4 = FDA approval/clinical results, breakthrough therapy, major regulatory
+3 = Earnings beat, raised guidance, record revenue, strong quarterly results
+2 = Contract win, analyst upgrade, partnership, new product launch
+1 = Minor/routine news, press release, conference attendance
+
+Return JSON: {"stars": <1-5>, "analysis": "<2-3 sentence explanation>", "confidence": "<high|medium|low>"}`,
+        },
+        {
+          role: "user",
+          content: `Ticker: ${ticker}\nTitle: ${title}\nBody: ${body.slice(0, 1000)}`,
+        },
+      ],
+    });
+
+    const text = response.choices[0]?.message?.content;
+    if (!text) return null;
+
+    const result = JSON.parse(text) as { stars: number; analysis: string; confidence: string };
+    const stars = Math.max(1, Math.min(5, Math.round(result.stars)));
+    const analysis = String(result.analysis || "").slice(0, 2000);
+    const confidence = ["high", "medium", "low"].includes(result.confidence) ? result.confidence : "medium";
+
+    // Update UserArticle row
+    await prisma.userArticle.update({
+      where: { id: userArticleId },
+      data: { aiStars: stars, aiAnalysis: analysis, aiConfidence: confidence },
+    });
+
+    // Also log a keyword hit with source "user"
+    const catalyst = classifyCatalystGranular(title, body);
+    logKeywordHit({
+      articleId: 0, // no real article ID for user submissions
+      ticker,
+      headline: title,
+      source: "user",
+      matchedKeyword: null,
+      catalystCategory: catalyst?.category ?? null,
+      catalystTier: catalyst?.tier ?? null,
+      aiStars: stars,
+      aiAnalysis: analysis,
+      aiConfidence: confidence,
+    }).catch(() => {});
+
+    return { stars, analysis, confidence };
+  } catch (err) {
+    console.error("[AiRater] User article evaluation error:", err instanceof Error ? err.message : err);
+    return null;
   }
 }

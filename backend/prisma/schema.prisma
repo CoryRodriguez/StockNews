@@ -287,6 +287,66 @@ model HeadlineLabel {
   @@index([signalId])
 }
 
+// ── Catalyst Tracker tables ─────────────────────────────────────────────
+
+// KeywordHit — logs every AI-analyzed article with keyword/category and price performance
+model KeywordHit {
+  id               String   @id @default(cuid())
+  articleId        Int
+  ticker           String
+  headline         String   @db.Text
+  source           String   // "rtpr" | "benzinga" | "user"
+
+  matchedKeyword   String?  // specific keyword from aiKeywords config
+  catalystCategory String?  // e.g. "FDA_APPROVAL"
+  catalystTier     Int?     // 1-4
+
+  aiStars          Int
+  aiAnalysis       String   @db.Text
+  aiConfidence     String
+
+  priceAtNews      Float?
+  price1h          Float?
+  price4h          Float?
+  priceEod         Float?
+  return1hPct      Float?
+  return4hPct      Float?
+  returnEodPct     Float?
+
+  createdAt        DateTime @default(now())
+
+  @@index([ticker])
+  @@index([catalystCategory])
+  @@index([createdAt])
+}
+
+// UserArticle — user-submitted articles with AI analysis
+model UserArticle {
+  id           String   @id @default(cuid())
+  ticker       String
+  title        String   @db.Text
+  body         String   @db.Text
+  url          String?
+  notes        String?  @db.Text
+
+  aiStars      Int?
+  aiAnalysis   String?  @db.Text
+  aiConfidence String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// DailyMoverAnalysis — one row per day, EOD AI analysis of top movers
+model DailyMoverAnalysis {
+  id               String   @id @default(cuid())
+  date             String   @unique // "YYYY-MM-DD" ET
+  moversJson       Json     // array of { ticker, changePct, volume, relVol, priceOpen, priceClose }
+  trendingKeywords Json     // array of { keyword, count, avgChangePct, tickers[] }
+  aiSummary        String   @db.Text
+  computedAt       DateTime @default(now())
+}
+
 // DailyRecap — persisted end-of-day recap, one row per trading day
 // Summary scalars are columns (queryable); deep-dive sections stored as JSON
 model DailyRecap {

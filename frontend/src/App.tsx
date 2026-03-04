@@ -8,6 +8,7 @@ import RecapPage from "./pages/RecapPage";
 import { BotPage } from "./pages/BotPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { ScannerPage } from "./pages/ScannerPage";
+import { CatalystPage } from "./pages/CatalystPage";
 
 export default function App() {
   const { token, needsSetup, setNeedsSetup } = useAuthStore();
@@ -41,5 +42,6 @@ export default function App() {
   if (page === "recap") return <RecapPage />;
   if (page === "history") return <HistoryPage />;
   if (page === "bot") return <BotPage />;
+  if (page === "catalyst") return <CatalystPage />;
   return <NewsFeedsPage />;
 }

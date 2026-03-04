@@ -1,13 +1,13 @@
 import { create } from "zustand";
 
-export type Page = "scanner" | "trades" | "newsfeeds" | "recap" | "history" | "bot";
+export type Page = "scanner" | "trades" | "newsfeeds" | "recap" | "history" | "bot" | "catalyst";
 
 const STORAGE_KEY = "dtdash_page";
 
 function loadPage(): Page {
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
-    if (stored && ["scanner", "trades", "newsfeeds", "recap", "history", "bot"].includes(stored)) {
+    if (stored && ["scanner", "trades", "newsfeeds", "recap", "history", "bot", "catalyst"].includes(stored)) {
       return stored as Page;
     }
   } catch { /* SSR / no sessionStorage */ }

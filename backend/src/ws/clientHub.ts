@@ -8,7 +8,7 @@ const MAX_MESSAGE_SIZE = 4096; // 4KB max per WS message
 const AUTH_TIMEOUT_MS = 5000; // 5s to authenticate or disconnect
 const TOKEN_REVALIDATE_MS = 5 * 60 * 1000; // re-verify token every 5 min
 const MAX_SUBSCRIPTIONS = 50; // cap subscriptions per client
-const VALID_CHANNELS = /^(scanner:[a-z_]+|news|quotes:[A-Z0-9.]{1,10})$/;
+const VALID_CHANNELS = /^(scanner:[a-z_]+|news|bot|trades|screener|scanner_control|catalyst|quotes:[A-Z0-9.]{1,10})$/;
 
 export interface DashClient {
   ws: WebSocket;

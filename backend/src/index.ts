@@ -29,6 +29,9 @@ import { loadStrategiesFromDb, recomputeStrategies } from "./services/strategyEn
 import { startTradingWs } from "./services/tradingWs";
 import { startPositionMonitor } from "./services/positionMonitor";
 import { scheduleRecapCron } from "./services/eodRecap";
+import catalystRouter from "./routes/catalyst";
+import { startKeywordPriceEnrichment } from "./services/keywordTracker";
+import { scheduleMoverCron } from "./services/moverAnalysis";
 
 const app = express();
 
@@ -97,6 +100,7 @@ app.use("/api/trades", tradesRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/bot", botRouter);
 app.use("/api/labels", labelsRouter);
+app.use("/api/catalyst", catalystRouter);
 
 // Scanner definitions (no auth needed — public metadata)
 app.get("/api/scanners", (_req, res) => {
@@ -196,6 +200,8 @@ server.listen(config.port, async () => {
   startTradingWs();        // connect to Alpaca trading stream
   startPositionMonitor();  // start 5s poll loop + EOD cron
   scheduleRecapCron();     // register 4:01 PM ET EOD recap cron
+  startKeywordPriceEnrichment(); // keyword hit price enrichment every 5 min
+  scheduleMoverCron();           // EOD mover analysis at 4:05 PM ET
 
   // Recompute strategies every hour in case server has been up a long time
   setInterval(() => recomputeStrategies(), 60 * 60 * 1000);

@@ -86,23 +86,20 @@ function Stars({ count, isAiRated, onClick }: { count: number; isAiRated: boolea
     <button
       onClick={onClick}
       className="shrink-0 flex items-center gap-px cursor-pointer hover:opacity-80 transition-opacity"
-      title={isAiRated ? `AI: ${count}★ — click for analysis` : `${count}★ (keyword)`}
+      title={`${count}★ — click for details`}
     >
       {Array.from({ length: 5 }, (_, i) => (
         <span
           key={i}
           className={`text-[9px] leading-none ${
             i < count
-              ? isAiRated ? "text-accent" : "text-yellow-400"
+              ? isAiRated ? "text-accent" : "text-accent/40"
               : "text-muted opacity-30"
           }`}
         >
           ★
         </span>
       ))}
-      {isAiRated && (
-        <span className="text-[7px] text-accent font-bold ml-0.5 leading-none">AI</span>
-      )}
     </button>
   );
 }
@@ -392,9 +389,9 @@ export function NewsFeedsPage() {
             onClick={() => setMinStars(minStars === s && s > 1 ? 1 : s)}
             className={`shrink-0 text-[11px] px-1.5 py-0.5 rounded border transition-colors ${
               minStars === s && s > 1
-                ? "text-yellow-400 border-yellow-500/50 bg-yellow-400/10"
+                ? "text-accent border-accent/50 bg-accent/10"
                 : s <= minStars && minStars > 1
-                ? "text-yellow-400/60 border-yellow-600/30"
+                ? "text-accent/60 border-accent/30"
                 : "text-muted border-border hover:text-white"
             }`}
           >

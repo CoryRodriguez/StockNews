@@ -46,12 +46,12 @@ export async function evaluateAiStars(article: RtprArticle, articleDbId: number)
   const botConfig = getBotConfig();
   const keywords = parseAiKeywords(botConfig.aiKeywords);
 
-  // Always analyze high-tier catalyst articles (tier 1-3: M&A, FDA, Earnings)
+  // Always analyze articles with recognized catalyst keywords (tier 1-4)
   const catalyst = classifyCatalystGranular(article.title, article.body);
-  const isHighTier = catalyst != null && catalyst.tier <= 3;
+  const hasCatalyst = catalyst != null && catalyst.tier <= 4;
 
-  // Skip only if article isn't high-tier AND doesn't match configured AI keywords
-  if (!isHighTier && !matchesKeywords(article.title, article.body, keywords)) return;
+  // Skip only if article has no catalyst keywords AND doesn't match configured AI keywords
+  if (!hasCatalyst && !matchesKeywords(article.title, article.body, keywords)) return;
 
   const client = getOpenAIClient();
   if (!client) return; // No API key

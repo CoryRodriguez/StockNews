@@ -17,23 +17,20 @@ function Stars({ count, isAiRated, onClick }: { count: number; isAiRated: boolea
     <button
       onClick={onClick}
       className="shrink-0 flex items-center gap-px cursor-pointer hover:brightness-200 hover:drop-shadow-[0_0_4px_rgba(76,141,202,0.6)] transition-all duration-150"
-      title={isAiRated ? `AI: ${count}★ — click for analysis` : `${count}★ (keyword) — click for details`}
+      title={`${count}★ — click for details`}
     >
       {Array.from({ length: 5 }, (_, i) => (
         <span
           key={i}
           className={`text-[9px] leading-none ${
             i < count
-              ? isAiRated ? "text-accent" : "text-yellow-400"
+              ? isAiRated ? "text-accent" : "text-accent/40"
               : "text-muted opacity-30"
           }`}
         >
           ★
         </span>
       ))}
-      {isAiRated && (
-        <span className="text-[7px] text-accent font-bold ml-0.5 leading-none">AI</span>
-      )}
     </button>
   );
 }

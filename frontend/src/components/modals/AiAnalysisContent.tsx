@@ -1,25 +1,6 @@
 import { NewsArticle } from "../../types";
 import { deriveStars } from "../../utils/newsUtils";
 
-function StarRow({ label, count, color }: { label: string; count: number; color: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-muted text-[10px] w-20 shrink-0">{label}</span>
-      <span className="flex gap-px">
-        {Array.from({ length: 5 }, (_, i) => (
-          <span
-            key={i}
-            className={`text-sm leading-none ${i < count ? color : "text-muted opacity-30"}`}
-          >
-            ★
-          </span>
-        ))}
-      </span>
-      <span className="text-muted text-[10px]">{count}/5</span>
-    </div>
-  );
-}
-
 const CONFIDENCE_STYLES: Record<string, string> = {
   high: "bg-green-900/50 text-green-300 border-green-600/40",
   medium: "bg-yellow-900/50 text-yellow-300 border-yellow-600/40",
@@ -27,8 +8,8 @@ const CONFIDENCE_STYLES: Record<string, string> = {
 };
 
 export function AiAnalysisContent({ article }: { article: NewsArticle }) {
-  const keywordStars = deriveStars(article.title);
   const hasAi = article.aiStars != null;
+  const displayStars = article.aiStars ?? deriveStars(article.title);
 
   return (
     <div className="space-y-4">
@@ -41,32 +22,38 @@ export function AiAnalysisContent({ article }: { article: NewsArticle }) {
         <div className="text-white text-xs leading-tight">{article.title}</div>
       </div>
 
-      {/* Star comparison */}
-      <div className="bg-surface rounded p-3 space-y-2">
-        <StarRow label="Keyword" count={keywordStars} color="text-yellow-400" />
-        {hasAi ? (
-          <StarRow label="AI Rating" count={article.aiStars!} color="text-accent" />
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-muted text-[10px] w-20 shrink-0">AI Rating</span>
-            <span className="text-muted text-[10px] italic">Not analyzed</span>
-          </div>
-        )}
-      </div>
-
-      {/* Confidence badge */}
-      {hasAi && article.aiConfidence && (
-        <div className="flex items-center gap-2">
-          <span className="text-muted text-[10px]">Confidence</span>
-          <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
-              CONFIDENCE_STYLES[article.aiConfidence] ?? CONFIDENCE_STYLES.medium
-            }`}
-          >
-            {article.aiConfidence}
+      {/* Star rating */}
+      <div className="bg-surface rounded p-3">
+        <div className="flex items-center gap-3">
+          <span className="flex gap-px">
+            {Array.from({ length: 5 }, (_, i) => (
+              <span
+                key={i}
+                className={`text-lg leading-none ${
+                  i < displayStars
+                    ? hasAi ? "text-accent" : "text-accent/40"
+                    : "text-muted opacity-30"
+                }`}
+              >
+                ★
+              </span>
+            ))}
           </span>
+          <span className="text-white text-sm font-semibold">{displayStars}/5</span>
+          {hasAi && article.aiConfidence && (
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${
+                CONFIDENCE_STYLES[article.aiConfidence] ?? CONFIDENCE_STYLES.medium
+              }`}
+            >
+              {article.aiConfidence}
+            </span>
+          )}
+          {!hasAi && (
+            <span className="text-[10px] text-muted italic">Pending AI analysis</span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Analysis text */}
       {hasAi && article.aiAnalysis ? (
@@ -79,10 +66,10 @@ export function AiAnalysisContent({ article }: { article: NewsArticle }) {
       ) : (
         !hasAi && (
           <div className="text-muted text-xs text-center py-2 bg-surface rounded">
-            This article has not been analyzed by AI.
+            AI analysis is pending for this article.
             <br />
             <span className="text-[10px]">
-              Articles matching configured AI keywords are automatically analyzed.
+              Articles with catalyst keywords are automatically analyzed.
             </span>
           </div>
         )

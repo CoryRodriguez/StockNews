@@ -168,6 +168,8 @@ export function BotPanel() {
   const [draft, setDraft] = useState<BotConfig | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [aiKeywords, setAiKeywords] = useState<string[]>([]);
+  const [newKeyword, setNewKeyword] = useState("");
   const [showLiveConfirm, setShowLiveConfirm] = useState(false);
   const [liveGate, setLiveGate] = useState<GoLiveGate | null>(null);
   const [liveGateLoading, setLiveGateLoading] = useState(false);
@@ -215,6 +217,17 @@ export function BotPanel() {
   useEffect(() => {
     if (config && !draft) setDraft(config);
   }, [config, draft]);
+
+  // ── Fetch AI keywords when config tab opens ─────────────────────────────
+  useEffect(() => {
+    if (tab !== "config" || !token) return;
+    fetch("/api/bot/ai-keywords", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((data: { keywords?: string[] }) => {
+        if (data.keywords) setAiKeywords(data.keywords);
+      })
+      .catch(() => {});
+  }, [tab, token]);
 
   // ── Fetch recap data when Recap tab is active or selectedDate changes ─────
   useEffect(() => {
@@ -769,6 +782,80 @@ export function BotPanel() {
                   onChange={(v) => setDraft({ ...draft, scannerTradeSize: parseFloat(v) || 0 })} />
                 <ConfigRow label="Cooldown (min)" value={draft.scannerCooldownMin} step={5} min={1}
                   onChange={(v) => setDraft({ ...draft, scannerCooldownMin: parseInt(v) || 30 })} />
+
+                {/* AI Analysis Keywords section */}
+                <div className="px-2 py-1.5 mt-2 border-t border-b border-border">
+                  <span className="text-[9px] text-muted uppercase tracking-wide">AI Analysis Keywords</span>
+                  <p className="text-[9px] text-muted mt-0.5">Articles matching these keywords will be analyzed by AI for star ratings.</p>
+                </div>
+                <div className="px-2 py-2 space-y-2">
+                  {/* Current keywords as chips */}
+                  <div className="flex flex-wrap gap-1">
+                    {aiKeywords.length === 0 && (
+                      <span className="text-[10px] text-muted italic">No keywords configured</span>
+                    )}
+                    {aiKeywords.map((kw) => (
+                      <span
+                        key={kw}
+                        className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/30"
+                      >
+                        {kw}
+                        <button
+                          onClick={() => {
+                            const updated = aiKeywords.filter((k) => k !== kw);
+                            setAiKeywords(updated);
+                            void fetch("/api/bot/ai-keywords", {
+                              method: "PUT",
+                              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                              body: JSON.stringify({ keywords: updated }),
+                            });
+                          }}
+                          className="text-accent/60 hover:text-white leading-none"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  {/* Add keyword input */}
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={newKeyword}
+                      onChange={(e) => setNewKeyword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newKeyword.trim()) {
+                          const updated = [...new Set([...aiKeywords, newKeyword.trim()])];
+                          setAiKeywords(updated);
+                          setNewKeyword("");
+                          void fetch("/api/bot/ai-keywords", {
+                            method: "PUT",
+                            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                            body: JSON.stringify({ keywords: updated }),
+                          });
+                        }
+                      }}
+                      placeholder="Add keyword…"
+                      className="flex-1 bg-surface border border-border rounded px-2 py-0.5 text-[10px] text-white placeholder:text-muted focus:outline-none focus:border-accent"
+                    />
+                    <button
+                      onClick={() => {
+                        if (!newKeyword.trim()) return;
+                        const updated = [...new Set([...aiKeywords, newKeyword.trim()])];
+                        setAiKeywords(updated);
+                        setNewKeyword("");
+                        void fetch("/api/bot/ai-keywords", {
+                          method: "PUT",
+                          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                          body: JSON.stringify({ keywords: updated }),
+                        });
+                      }}
+                      className="text-[10px] px-2 py-0.5 rounded border border-accent/50 bg-accent/10 text-accent hover:bg-accent/20"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
 
                 {saveError && (
                   <div className="px-2 py-1 text-[10px] text-down font-mono">{saveError}</div>

@@ -9,6 +9,7 @@ import { broadcast } from "../ws/clientHub";
 import { getActiveScannersForTicker } from "./scanner";
 import { executePaperTrade } from "./paperTrader";
 import { evaluateBotSignal, notifyReconnect } from "./signalEngine";
+import { evaluateAiStars } from "./aiStarRater";
 import prisma from "../db/client";
 
 let ws: WebSocket | null = null;
@@ -31,7 +32,14 @@ export function pushArticle(article: RtprArticle): void {
     source: article.source,
     createdAt: article.createdAt,
     receivedAt: article.receivedAt,
-  }}).catch((err: Error) => console.error("[News] DB save error:", err.message));
+    url: article.url ?? null,
+  }}).then((row) => {
+    article.id = row.id;
+    // Fire-and-forget AI evaluation
+    void evaluateAiStars(article, row.id).catch((err: Error) =>
+      console.error("[AiRater] Error:", err.message)
+    );
+  }).catch((err: Error) => console.error("[News] DB save error:", err.message));
 }
 
 /** Load today's articles from DB into recentArticles on startup. */
@@ -45,7 +53,7 @@ export async function loadArticlesFromDb(): Promise<void> {
       take: MAX_RECENT,
     });
     for (const r of rows.reverse()) {
-      recentArticles.push({ ticker: r.ticker, title: r.title, body: r.body, author: r.author, source: r.source, createdAt: r.createdAt, receivedAt: r.receivedAt });
+      recentArticles.push({ ticker: r.ticker, title: r.title, body: r.body, author: r.author, source: r.source, createdAt: r.createdAt, receivedAt: r.receivedAt, url: r.url ?? undefined, id: r.id, aiStars: r.aiStars ?? undefined, aiAnalysis: r.aiAnalysis ?? undefined, aiConfidence: r.aiConfidence ?? undefined });
     }
     console.log(`[News] Loaded ${rows.length} articles from DB`);
   } catch (err) {
@@ -61,6 +69,11 @@ export interface RtprArticle {
   source: string;    // "rtpr" | "benzinga" | etc.
   createdAt: string; // ISO string from RTPR
   receivedAt: string; // when we got it
+  url?: string;      // source URL (Benzinga provides this)
+  id?: number;       // DB row id (set after persist)
+  aiStars?: number;
+  aiAnalysis?: string;
+  aiConfidence?: string;
 }
 
 // Track tickers that received news in last 60 min (for scanner news dots)

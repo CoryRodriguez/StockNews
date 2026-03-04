@@ -120,14 +120,18 @@ model PriceSnapshot {
 // ── Persisted news articles ────────────────────────────────────────────────
 
 model NewsArticle {
-  id         Int    @id @default(autoincrement())
-  ticker     String
-  title      String @db.Text
-  body       String @db.Text
-  author     String
-  source     String
-  createdAt  String
-  receivedAt String
+  id           Int     @id @default(autoincrement())
+  ticker       String
+  title        String  @db.Text
+  body         String  @db.Text
+  author       String
+  source       String
+  createdAt    String
+  receivedAt   String
+  url          String?
+  aiStars      Int?
+  aiAnalysis   String? @db.Text
+  aiConfidence String?
 
   @@index([receivedAt])
   @@index([source])
@@ -219,6 +223,7 @@ model BotConfig {
   scannerMinGapPct         Float    @default(5.0)
   scannerTradeSize         Float    @default(75)       // notional $ per scanner trade
   scannerCooldownMin       Int      @default(30)       // minutes before same ticker can re-enter
+  aiKeywords               String   @default("[]")     // JSON array of keywords that trigger AI analysis
   updatedAt                DateTime @updatedAt
 }
 

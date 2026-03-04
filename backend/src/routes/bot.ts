@@ -283,6 +283,43 @@ router.get('/gate', requireAuth, async (_req, res) => {
   }
 });
 
+// ─── GET /ai-keywords ────────────────────────────────────────────────────────
+router.get('/ai-keywords', requireAuth, (_req, res) => {
+  try {
+    const cfg = getBotConfig();
+    let keywords: string[] = [];
+    try { keywords = JSON.parse(cfg.aiKeywords); } catch { /* empty */ }
+    if (!Array.isArray(keywords)) keywords = [];
+    res.json({ keywords });
+  } catch (err) {
+    console.error('[BotRoute] /ai-keywords GET error:', err);
+    res.status(500).json({ error: 'Failed to load AI keywords' });
+  }
+});
+
+// ─── PUT /ai-keywords ────────────────────────────────────────────────────────
+router.put('/ai-keywords', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const { keywords } = req.body as { keywords: unknown };
+    if (!Array.isArray(keywords)) {
+      res.status(400).json({ error: 'keywords must be an array' });
+      return;
+    }
+    // Deduplicate, trim, filter empty strings
+    const clean = [...new Set(
+      keywords
+        .filter((k: unknown) => typeof k === 'string')
+        .map((k: string) => k.trim())
+        .filter((k: string) => k.length > 0)
+    )];
+    await updateConfig({ aiKeywords: JSON.stringify(clean) });
+    res.json({ keywords: clean });
+  } catch (err) {
+    console.error('[BotRoute] /ai-keywords PUT error:', err);
+    res.status(500).json({ error: 'Failed to update AI keywords' });
+  }
+});
+
 // ─── Recap date helpers ───────────────────────────────────────────────────────
 
 function getWeekDates(anchor: string): string[] {

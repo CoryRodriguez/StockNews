@@ -14,6 +14,10 @@ import { TradesPanel } from "../components/panels/TradesPanel";
 import { ScannerPanel } from "../components/panels/ScannerPanel";
 import { useSocket } from "../hooks/useSocket";
 import { useHourlyChanges } from "../hooks/useHourlyChanges";
+import { Modal } from "../components/ui/Modal";
+import { AiAnalysisContent } from "../components/modals/AiAnalysisContent";
+import { ArticleContent } from "../components/modals/ArticleContent";
+import { NewsArticle } from "../types";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -77,18 +81,29 @@ function fmtAge(iso: string): string {
 
 // ── Article row components ─────────────────────────────────────────────────
 
-function Stars({ count }: { count: number }) {
+function Stars({ count, isAiRated, onClick }: { count: number; isAiRated: boolean; onClick: (e: React.MouseEvent) => void }) {
   return (
-    <span className="shrink-0 flex gap-px">
+    <button
+      onClick={onClick}
+      className="shrink-0 flex items-center gap-px cursor-pointer hover:opacity-80 transition-opacity"
+      title={isAiRated ? `AI: ${count}★ — click for analysis` : `${count}★ (keyword)`}
+    >
       {Array.from({ length: 5 }, (_, i) => (
         <span
           key={i}
-          className={`text-[9px] leading-none ${i < count ? "text-yellow-400" : "text-muted opacity-30"}`}
+          className={`text-[9px] leading-none ${
+            i < count
+              ? isAiRated ? "text-accent" : "text-yellow-400"
+              : "text-muted opacity-30"
+          }`}
         >
           ★
         </span>
       ))}
-    </span>
+      {isAiRated && (
+        <span className="text-[7px] text-accent font-bold ml-0.5 leading-none">AI</span>
+      )}
+    </button>
   );
 }
 
@@ -111,16 +126,31 @@ function HighlightedText({ text, className }: { text: string; className?: string
 
 function FeedArticleRow({
   article,
+  fullArticle,
   feedColor,
   onArticleClick,
   hourChangePct,
 }: {
   article: FeedArticle;
+  fullArticle?: NewsArticle;
   feedColor: string;
   onArticleClick: (ticker: string) => void;
   hourChangePct?: number;
 }) {
-  const stars = deriveStars(article.title);
+  const openModal = useNewsStore((s) => s.openModal);
+  const displayStars = fullArticle?.aiStars ?? deriveStars(article.title);
+  const isAiRated = fullArticle?.aiStars != null;
+
+  const handleStarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (fullArticle) openModal(fullArticle, "ai");
+  };
+
+  const handleReadClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (fullArticle) openModal(fullArticle, "article");
+  };
+
   return (
     <div
       className="border-b border-border px-2 py-1.5 hover:bg-raised cursor-pointer"
@@ -128,20 +158,31 @@ function FeedArticleRow({
     >
       <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-muted text-[10px] font-mono shrink-0">{fmtTime(article.receivedAt)}</span>
-        <Stars count={stars} />
+        <Stars count={displayStars} isAiRated={isAiRated} onClick={handleStarClick} />
         <span className={`text-[11px] font-semibold font-mono shrink-0 ${feedColor}`}>
           {article.ticker}
         </span>
         <span className="text-[9px] text-muted shrink-0">{fmtAge(article.receivedAt)}</span>
-        {hourChangePct !== undefined && Math.abs(hourChangePct) >= 0.01 && (
-          <span
-            className={`ml-auto shrink-0 text-[10px] font-mono font-semibold ${
-              hourChangePct > 0 ? "text-up" : "text-down"
-            }`}
-          >
-            {hourChangePct > 0 ? "+" : ""}{hourChangePct.toFixed(2)}%
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          {hourChangePct !== undefined && Math.abs(hourChangePct) >= 0.01 && (
+            <span
+              className={`text-[10px] font-mono font-semibold ${
+                hourChangePct > 0 ? "text-up" : "text-down"
+              }`}
+            >
+              {hourChangePct > 0 ? "+" : ""}{hourChangePct.toFixed(2)}%
+            </span>
+          )}
+          {fullArticle && (
+            <button
+              onClick={handleReadClick}
+              className="shrink-0 text-muted hover:text-white text-[10px] leading-none transition-colors"
+              title="Read full article"
+            >
+              ◉
+            </button>
+          )}
+        </div>
       </div>
       <HighlightedText
         text={article.title}
@@ -156,15 +197,28 @@ function FeedArticleRow({
 function FeedColumn({
   feed,
   articles,
+  allArticles,
   onArticleClick,
   hourlyChanges,
 }: {
   feed: FeedConfig;
   articles: FeedArticle[];
+  allArticles: NewsArticle[];
   onArticleClick: (ticker: string) => void;
   hourlyChanges: Record<string, number>;
 }) {
   const displayCount = articles.length;
+
+  // Build a lookup for full articles
+  const fullArticleMap = useMemo(() => {
+    const map = new Map<string, NewsArticle>();
+    for (const a of allArticles) {
+      if (a.source === feed.id) {
+        map.set(`${a.ticker}-${a.receivedAt}`, a);
+      }
+    }
+    return map;
+  }, [allArticles, feed.id]);
 
   return (
     <div className="flex flex-col flex-1 min-w-0 border border-border rounded bg-panel overflow-hidden">
@@ -194,7 +248,14 @@ function FeedColumn({
       {/* Articles */}
       <div className="overflow-y-auto flex-1">
         {articles.map((a) => (
-          <FeedArticleRow key={a.id} article={a} feedColor={feed.color} onArticleClick={onArticleClick} hourChangePct={hourlyChanges[a.ticker]} />
+          <FeedArticleRow
+            key={a.id}
+            article={a}
+            fullArticle={fullArticleMap.get(`${a.ticker}-${a.receivedAt}`)}
+            feedColor={feed.color}
+            onArticleClick={onArticleClick}
+            hourChangePct={hourlyChanges[a.ticker]}
+          />
         ))}
         {articles.length === 0 && (
           <div className="text-muted text-xs text-center py-6">Waiting for articles…</div>
@@ -210,6 +271,7 @@ export function NewsFeedsPage() {
   useSocket();
   const allArticles = useNewsStore((s) => s.articles);
   const addArticle = useNewsStore((s) => s.addArticle);
+  const { modalArticle, modalType, closeModal } = useNewsStore();
   const token = useAuthStore((s) => s.token);
   const activeTicker = useDashboardStore((s) => s.activeTicker);
   const setActiveTicker = useDashboardStore((s) => s.setActiveTicker);
@@ -229,7 +291,7 @@ export function NewsFeedsPage() {
     if (!token) return;
     fetch("/api/news/recent", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
-      .then((articles: { ticker: string; title: string; body: string; author: string; source: string; createdAt: string; receivedAt: string }[]) => {
+      .then((articles: { ticker: string; title: string; body: string; author: string; source: string; createdAt: string; receivedAt: string; url?: string; id?: number; aiStars?: number; aiAnalysis?: string; aiConfidence?: string }[]) => {
         // Add oldest-first so newest ends up at the top of the store
         for (const a of [...articles].reverse()) addArticle(a as Parameters<typeof addArticle>[0]);
       })
@@ -250,7 +312,11 @@ export function NewsFeedsPage() {
     const tickerUpper = tickerFilter.trim().toUpperCase();
     for (const feed of FEEDS) {
       let articles = allArticles
-        .filter((a) => a.source === feed.id && deriveStars(a.title) >= minStars)
+        .filter((a) => {
+          if (a.source !== feed.id) return false;
+          const stars = a.aiStars ?? deriveStars(a.title);
+          return stars >= minStars;
+        })
         .map((a, i): FeedArticle => ({
           id: `${a.ticker}-${a.receivedAt}-${i}`,
           ticker: a.ticker,
@@ -347,6 +413,7 @@ export function NewsFeedsPage() {
               key={feed.id}
               feed={feed}
               articles={articlesByFeed.get(feed.id) ?? []}
+              allArticles={allArticles}
               onArticleClick={handleArticleClick}
               hourlyChanges={hourlyChanges}
             />
@@ -367,6 +434,20 @@ export function NewsFeedsPage() {
         </div>
 
       </div>
+
+      {/* Modal */}
+      {modalArticle && modalType && (
+        <Modal
+          title={modalType === "ai" ? "AI Analysis" : "Article"}
+          onClose={closeModal}
+        >
+          {modalType === "ai" ? (
+            <AiAnalysisContent article={modalArticle} />
+          ) : (
+            <ArticleContent article={modalArticle} />
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

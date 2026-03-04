@@ -73,6 +73,7 @@ export interface BotConfig {
   scannerMinGapPct: number;
   scannerTradeSize: number;
   scannerCooldownMin: number;
+  aiKeywords: string;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────

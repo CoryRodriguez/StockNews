@@ -39,6 +39,7 @@ export interface BotConfigRecord {
   scannerMinGapPct: number;
   scannerTradeSize: number;
   scannerCooldownMin: number;
+  aiKeywords: string;
   updatedAt: Date;
 }
 

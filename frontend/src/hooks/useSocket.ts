@@ -97,6 +97,10 @@ export function useSocket() {
           useRecapStore.getState().setRecapUnread(true);
         } else if (msg.type === "screener_update") {
           setScreenerRows(msg.rows);
+        } else if (msg.type === "news_article_ai_update") {
+          useNewsStore.getState().updateArticleAi(
+            msg.receivedAt, msg.ticker, msg.aiStars, msg.aiAnalysis, msg.aiConfidence
+          );
         }
       } catch {
         // ignore

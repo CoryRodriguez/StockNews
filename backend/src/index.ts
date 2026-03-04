@@ -122,6 +122,11 @@ app.get("/api/news/recent", requireAuth, async (_req, res) => {
       where: { receivedAt: { gte: startOfDay.toISOString() } },
       orderBy: { receivedAt: "desc" },
       take: 1000,
+      select: {
+        id: true, ticker: true, title: true, body: true, author: true,
+        source: true, createdAt: true, receivedAt: true,
+        url: true, aiStars: true, aiAnalysis: true, aiConfidence: true,
+      },
     });
     res.json(articles);
   } catch {

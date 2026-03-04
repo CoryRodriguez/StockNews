@@ -8,19 +8,33 @@ import { useHourlyChanges } from "../../hooks/useHourlyChanges";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NewsArticle } from "../../types";
 import { deriveStars, fmtTime, highlightKeywords } from "../../utils/newsUtils";
+import { Modal } from "../ui/Modal";
+import { AiAnalysisContent } from "../modals/AiAnalysisContent";
+import { ArticleContent } from "../modals/ArticleContent";
 
-function Stars({ count }: { count: number }) {
+function Stars({ count, isAiRated, onClick }: { count: number; isAiRated: boolean; onClick: (e: React.MouseEvent) => void }) {
   return (
-    <span className="shrink-0 flex gap-px" title={`${count} star${count !== 1 ? "s" : ""}`}>
+    <button
+      onClick={onClick}
+      className="shrink-0 flex items-center gap-px cursor-pointer hover:opacity-80 transition-opacity"
+      title={isAiRated ? `AI: ${count}★ — click for analysis` : `${count}★ (keyword) — click for details`}
+    >
       {Array.from({ length: 5 }, (_, i) => (
         <span
           key={i}
-          className={`text-[9px] leading-none ${i < count ? "text-yellow-400" : "text-muted opacity-30"}`}
+          className={`text-[9px] leading-none ${
+            i < count
+              ? isAiRated ? "text-accent" : "text-yellow-400"
+              : "text-muted opacity-30"
+          }`}
         >
           ★
         </span>
       ))}
-    </span>
+      {isAiRated && (
+        <span className="text-[7px] text-accent font-bold ml-0.5 leading-none">AI</span>
+      )}
+    </button>
   );
 }
 
@@ -54,7 +68,9 @@ function NewsItem({
 }) {
   const [expanded, setExpanded] = useState(false);
   const token = useAuthStore((s) => s.token);
-  const stars = article.stars ?? deriveStars(article.title);
+  const openModal = useNewsStore((s) => s.openModal);
+  const displayStars = article.aiStars ?? article.stars ?? deriveStars(article.title);
+  const isAiRated = article.aiStars != null;
   const timestamp = fmtTime(article.receivedAt);
   const ageMs = Date.now() - new Date(article.receivedAt).getTime();
   const isNew = ageMs < 2 * 60 * 1000;
@@ -62,6 +78,16 @@ function NewsItem({
   const handleAddToWatchlist = (e: React.MouseEvent) => {
     e.stopPropagation();
     useWatchlistStore.getState().addTicker(article.ticker, token ?? undefined);
+  };
+
+  const handleStarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    openModal(article, "ai");
+  };
+
+  const handleReadClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    openModal(article, "article");
   };
 
   return (
@@ -74,10 +100,10 @@ function NewsItem({
         setExpanded((v) => !v);
       }}
     >
-      {/* Row 1: timestamp | stars | ticker | badges | + button */}
+      {/* Row 1: timestamp | stars | ticker | badges | read | + button */}
       <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-muted text-[10px] font-mono shrink-0">{timestamp}</span>
-        <Stars count={stars} />
+        <Stars count={displayStars} isAiRated={isAiRated} onClick={handleStarClick} />
         <button
           onClick={(e) => { e.stopPropagation(); onTickerClick(); }}
           className="text-accent text-[11px] font-semibold font-mono hover:underline shrink-0"
@@ -109,6 +135,13 @@ function NewsItem({
               {hourChangePct > 0 ? "+" : ""}{hourChangePct.toFixed(2)}%
             </span>
           )}
+          <button
+            onClick={handleReadClick}
+            className="shrink-0 text-muted hover:text-white text-[10px] leading-none transition-colors"
+            title="Read full article"
+          >
+            ◉
+          </button>
           <button
             onClick={handleAddToWatchlist}
             className="shrink-0 text-accent text-sm font-bold leading-none hover:text-white transition-colors"
@@ -142,7 +175,7 @@ interface Props {
 }
 
 export function NewsPanel({ newsMode, title }: Props) {
-  const { filteredArticles, setFilterTicker, filterTicker } = useNewsStore();
+  const { filteredArticles, setFilterTicker, filterTicker, modalArticle, modalType, closeModal } = useNewsStore();
   const allArticles = useNewsStore((s) => s.articles);
   const setActiveTicker = useDashboardStore((s) => s.setActiveTicker);
   const { alertNews } = useAudioAlert();
@@ -217,6 +250,20 @@ export function NewsPanel({ newsMode, title }: Props) {
           />
         ))}
       </div>
+
+      {/* Modal */}
+      {modalArticle && modalType && (
+        <Modal
+          title={modalType === "ai" ? "AI Analysis" : "Article"}
+          onClose={closeModal}
+        >
+          {modalType === "ai" ? (
+            <AiAnalysisContent article={modalArticle} />
+          ) : (
+            <ArticleContent article={modalArticle} />
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

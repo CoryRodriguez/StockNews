@@ -151,6 +151,7 @@ function processArticles(articles: BenzingaArticle[]) {
         source: "benzinga",
         createdAt,
         receivedAt,
+        url: bz.url || undefined,
       };
 
       // Persist + push to in-memory ring buffer

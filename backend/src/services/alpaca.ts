@@ -299,6 +299,18 @@ export async function getMostActives(): Promise<string[]> {
   return data?.most_actives.map((s) => s.symbol) ?? [];
 }
 
+/** Fetch top market movers by % change (gainers + losers) */
+export async function getTopMovers(): Promise<string[]> {
+  const data = await fetchJson<{
+    gainers: Array<{ symbol: string }>;
+    losers: Array<{ symbol: string }>;
+  }>("/v1beta1/screener/stocks/movers?top=50");
+  if (!data) return [];
+  const gainers = data.gainers?.map((s) => s.symbol) ?? [];
+  const losers = data.losers?.map((s) => s.symbol) ?? [];
+  return [...gainers, ...losers];
+}
+
 // ── WebSocket for real-time watchlist quotes ────────────────────────────────
 
 let alpacaWs: WebSocket | null = null;

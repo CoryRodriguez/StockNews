@@ -3,7 +3,7 @@
  * Polls Alpaca REST every 30 seconds, evaluates filter rules,
  * and emits alerts to connected clients via the clientHub.
  */
-import { getSnapshots, getMostActives, Snapshot } from "./alpaca";
+import { getSnapshots, getMostActives, getTopMovers, Snapshot } from "./alpaca";
 import { broadcast } from "../ws/clientHub";
 import { enrichWithFloat, FloatData } from "./floatData";
 import { recentArticles } from "./rtpr";
@@ -167,13 +167,19 @@ async function runScan() {
   try {
     resetIfNewSession();
 
-    const actives = await getMostActives();
-    if (!actives.length) return;
+    const [actives, movers] = await Promise.all([
+      getMostActives(),
+      getTopMovers(),
+    ]);
+    // Merge both sources, deduplicate
+    const symbolSet = new Set([...actives, ...movers]);
+    const allSymbols = [...symbolSet];
+    if (!allSymbols.length) return;
 
-    const snapshots = await getSnapshots(actives);
+    const snapshots = await getSnapshots(allSymbols);
 
     // Enrich with float data and build screener universe
-    const floatMap = await enrichWithFloat(actives);
+    const floatMap = await enrichWithFloat(allSymbols);
     screenerRows = buildScreenerRows(snapshots, floatMap);
     broadcast("screener", { type: "screener_update", rows: screenerRows });
 

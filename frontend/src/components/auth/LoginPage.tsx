@@ -35,7 +35,7 @@ export function LoginPage({ isSetup }: Props) {
   return (
     <div className="min-h-screen bg-base flex items-center justify-center">
       <div className="w-80 bg-panel border border-border rounded-lg p-8">
-        <h1 className="text-white text-lg font-bold mb-0.5 tracking-tight">DTDash</h1>
+        <h1 className="text-white text-lg font-bold mb-0.5 tracking-tight">IsItaBuy?</h1>
         <p className="text-muted text-xs mb-6">
           {isSetup ? "Create your dashboard password" : "Enter your password to continue"}
         </p>

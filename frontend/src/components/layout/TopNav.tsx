@@ -20,7 +20,7 @@ export function TopNav() {
 
   return (
     <nav className="h-11 bg-panel border-b border-border flex items-center px-4 gap-1 shrink-0">
-      <span className="text-white font-bold text-sm mr-2 tracking-tight">DTDash</span>
+      <span className="text-white font-bold text-sm mr-2 tracking-tight">IsItaBuy?</span>
 
       <div className="w-px h-5 bg-border mx-1" />
 

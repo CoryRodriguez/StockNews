@@ -41,7 +41,7 @@ export function ArticleContent({ article }: { article: NewsArticle }) {
       {/* Body */}
       {article.body ? (
         <div
-          className="text-white/90 text-xs leading-relaxed whitespace-pre-wrap prose prose-invert prose-xs max-w-none [&_a]:text-accent [&_a]:underline"
+          className="text-white/90 text-xs leading-relaxed max-w-none [&_a]:text-accent [&_a]:underline [&_p]:mb-2 [&_br+br]:hidden [&_div]:mb-1"
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.body) }}
         />
       ) : (

@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { NewsArticle } from "../../types";
 import { deriveStars } from "../../utils/newsUtils";
+import { useAuthStore } from "../../store/authStore";
+import { useCatalystStore } from "../../store/catalystStore";
 
 const CONFIDENCE_STYLES: Record<string, string> = {
   high: "bg-green-900/50 text-green-300 border-green-600/40",
@@ -8,8 +11,35 @@ const CONFIDENCE_STYLES: Record<string, string> = {
 };
 
 export function AiAnalysisContent({ article }: { article: NewsArticle }) {
+  const token = useAuthStore((s) => s.token);
+  const prependUserArticle = useCatalystStore((s) => s.prependUserArticle);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const hasAi = article.aiStars != null;
   const displayStars = article.aiStars ?? deriveStars(article.title);
+
+  const handleAddToCatalyst = async () => {
+    if (!token || submitting || submitted) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/catalyst/articles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          ticker: article.ticker,
+          title: article.title,
+          body: article.body,
+          url: article.url || undefined,
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        prependUserArticle(created);
+        setSubmitted(true);
+      }
+    } catch { /* ignore */ }
+    setSubmitting(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -74,6 +104,21 @@ export function AiAnalysisContent({ article }: { article: NewsArticle }) {
           </div>
         )
       )}
+
+      {/* Add to Catalyst button */}
+      <div className="flex justify-end pt-2 border-t border-border">
+        <button
+          onClick={handleAddToCatalyst}
+          disabled={submitting || submitted}
+          className={`text-[11px] font-medium px-3 py-1.5 rounded transition-colors ${
+            submitted
+              ? "bg-green-soft text-up border border-green-600/30"
+              : "bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25"
+          } disabled:cursor-not-allowed`}
+        >
+          {submitted ? "Added to Catalyst" : submitting ? "Adding…" : "Add to Catalyst"}
+        </button>
+      </div>
     </div>
   );
 }

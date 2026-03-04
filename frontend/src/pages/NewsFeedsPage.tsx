@@ -153,6 +153,7 @@ function FeedArticleRow({
       className="border-b border-border px-2 py-1.5 hover:bg-raised cursor-pointer"
       onClick={() => onArticleClick(article.ticker)}
     >
+      {/* Top row: meta left, % change top-right */}
       <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-muted text-[10px] font-mono shrink-0">{fmtTime(article.receivedAt)}</span>
         <Stars count={displayStars} isAiRated={isAiRated} onClick={handleStarClick} />
@@ -160,31 +161,32 @@ function FeedArticleRow({
           {article.ticker}
         </span>
         <span className="text-[9px] text-muted shrink-0">{fmtAge(article.receivedAt)}</span>
-        <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          {hourChangePct !== undefined && Math.abs(hourChangePct) >= 0.01 && (
-            <span
-              className={`text-[10px] font-mono font-semibold ${
-                hourChangePct > 0 ? "text-up" : "text-down"
-              }`}
-            >
-              {hourChangePct > 0 ? "+" : ""}{hourChangePct.toFixed(2)}%
-            </span>
-          )}
-          {fullArticle && (
-            <button
-              onClick={handleReadClick}
-              className="shrink-0 text-muted hover:text-white text-[10px] leading-none transition-colors"
-              title="Read full article"
-            >
-              ◉
-            </button>
-          )}
-        </div>
+        {hourChangePct !== undefined && (
+          <span
+            className={`ml-auto text-[11px] font-mono font-bold shrink-0 ${
+              hourChangePct > 0 ? "text-up" : hourChangePct < 0 ? "text-down" : "text-muted"
+            }`}
+          >
+            {hourChangePct > 0 ? "+" : ""}{hourChangePct.toFixed(2)}%
+          </span>
+        )}
       </div>
-      <HighlightedText
-        text={article.title}
-        className="text-white text-xs leading-tight line-clamp-2 block"
-      />
+      {/* Title + read button bottom-right */}
+      <div className="flex items-end gap-1.5">
+        <HighlightedText
+          text={article.title}
+          className="text-white text-xs leading-tight line-clamp-2 block flex-1"
+        />
+        {fullArticle && (
+          <button
+            onClick={handleReadClick}
+            className="shrink-0 text-muted hover:text-white text-[10px] leading-none transition-colors mb-0.5"
+            title="Read full article"
+          >
+            ◉
+          </button>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import { NewsArticle } from "../../types";
 import { highlightKeywords, fmtTime } from "../../utils/newsUtils";
 
@@ -39,9 +40,9 @@ export function ArticleContent({ article }: { article: NewsArticle }) {
 
       {/* Body */}
       {article.body ? (
-        <HighlightedBlock
-          text={article.body}
-          className="text-white/90 text-xs leading-relaxed block whitespace-pre-wrap"
+        <div
+          className="text-white/90 text-xs leading-relaxed whitespace-pre-wrap prose prose-invert prose-xs max-w-none [&_a]:text-accent [&_a]:underline"
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(article.body) }}
         />
       ) : (
         <div className="text-muted text-xs italic">No article body available.</div>

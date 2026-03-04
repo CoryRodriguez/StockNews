@@ -14,6 +14,12 @@ const authHeaders = {
   "APCA-API-Secret-Key": config.alpacaApiSecret,
 };
 
+/** Filter out symbols that Alpaca cannot handle (e.g. $BTC, TSX:PLZ, BTCUSD) */
+const VALID_TICKER_RE = /^[A-Z]{1,5}$/;
+function sanitizeSymbols(symbols: string[]): string[] {
+  return symbols.filter((s) => VALID_TICKER_RE.test(s));
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface Snapshot {
@@ -121,6 +127,7 @@ async function fetchJson<T>(path: string): Promise<T | null> {
 
 /** Fetch snapshots for up to 1000 symbols at once */
 export async function getSnapshots(symbols: string[]): Promise<Snapshot[]> {
+  symbols = sanitizeSymbols(symbols);
   if (!symbols.length) return [];
   const param = symbols.join(",");
 
@@ -170,6 +177,7 @@ const HOURLY_CHANGE_TTL = 60_000; // 60 seconds
 
 /** Returns % change from previous day's close to latest price. */
 export async function getHourlyChanges(symbols: string[]): Promise<Record<string, number>> {
+  symbols = sanitizeSymbols(symbols);
   if (!symbols.length) return {};
   const now = Date.now();
 

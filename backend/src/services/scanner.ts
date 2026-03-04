@@ -21,7 +21,7 @@ const SCANNERS: ScannerDefinition[] = [
   {
     id: "gap_up",
     name: "Gap Up Pre-Market",
-    filter: (s) => s.gapPct >= 5 && s.price >= 1 && s.price <= 50 && s.volume > 10_000,
+    filter: (s) => s.gapPct >= 5 && s.price > 0 && s.price <= 50 && s.volume > 5_000,
   },
   {
     id: "gap_down",

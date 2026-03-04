@@ -57,8 +57,8 @@ interface HistoryRow {
 
 // ---- Utilities ----
 
-function getTodayET(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+function getTodayCT(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago" }).format(new Date());
 }
 
 function pnlClass(val: number | null): string {
@@ -86,7 +86,7 @@ function fmtTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   try {
     return new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
+      timeZone: "America/Chicago",
       hour: "2-digit",
       minute: "2-digit",
     }).format(new Date(iso));
@@ -897,7 +897,7 @@ function MonthView({
 
 export default function RecapPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("day");
-  const [anchorDate, setAnchorDate] = useState(getTodayET());
+  const [anchorDate, setAnchorDate] = useState(getTodayCT());
   const [dayRecap, setDayRecap] = useState<RecapData | null>(null);
   const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
   const [prevPeriodRows, setPrevPeriodRows] = useState<HistoryRow[]>([]);

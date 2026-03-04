@@ -62,7 +62,7 @@ export function ChartPanel({ panelId, symbol }: Props) {
       autosize: true,
       symbol: safeSymbol,
       interval: "15",
-      timezone: "America/New_York",
+      timezone: "America/Chicago",
       theme: "dark",
       style: "1",
       locale: "en",

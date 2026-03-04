@@ -139,7 +139,7 @@ export const useCatalystStore = create<CatalystState>((set) => ({
     set((s) => ({ userArticles: s.userArticles.filter((a) => a.id !== id) })),
 
   moverAnalysis: null,
-  moverSelectedDate: new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()),
+  moverSelectedDate: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago" }).format(new Date()),
   moverHistory: [],
   setMoverAnalysis: (analysis) => set({ moverAnalysis: analysis }),
   setMoverSelectedDate: (date) => set({ moverSelectedDate: date }),

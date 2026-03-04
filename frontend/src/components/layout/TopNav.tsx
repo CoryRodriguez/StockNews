@@ -38,12 +38,12 @@ export function TopNav() {
       <div className="ml-auto flex items-center gap-3">
         <span className="text-[10px] font-mono text-muted">
           {new Date().toLocaleTimeString("en-US", {
-            timeZone: "America/New_York",
+            timeZone: "America/Chicago",
             hour: "2-digit",
             minute: "2-digit",
             second: "2-digit",
           })}{" "}
-          ET
+          CT
         </span>
         <button
           onClick={logout}

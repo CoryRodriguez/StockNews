@@ -24,7 +24,7 @@ function stars(n: number): string {
 
 function timeFmt(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", {
-    timeZone: "America/New_York",
+    timeZone: "America/Chicago",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -32,7 +32,7 @@ function timeFmt(iso: string): string {
 
 function dateFmt(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
-    timeZone: "America/New_York",
+    timeZone: "America/Chicago",
     month: "short",
     day: "numeric",
   });

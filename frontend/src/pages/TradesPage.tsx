@@ -1197,7 +1197,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
                         {new Date(t.createdAt).toLocaleTimeString("en-US", {
                           hour: "2-digit",
                           minute: "2-digit",
-                          timeZone: "America/New_York",
+                          timeZone: "America/Chicago",
                         })}
                         {t.analytics?.isPreMarket && (
                           <span className="ml-0.5 text-warn/80">PRE</span>
@@ -1290,7 +1290,7 @@ function TradeLog({ trades, isDemoMode }: { trades: JournalTrade[]; isDemoMode?:
                             {new Date(t.createdAt).toLocaleTimeString("en-US", {
                               hour: "2-digit",
                               minute: "2-digit",
-                              timeZone: "America/New_York",
+                              timeZone: "America/Chicago",
                             })}
                             {t.analytics?.isPreMarket && (
                               <span className="ml-0.5 text-warn/80">PRE</span>

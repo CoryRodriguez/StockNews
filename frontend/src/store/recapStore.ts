@@ -88,16 +88,16 @@ interface RecapState {
   setRecapUnread: (unread: boolean) => void;
 }
 
-// Default to today's date in ET
-function getTodayET(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+// Default to today's date in CT
+function getTodayCT(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago" }).format(new Date());
 }
 
 export const useRecapStore = create<RecapState>((set) => ({
   recap: null,
   loading: false,
   error: null,
-  selectedDate: getTodayET(),
+  selectedDate: getTodayCT(),
   recapUnread: false,
   setRecap: (recap) => set({ recap }),
   setLoading: (loading) => set({ loading }),

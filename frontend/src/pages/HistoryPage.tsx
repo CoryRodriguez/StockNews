@@ -24,7 +24,7 @@ function BotTradeRow({ trade }: { trade: BotTrade }) {
       <td className="py-2 px-3 text-white font-semibold">{trade.symbol}</td>
       <td className="py-2 px-3 text-muted">
         {trade.entryAt
-          ? new Date(trade.entryAt).toLocaleDateString("en-US", { timeZone: "America/New_York" })
+          ? new Date(trade.entryAt).toLocaleDateString("en-US", { timeZone: "America/Chicago" })
           : "—"}
       </td>
       <td className="py-2 px-3 text-right">
@@ -42,7 +42,7 @@ function BotTradeRow({ trade }: { trade: BotTrade }) {
       <td className="py-2 px-3 text-muted">
         {trade.entryAt
           ? new Date(trade.entryAt).toLocaleTimeString("en-US", {
-              timeZone: "America/New_York",
+              timeZone: "America/Chicago",
               hour: "2-digit",
               minute: "2-digit",
             })
@@ -158,7 +158,7 @@ function SignalRow({
       <td className="py-2 px-3 text-muted">{signal.source}</td>
       <td className="py-2 px-3 text-muted">
         {new Date(signal.evaluatedAt).toLocaleTimeString("en-US", {
-          timeZone: "America/New_York",
+          timeZone: "America/Chicago",
           hour: "2-digit",
           minute: "2-digit",
         })}

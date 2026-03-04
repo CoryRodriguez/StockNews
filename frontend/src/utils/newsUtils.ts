@@ -81,6 +81,7 @@ export function fmtTime(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleTimeString("en-US", {
+      timeZone: "America/Chicago",
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",

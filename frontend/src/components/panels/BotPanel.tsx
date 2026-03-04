@@ -39,7 +39,7 @@ function StatusBadge({ state, marketOpen }: { state: string; marketOpen: boolean
 }
 
 function pdtResetDay(): string {
-  const et = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const et = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Chicago" }));
   const day = et.getDay();
   const daysUntilReset = day === 5 ? 3 : day === 6 ? 2 : 1;
   const reset = new Date(et);
@@ -130,7 +130,7 @@ function SignalRow({ signal }: { signal: BotSignal }) {
       <div className="flex gap-3 mt-0.5 text-muted text-[10px]">
         <span>{signal.catalystCategory ?? "—"}</span>
         <span>T{signal.catalystTier ?? "?"}</span>
-        <span>{new Date(signal.evaluatedAt).toLocaleTimeString()}</span>
+        <span>{new Date(signal.evaluatedAt).toLocaleTimeString("en-US", { timeZone: "America/Chicago" })}</span>
       </div>
     </div>
   );

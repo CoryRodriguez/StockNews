@@ -10,7 +10,7 @@ function stars(n: number): string {
 
 function timeFmt(iso: string): string {
   return new Date(iso).toLocaleString("en-US", {
-    timeZone: "America/New_York",
+    timeZone: "America/Chicago",
     month: "short",
     day: "numeric",
     hour: "2-digit",

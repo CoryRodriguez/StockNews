@@ -10,6 +10,7 @@ import { getBotConfig } from "./botController";
 import { broadcast } from "../ws/clientHub";
 import { recentArticles, type RtprArticle } from "./rtpr";
 import prisma from "../db/client";
+import { classifyCatalystGranular } from "./catalystClassifier";
 
 // ── OpenAI client (lazy init) ─────────────────────────────────────────────
 
@@ -45,8 +46,12 @@ export async function evaluateAiStars(article: RtprArticle, articleDbId: number)
   const botConfig = getBotConfig();
   const keywords = parseAiKeywords(botConfig.aiKeywords);
 
-  // No keywords configured or article doesn't match — skip
-  if (!matchesKeywords(article.title, article.body, keywords)) return;
+  // Always analyze high-tier catalyst articles (tier 1-3: M&A, FDA, Earnings)
+  const catalyst = classifyCatalystGranular(article.title, article.body);
+  const isHighTier = catalyst != null && catalyst.tier <= 3;
+
+  // Skip only if article isn't high-tier AND doesn't match configured AI keywords
+  if (!isHighTier && !matchesKeywords(article.title, article.body, keywords)) return;
 
   const client = getOpenAIClient();
   if (!client) return; // No API key

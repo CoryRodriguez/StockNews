@@ -16,7 +16,7 @@ function Stars({ count, isAiRated, onClick }: { count: number; isAiRated: boolea
   return (
     <button
       onClick={onClick}
-      className="shrink-0 flex items-center gap-px cursor-pointer hover:opacity-80 transition-opacity"
+      className="shrink-0 flex items-center gap-px cursor-pointer hover:brightness-200 hover:drop-shadow-[0_0_4px_rgba(76,141,202,0.6)] transition-all duration-150"
       title={isAiRated ? `AI: ${count}★ — click for analysis` : `${count}★ (keyword) — click for details`}
     >
       {Array.from({ length: 5 }, (_, i) => (
@@ -92,7 +92,7 @@ function NewsItem({
 
   return (
     <div
-      className={`border-b border-border px-2 py-1.5 hover:bg-raised cursor-pointer ${
+      className={`relative border-b border-border px-2 py-1.5 hover:bg-raised cursor-pointer ${
         tradeStatus ? "border-l-2 border-l-accent" : ""
       }`}
       onClick={() => {
@@ -100,7 +100,7 @@ function NewsItem({
         setExpanded((v) => !v);
       }}
     >
-      {/* Row 1: timestamp | stars | ticker | badges | read | + button */}
+      {/* Row 1: timestamp | stars | ticker | badges | + button */}
       <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-muted text-[10px] font-mono shrink-0">{timestamp}</span>
         <Stars count={displayStars} isAiRated={isAiRated} onClick={handleStarClick} />
@@ -136,13 +136,6 @@ function NewsItem({
             </span>
           )}
           <button
-            onClick={handleReadClick}
-            className="shrink-0 text-muted hover:text-white text-[10px] leading-none transition-colors"
-            title="Read full article"
-          >
-            ◉
-          </button>
-          <button
             onClick={handleAddToWatchlist}
             className="shrink-0 text-accent text-sm font-bold leading-none hover:text-white transition-colors"
             title={`Add ${article.ticker} to watchlist`}
@@ -155,16 +148,29 @@ function NewsItem({
       {/* Row 2: news snippet with keyword highlights */}
       <HighlightedText
         text={article.title}
-        className="text-white text-xs leading-tight line-clamp-2 block"
+        className="text-white text-xs leading-tight line-clamp-2 block pr-5"
       />
 
       {/* Expanded body */}
       {expanded && article.body && (
         <HighlightedText
           text={article.body}
-          className="text-muted text-[11px] mt-1 leading-relaxed block"
+          className="text-muted text-[11px] mt-1 leading-relaxed block pr-5"
         />
       )}
+
+      {/* Open article modal — bottom right */}
+      <button
+        onClick={handleReadClick}
+        className="absolute bottom-1.5 right-2 text-muted hover:text-white transition-colors"
+        title="Read full article"
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="2" width="12" height="12" rx="2" />
+          <path d="M9 2v4h5" />
+          <path d="M14 2L9 7" />
+        </svg>
+      </button>
     </div>
   );
 }

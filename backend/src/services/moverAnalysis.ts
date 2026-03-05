@@ -8,7 +8,7 @@ import cron from "node-cron";
 import OpenAI from "openai";
 import prisma from "../db/client";
 import { config } from "../config";
-import { getMostActives, getSnapshots } from "./alpaca";
+import { getMostActives, getTopMovers, getSnapshots } from "./alpaca";
 import { broadcast } from "../ws/clientHub";
 
 // ── OpenAI client (lazy init) ─────────────────────────────────────────────
@@ -29,9 +29,11 @@ function getTodayDateET(): string {
 
 // ── Main analysis function ────────────────────────────────────────────────
 
-export async function analyzeTopMovers(dateET?: string): Promise<void> {
+export type MoverSession = "premarket" | "market" | "postmarket";
+
+export async function analyzeTopMovers(dateET?: string, session: MoverSession = "market"): Promise<void> {
   const date = dateET ?? getTodayDateET();
-  console.log(`[MoverAnalysis] Starting analysis for ${date}`);
+  console.log(`[MoverAnalysis] Starting ${session} analysis for ${date}`);
 
   const client = getOpenAIClient();
   if (!client) {
@@ -39,17 +41,21 @@ export async function analyzeTopMovers(dateET?: string): Promise<void> {
     return;
   }
 
-  // 1. Get most active symbols
+  // 1. Get symbols from both screeners and merge for better coverage
   let symbols: string[];
   try {
-    symbols = await getMostActives();
+    const [actives, movers] = await Promise.all([
+      getMostActives().catch(() => [] as string[]),
+      getTopMovers().catch(() => [] as string[]),
+    ]);
+    symbols = [...new Set([...actives, ...movers])];
   } catch (err) {
-    console.error("[MoverAnalysis] Failed to get most actives:", err instanceof Error ? err.message : err);
+    console.error("[MoverAnalysis] Failed to get symbols:", err instanceof Error ? err.message : err);
     return;
   }
 
   if (symbols.length === 0) {
-    console.warn("[MoverAnalysis] No most actives returned");
+    console.warn("[MoverAnalysis] No symbols returned from screeners");
     return;
   }
 
@@ -111,14 +117,14 @@ export async function analyzeTopMovers(dateET?: string): Promise<void> {
       messages: [
         {
           role: "system",
-          content: `You are a stock market analyst. Analyze today's top movers and identify trending themes/keywords.
+          content: `You are a stock market analyst. Analyze the top movers for the ${session === "premarket" ? "pre-market" : session === "postmarket" ? "after-hours" : "regular market"} session and identify trending themes/keywords.
 
 Return JSON:
 {
   "trendingKeywords": [
     { "keyword": "<theme or keyword>", "count": <number of tickers related>, "avgChangePct": <average % change>, "tickers": ["SYM1", "SYM2"] }
   ],
-  "summary": "<2-4 paragraph narrative analyzing today's top movers, themes, and market sentiment>"
+  "summary": "<2-4 paragraph narrative analyzing the top movers, themes, and market sentiment>"
 }`,
         },
         {
@@ -139,11 +145,12 @@ Return JSON:
       summary: string;
     };
 
-    // 5. Upsert DailyMoverAnalysis row
+    // 5. Upsert DailyMoverAnalysis row (keyed on date + session)
     await prisma.dailyMoverAnalysis.upsert({
-      where: { date },
+      where: { date_session: { date, session } },
       create: {
         date,
+        session,
         moversJson,
         trendingKeywords: result.trendingKeywords ?? [],
         aiSummary: result.summary ?? "",
@@ -161,12 +168,13 @@ Return JSON:
     broadcast("catalyst", {
       type: "catalyst_mover_analysis",
       date,
+      session,
       moversJson,
       trendingKeywords: result.trendingKeywords ?? [],
       aiSummary: result.summary ?? "",
     });
 
-    console.log(`[MoverAnalysis] Analysis complete for ${date} — ${sorted.length} movers, ${result.trendingKeywords?.length ?? 0} trending keywords`);
+    console.log(`[MoverAnalysis] ${session} analysis complete for ${date} — ${sorted.length} movers, ${result.trendingKeywords?.length ?? 0} trending keywords`);
   } catch (err) {
     console.error("[MoverAnalysis] GPT analysis error:", err instanceof Error ? err.message : err);
   }
@@ -175,13 +183,29 @@ Return JSON:
 // ── Cron scheduler ────────────────────────────────────────────────────────
 
 export function scheduleMoverCron(): void {
-  // 4:05 PM ET, weekdays only
-  cron.schedule("5 16 * * 1-5", () => {
-    console.log("[MoverAnalysis] EOD cron triggered");
-    analyzeTopMovers().catch((err) =>
-      console.error("[MoverAnalysis] Cron error:", err instanceof Error ? err.message : err)
+  // Pre-market: 9:15 AM ET, weekdays
+  cron.schedule("15 9 * * 1-5", () => {
+    console.log("[MoverAnalysis] Pre-market cron triggered");
+    analyzeTopMovers(undefined, "premarket").catch((err) =>
+      console.error("[MoverAnalysis] Pre-market cron error:", err instanceof Error ? err.message : err)
     );
   }, { timezone: "America/New_York" });
 
-  console.log("[MoverAnalysis] EOD cron scheduled (4:05 PM ET, weekdays)");
+  // Regular market close: 4:05 PM ET, weekdays
+  cron.schedule("5 16 * * 1-5", () => {
+    console.log("[MoverAnalysis] Market close cron triggered");
+    analyzeTopMovers(undefined, "market").catch((err) =>
+      console.error("[MoverAnalysis] Market cron error:", err instanceof Error ? err.message : err)
+    );
+  }, { timezone: "America/New_York" });
+
+  // Post-market: 6:00 PM ET, weekdays
+  cron.schedule("0 18 * * 1-5", () => {
+    console.log("[MoverAnalysis] Post-market cron triggered");
+    analyzeTopMovers(undefined, "postmarket").catch((err) =>
+      console.error("[MoverAnalysis] Post-market cron error:", err instanceof Error ? err.message : err)
+    );
+  }, { timezone: "America/New_York" });
+
+  console.log("[MoverAnalysis] Crons scheduled: pre-market 9:15 AM, market 4:05 PM, post-market 6:00 PM ET (weekdays)");
 }

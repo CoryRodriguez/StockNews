@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "../../store/authStore";
-import { useCatalystStore, type MoverEntry, type TrendingKeyword } from "../../store/catalystStore";
+import { useCatalystStore, type MoverEntry, type MoverSession, type TrendingKeyword } from "../../store/catalystStore";
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -10,6 +10,18 @@ function fmtVol(v: number): string {
   return String(v);
 }
 
+const SESSION_LABELS: Record<string, string> = {
+  premarket: "Pre-Market",
+  market: "Market",
+  postmarket: "After-Hours",
+};
+
+const SESSION_COLORS: Record<string, string> = {
+  premarket: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  market: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  postmarket: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+};
+
 // ── Component ────────────────────────────────────────────────────────────
 
 export function DailyMoversPanel() {
@@ -17,9 +29,11 @@ export function DailyMoversPanel() {
   const {
     moverAnalysis,
     moverSelectedDate,
+    moverSelectedSession,
     moverHistory,
     setMoverAnalysis,
     setMoverSelectedDate,
+    setMoverSelectedSession,
     setMoverHistory,
   } = useCatalystStore();
   const [loading, setLoading] = useState(true);
@@ -36,18 +50,20 @@ export function DailyMoversPanel() {
       .catch(() => {});
   }, [token, setMoverHistory]);
 
-  // Fetch analysis for selected date
+  // Fetch analysis for selected date + session
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    fetch(`/api/catalyst/movers?date=${moverSelectedDate}`, {
+    const params = new URLSearchParams({ date: moverSelectedDate });
+    if (moverSelectedSession) params.set("session", moverSelectedSession);
+    fetch(`/api/catalyst/movers?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
       .then((data) => setMoverAnalysis(data ?? null))
       .catch(() => setMoverAnalysis(null))
       .finally(() => setLoading(false));
-  }, [token, moverSelectedDate, setMoverAnalysis]);
+  }, [token, moverSelectedDate, moverSelectedSession, setMoverAnalysis]);
 
   // Manual compute
   const handleCompute = async () => {
@@ -69,24 +85,44 @@ export function DailyMoversPanel() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <h2 className="text-xs font-semibold text-white tracking-wide uppercase">
-          Daily Movers
-        </h2>
         <div className="flex items-center gap-2">
+          <h2 className="text-xs font-semibold text-white tracking-wide uppercase">
+            Top Movers
+          </h2>
+          {moverAnalysis?.session && (
+            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${SESSION_COLORS[moverAnalysis.session] ?? ""}`}>
+              {SESSION_LABELS[moverAnalysis.session] ?? moverAnalysis.session}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Date selector — deduplicated to unique dates */}
           <select
             value={moverSelectedDate}
-            onChange={(e) => setMoverSelectedDate(e.target.value)}
+            onChange={(e) => { setMoverSelectedDate(e.target.value); setMoverSelectedSession(""); }}
             className="bg-panel border border-border rounded px-2 py-1 text-[10px] font-mono text-white focus:outline-none focus:border-accent"
           >
-            {/* Always include current selection */}
             {!moverHistory.some((h) => h.date === moverSelectedDate) && (
               <option value={moverSelectedDate}>{moverSelectedDate}</option>
             )}
-            {moverHistory.map((h) => (
-              <option key={h.date} value={h.date}>
-                {h.date}
-              </option>
+            {[...new Set(moverHistory.map((h) => h.date))].map((d) => (
+              <option key={d} value={d}>{d}</option>
             ))}
+          </select>
+          {/* Session selector — show sessions available for selected date */}
+          <select
+            value={moverSelectedSession}
+            onChange={(e) => setMoverSelectedSession(e.target.value as MoverSession | "")}
+            className="bg-panel border border-border rounded px-2 py-1 text-[10px] font-mono text-white focus:outline-none focus:border-accent"
+          >
+            <option value="">Latest</option>
+            {moverHistory
+              .filter((h) => h.date === moverSelectedDate)
+              .map((h) => (
+                <option key={h.session} value={h.session}>
+                  {SESSION_LABELS[h.session] ?? h.session}
+                </option>
+              ))}
           </select>
           {!moverAnalysis && !loading && (
             <button

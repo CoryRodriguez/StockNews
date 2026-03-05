@@ -2,7 +2,7 @@ import { Router } from "express";
 import prisma from "../db/client";
 import { requireAuth } from "../middleware/auth";
 import { evaluateUserArticle } from "../services/aiStarRater";
-import { analyzeTopMovers } from "../services/moverAnalysis";
+import { analyzeTopMovers, type MoverSession } from "../services/moverAnalysis";
 import { broadcast } from "../ws/clientHub";
 
 const router = Router();
@@ -171,35 +171,47 @@ router.delete("/articles/:id", requireAuth, async (req, res) => {
   }
 });
 
-// ── GET /movers — mover analysis for a date ──────────────────────────────
+// ── GET /movers — mover analysis for a date + session ────────────────────
+
+const VALID_SESSIONS = ["premarket", "market", "postmarket"] as const;
 
 router.get("/movers", requireAuth, async (req, res) => {
   try {
-    const date = String(req.query.date ?? "");
+    let date = String(req.query.date ?? "");
     if (!DATE_PATTERN.test(date)) {
-      // Default to today ET
-      const todayET = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
-      const analysis = await prisma.dailyMoverAnalysis.findUnique({ where: { date: todayET } });
-      res.json(analysis ?? null);
-      return;
+      date = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
     }
-    const analysis = await prisma.dailyMoverAnalysis.findUnique({ where: { date } });
-    res.json(analysis ?? null);
+    const session = String(req.query.session ?? "");
+
+    if (session && VALID_SESSIONS.includes(session as MoverSession)) {
+      // Specific session requested
+      const analysis = await prisma.dailyMoverAnalysis.findUnique({
+        where: { date_session: { date, session } },
+      });
+      res.json(analysis ?? null);
+    } else {
+      // No session specified — return the most recent analysis for that date
+      const analysis = await prisma.dailyMoverAnalysis.findFirst({
+        where: { date },
+        orderBy: { computedAt: "desc" },
+      });
+      res.json(analysis ?? null);
+    }
   } catch (err) {
     console.error("[CatalystRoute] GET /movers error:", err);
     res.status(500).json({ error: "Failed to fetch mover analysis" });
   }
 });
 
-// ── GET /movers/history — list available analysis dates ──────────────────
+// ── GET /movers/history — list available analysis dates + sessions ────────
 
 router.get("/movers/history", requireAuth, async (req, res) => {
   try {
     const limit = Math.min(90, Math.max(1, parseInt(String(req.query.limit ?? "30"), 10) || 30));
     const dates = await prisma.dailyMoverAnalysis.findMany({
-      orderBy: { date: "desc" },
+      orderBy: [{ date: "desc" }, { computedAt: "desc" }],
       take: limit,
-      select: { date: true, computedAt: true },
+      select: { date: true, session: true, computedAt: true },
     });
     res.json(dates);
   } catch (err) {
@@ -210,14 +222,27 @@ router.get("/movers/history", requireAuth, async (req, res) => {
 
 // ── POST /movers/compute — manually trigger analysis ─────────────────────
 
-router.post("/movers/compute", requireAuth, async (_req, res) => {
+function getCurrentSessionET(): MoverSession {
+  const nowET = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+  const h = nowET.getHours();
+  const m = nowET.getMinutes();
+  const mins = h * 60 + m;
+  if (mins < 570) return "premarket";    // before 9:30 AM
+  if (mins < 960) return "market";       // 9:30 AM – 4:00 PM
+  return "postmarket";                   // after 4:00 PM
+}
+
+router.post("/movers/compute", requireAuth, async (req, res) => {
   try {
     const todayET = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date());
+    const session = (VALID_SESSIONS.includes(String(req.body?.session) as MoverSession)
+      ? String(req.body.session)
+      : getCurrentSessionET()) as MoverSession;
     // Fire-and-forget
-    analyzeTopMovers(todayET).catch((err) =>
+    analyzeTopMovers(todayET, session).catch((err) =>
       console.error("[CatalystRoute] Manual compute error:", err)
     );
-    res.json({ ok: true, date: todayET });
+    res.json({ ok: true, date: todayET, session });
   } catch (err) {
     console.error("[CatalystRoute] POST /movers/compute error:", err);
     res.status(500).json({ error: "Failed to trigger analysis" });

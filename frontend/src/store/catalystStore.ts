@@ -74,9 +74,12 @@ export interface TrendingKeyword {
   tickers: string[];
 }
 
+export type MoverSession = "premarket" | "market" | "postmarket";
+
 export interface MoverAnalysis {
   id: string;
   date: string;
+  session: MoverSession;
   moversJson: MoverEntry[];
   trendingKeywords: TrendingKeyword[];
   aiSummary: string;
@@ -109,10 +112,12 @@ interface CatalystState {
   // Movers
   moverAnalysis: MoverAnalysis | null;
   moverSelectedDate: string;
-  moverHistory: { date: string; computedAt: string }[];
+  moverSelectedSession: MoverSession | "";
+  moverHistory: { date: string; session: MoverSession; computedAt: string }[];
   setMoverAnalysis: (analysis: MoverAnalysis | null) => void;
   setMoverSelectedDate: (date: string) => void;
-  setMoverHistory: (history: { date: string; computedAt: string }[]) => void;
+  setMoverSelectedSession: (session: MoverSession | "") => void;
+  setMoverHistory: (history: { date: string; session: MoverSession; computedAt: string }[]) => void;
 }
 
 export const useCatalystStore = create<CatalystState>((set) => ({
@@ -140,8 +145,10 @@ export const useCatalystStore = create<CatalystState>((set) => ({
 
   moverAnalysis: null,
   moverSelectedDate: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago" }).format(new Date()),
+  moverSelectedSession: "",
   moverHistory: [],
   setMoverAnalysis: (analysis) => set({ moverAnalysis: analysis }),
   setMoverSelectedDate: (date) => set({ moverSelectedDate: date }),
+  setMoverSelectedSession: (session) => set({ moverSelectedSession: session }),
   setMoverHistory: (history) => set({ moverHistory: history }),
 }));

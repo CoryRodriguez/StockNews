@@ -148,4 +148,4 @@ export type WsMessage =
   | { type: "news_article_ai_update"; channel: string; receivedAt: string; ticker: string; aiStars: number; aiAnalysis: string; aiConfidence: string }
   | { type: "catalyst_keyword_hit"; channel: string; hit: Record<string, unknown> }
   | { type: "catalyst_user_article"; channel: string; article: Record<string, unknown> }
-  | { type: "catalyst_mover_analysis"; channel: string; date: string; moversJson: unknown[]; trendingKeywords: unknown[]; aiSummary: string };
+  | { type: "catalyst_mover_analysis"; channel: string; date: string; session: string; moversJson: unknown[]; trendingKeywords: unknown[]; aiSummary: string };

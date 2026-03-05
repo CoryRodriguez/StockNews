@@ -113,6 +113,7 @@ export function useSocket() {
             store.setMoverAnalysis({
               id: "",
               date: msg.date,
+              session: (msg.session as "premarket" | "market" | "postmarket") ?? "market",
               moversJson: msg.moversJson as never[],
               trendingKeywords: msg.trendingKeywords as never[],
               aiSummary: msg.aiSummary,

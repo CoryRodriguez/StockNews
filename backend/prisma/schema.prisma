@@ -337,14 +337,17 @@ model UserArticle {
   updatedAt    DateTime @updatedAt
 }
 
-// DailyMoverAnalysis — one row per day, EOD AI analysis of top movers
+// DailyMoverAnalysis — one row per day+session, AI analysis of top movers
 model DailyMoverAnalysis {
   id               String   @id @default(cuid())
-  date             String   @unique // "YYYY-MM-DD" ET
+  date             String   // "YYYY-MM-DD" ET
+  session          String   @default("market") // "premarket" | "market" | "postmarket"
   moversJson       Json     // array of { ticker, changePct, volume, relVol, priceOpen, priceClose }
   trendingKeywords Json     // array of { keyword, count, avgChangePct, tickers[] }
   aiSummary        String   @db.Text
   computedAt       DateTime @default(now())
+
+  @@unique([date, session])
 }
 
 // DailyRecap — persisted end-of-day recap, one row per trading day
